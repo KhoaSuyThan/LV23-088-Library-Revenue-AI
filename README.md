@@ -80,4 +80,6 @@ Dự án áp dụng mô hình phân nhánh **Gitflow rút gọn**:
 
 ## 7. Giấy phép phát hành (License)
 
-Dự án được phân phối và cấp phép theo mã nguồn mở [MIT License](LICENSE). Mọi cá nhân và tổ chức có thể tham khảo, sử dụng hoặc mở rộng cho mục đích nghiên cứu và học thuật.
+Dự án được cấp phép theo [Non-Commercial & Educational License](LICENSE):
+* **Học tập & Nghiên cứu:** Được phép tự do đọc, tham khảo, thử nghiệm và trích dẫn phục vụ học thuật.
+* **Phi thương mại:** **Nghiêm cấm** mọi hành vi sao chép, sử dụng hoặc tái phân phối nhằm mục đích thương mại, kinh doanh và tạo ra lợi nhuận tài chính khi chưa được nhóm tác giả đồng ý.

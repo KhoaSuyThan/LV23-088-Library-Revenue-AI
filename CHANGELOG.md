@@ -5,11 +5,11 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-09-11] - Thiết lập giấy phép mã nguồn mở MIT License
+## [2026-09-11] - Áp dụng Giấy phép Phi thương mại & Học thuật (Non-Commercial & Educational)
 
-### Đã thêm (Added):
-- **Tệp LICENSE**: Cấp phép phân phối mã nguồn mở theo chuẩn [MIT License](LICENSE) cho nhóm dự án LV23-088.
-- **Tài liệu README.md**: Bổ sung mục **7. Giấy phép phát hành (License)** liên kết trực tiếp tới tệp LICENSE.
+### Đã thay đổi (Changed):
+- **Tệp LICENSE**: Chuyển đổi sang [Non-Commercial & Educational License](LICENSE) – Nghiêm cấm mọi hình thức thương mại, kinh doanh hoặc phân phối có thu phí; chỉ cho phép học tập, nghiên cứu và trích dẫn học thuật.
+- **Tài liệu README.md**: Cập nhật mục **7. Giấy phép phát hành (License)** với các điều khoản ràng buộc phi thương mại.
 
 ## [2026-09-11] - Khởi tạo dự án, tài liệu tổng quan và cấu hình Gitignore
 
