@@ -11,7 +11,7 @@ Dự án **LV23-088** tập trung giải quyết bài toán quản trị thất 
 
 ### Mục tiêu SMART của dự án:
 * **S (Specific):** Xây dựng hoàn chỉnh 16 chức năng cốt lõi (Mượn/Trả, Xử lý vi phạm, Báo cáo tài chính, Mô hình AI dự báo trễ hạn).
-* **M (Measurable):** Hoàn thành 100% tài liệu theo chuẩn Agile (Charter, SRS, RACI, Backlog, ERD 12 bảng); mô hình AI đạt độ chính xác $F_1\text{-score} \ge 75\%$.
+* **M (Measurable):** Hoàn thành 100% tài liệu theo chuẩn Agile (Charter, SRS, RACI, Backlog, ERD 12 bảng); mô hình AI đạt độ chính xác $F_1\text{-score} \ge 90\%$.
 * **A (Achievable):** Triển khai trên nền tảng đám mây gói miễn phí (Free-tier), sử dụng máy tính cá nhân để phát triển và huấn luyện mô hình.
 * **R (Relevant):** Giải quyết triệt để bài toán thất thoát và nợ phạt quá hạn của thư viện đại học.
 * **T (Time-bound):** Bàn giao toàn bộ sản phẩm và nghiệm thu đúng tuần thứ 9 theo tiến độ môn học.
@@ -23,7 +23,7 @@ Dự án **LV23-088** tập trung giải quyết bài toán quản trị thất 
 | STT | Họ và tên | Vai trò chính | Nhiệm vụ đảm nhiệm |
 | :---: | :--- | :---: | :--- |
 | 1 | **Nguyễn Võ Lê Khoa** | **Project Manager / Backend Dev** | Quản lý tiến độ Jira/GitHub, kiến trúc hệ thống, phát triển Backend API và logic xử lý mượn/trả/phạt. |
-| 2 | **Nhất Nam** | **Business Analyst / QA Tester** | Khảo sát quy trình nghiệp vụ, viết đặc tả SRS/Use Cases, thiết kế kịch bản kiểm thử (Test Cases) & Defect Log. |
+| 2 | **Nguyễn Thành Nhất Nam** | **Business Analyst / QA Tester** | Khảo sát quy trình nghiệp vụ, viết đặc tả SRS/Use Cases, thiết kế kịch bản kiểm thử (Test Cases) & Defect Log. |
 | 3 | **Trần Đức Huy** | **UI/UX Designer / Data Engineer** | Thiết kế Wireframe/Prototype trên Figma, chuẩn hóa CSDL 12 bảng, huấn luyện mô hình AI dự báo. |
 
 ---
@@ -32,6 +32,7 @@ Dự án **LV23-088** tập trung giải quyết bài toán quản trị thất 
 
 * **Jira Cloud Workspace:** [Theo dõi tiến độ Sprint & Backlog](https://khoanv249.atlassian.net/jira/software/projects/L0LRA/boards/2)
 * **GitHub Repository:** [Kho lưu trữ mã nguồn dự án](https://github.com/KhoaSuyThan/LV23-088-Library-Revenue-AI)
+* **Google Drive Workspace:** [Thư mục lưu trữ tài liệu & minh chứng dự án](https://drive.google.com/drive/folders/1dNWi_LnFo-nnB-v9ey1Er508-DRr0E3d?usp=drive_link)
 * **Figma Prototype:** *(Đang cập nhật link hoàn thiện từ Đức Huy)*
 * **Cơ sở dữ liệu (dbdiagram):** *(Đang cập nhật link sơ đồ quan hệ ERD)*
 
