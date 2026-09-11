@@ -75,3 +75,9 @@ Dự án áp dụng mô hình phân nhánh **Gitflow rút gọn**:
 * **Sprint 3 (Tuần 4 - 6):** Lập trình các nghiệp vụ lõi (Mượn/Trả, Xử lý tính phạt, Dashboard doanh thu) và xây dựng module AI.
 * **Sprint 4 (Tuần 7 - 8):** Tích hợp toàn diện hệ thống, kiểm thử hệ thống (System Test), sửa lỗi (Bug Fixing) và đóng gói triển khai.
 * **Nghiệm thu (Tuần 9):** Báo cáo và bảo vệ đồ án trước hội đồng giảng viên.
+
+---
+
+## 7. Giấy phép phát hành (License)
+
+Dự án được phân phối và cấp phép theo mã nguồn mở [MIT License](LICENSE). Mọi cá nhân và tổ chức có thể tham khảo, sử dụng hoặc mở rộng cho mục đích nghiên cứu và học thuật.

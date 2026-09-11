@@ -5,6 +5,12 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-09-11] - Thiết lập giấy phép mã nguồn mở MIT License
+
+### Đã thêm (Added):
+- **Tệp LICENSE**: Cấp phép phân phối mã nguồn mở theo chuẩn [MIT License](LICENSE) cho nhóm dự án LV23-088.
+- **Tài liệu README.md**: Bổ sung mục **7. Giấy phép phát hành (License)** liên kết trực tiếp tới tệp LICENSE.
+
 ## [2026-09-11] - Khởi tạo dự án, tài liệu tổng quan và cấu hình Gitignore
 
 ### Đã thêm (Added):
