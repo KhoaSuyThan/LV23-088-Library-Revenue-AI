@@ -9,7 +9,7 @@ USE SmartLibAI;
 GO
 
 -- 1. DỮ LIỆU CƠ BẢN: VAI TRÒ, DANH MỤC, QUY ĐỊNH PHẠT
-INSERT INTO Roles (RoleName) VALUES ('Admin'), ('Librarian'), ('Reader');
+INSERT INTO Roles (RoleName) VALUES ('Admin'), ('Staff'), ('Reader');
 
 INSERT INTO Categories (CategoryName) 
 VALUES (N'Công nghệ thông tin'), (N'Khoa học dữ liệu & AI'), (N'Kinh tế & Quản trị'), (N'Văn học & Nghệ thuật');
@@ -17,19 +17,28 @@ VALUES (N'Công nghệ thông tin'), (N'Khoa học dữ liệu & AI'), (N'Kinh t
 INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier) 
 VALUES (N'Phạt trễ hạn tiêu chuẩn', 5000, 1.0);
 
--- 2. TÀI KHOẢN ADMIN & THỦ THƯ MẪU
+-- 2. TÀI KHOẢN ADMIN & NHÂN VIÊN MẪU (BẢO MẬT BCRYPT CHUẨN)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email) 
 VALUES 
-(1, 'admin', '$2a$11$e8k6m...', N'Trần Đức Huy', 'admin@smartlib.edu.vn'),
-(2, 'librarian01', '$2a$11$e8k6m...', N'Nguyễn Văn Thủ Thư', 'lib01@smartlib.edu.vn');
+(1, 'khoanv', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Võ Lê Khoa', 'khoanv249@gmail.com'),
+(2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com');
 
--- 3. TẠO 10 ĐỘC GIẢ MẪU (USERS + READERS)
-DECLARE @u INT = 1;
+-- 3. TẠO ĐỘC GIẢ (USERS + READERS)
+-- Độc giả đại diện: Trần Đức Huy
 DECLARE @NewUserID INT;
+INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email)
+VALUES (3, 'duchuy', '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Trần Đức Huy', 'duchuy3d2005@gmail.com');
+
+SET @NewUserID = SCOPE_IDENTITY();
+INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate)
+VALUES (@NewUserID, 'RD20260001', 'Standard', '2027-12-31');
+
+-- Tạo thêm 9 độc giả mẫu tiếp theo (từ reader2 đến reader10)
+DECLARE @u INT = 2;
 WHILE @u <= 10
 BEGIN
     INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email) 
-    VALUES (3, 'reader' + CAST(@u AS VARCHAR), '$2a$11$e8k6m...', N'Độc giả ' + CAST(@u AS VARCHAR), 'reader' + CAST(@u AS VARCHAR) + '@smartlib.edu.vn');
+    VALUES (3, 'reader' + CAST(@u AS VARCHAR), '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Độc giả ' + CAST(@u AS VARCHAR), 'reader' + CAST(@u AS VARCHAR) + '@smartlib.edu.vn');
     
     SET @NewUserID = SCOPE_IDENTITY();
 
