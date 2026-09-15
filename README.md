@@ -40,15 +40,18 @@ Dự án **LV23-088 (SmartLib AI)** tập trung giải quyết bài toán quản
 
 ## 4. Kiến trúc hệ thống & Công nghệ sử dụng
 
-Hệ thống được phát triển theo mô hình phân tách độc lập (Decoupled Architecture) kết hợp kiến trúc phân tầng **N-Tier** tại Backend:
+Hệ thống được phát triển theo mô hình phân tách độc lập (Decoupled Architecture) gồm Cổng Quản trị Web Frontend và giải pháp phân tầng **N-Tier** tại Backend:
 
-* **Frontend:** Web Dashboard tương tác (React / HTML5 / CSS3 / Chart.js).
+* **Frontend:** Cổng Quản trị & Nghiệp vụ Thư viện nội bộ (**React 19 + Vite**):
+  * Thiết kế theo phong cách hiện đại **Split-Card & Organic Curved Panel** với tông màu xanh pastel dịu mắt.
+  * Tích hợp cơ chế xác thực JWT Token, phân quyền người dùng theo vai trò (RBAC).
+  * Thư viện: `axios` (kết nối API), `lucide-react` (icon giao diện).
 * **Backend:** **.NET 10 Web API (`net10.0`)** xây dựng theo kiến trúc N-Tier kết hợp MVC Web API Controller:
   * **Tầng Core (`SmartLibAI.Core`):** Định nghĩa 12 Domain Entities, Data Transfer Objects (DTOs), Repository Interfaces, Service Interfaces và Business Logic (Xác thực BCrypt, JWT Token, nghiệp vụ sách).
   * **Tầng Infrastructure (`SmartLibAI.Infrastructure`):** Quản trị CSDL qua `SmartLibDbContext` (Entity Framework Core 10) với cấu hình Fluent API chi tiết, triển khai `GenericRepository<T>`.
   * **Tầng API (`SmartLibAI.API`):** Controllers, Dependency Injection, Swagger UI tích hợp xác thực Bearer Token, Global Exception Middleware và CORS.
 * **Cơ sở dữ liệu:** Microsoft SQL Server chuẩn hóa 12 bảng quan hệ:
-  * `Roles`, `Users`, `Readers`, `Notifications` (Quản trị & Người dùng)
+  * `Roles` *(Admin, Staff, Reader)*, `Users`, `Readers`, `Notifications` (Quản trị & Người dùng)
   * `Categories`, `Books`, `BookCopies` (Quản lý tài nguyên sách)
   * `Borrowings`, `BorrowingDetails` (Nghiệp vụ Mượn / Trả)
   * `FineRules`, `FineReceipts`, `AIPredictionLogs` (Tài chính & Dự báo AI)
@@ -69,8 +72,16 @@ LV23-088-Library-Revenue-AI/
 ├── README.md                  # Tài liệu tổng quan và hướng dẫn dự án
 ├── data/                      # Kịch bản CSDL và dữ liệu mẫu demo
 │   ├── 01_schema_smartlib_ai.sql   # Script khởi tạo 12 bảng CSDL SQL Server
-│   ├── 02_seed_dummy_data.sql      # Script nạp dữ liệu mẫu thử nghiệm
+│   ├── 02_seed_dummy_data.sql      # Script nạp dữ liệu mẫu (3 vai trò, 3 tài khoản nhóm)
 │   └── books.csv                   # Tập dữ liệu Kaggle thông tin sách thực tế
+├── frontend/                  # Cổng Quản trị & Nghiệp vụ Thư viện (React 19 + Vite)
+│   ├── src/
+│   │   ├── api/               # Cấu hình gọi Backend API (authApi.js)
+│   │   ├── pages/             # Màn hình Đăng nhập (LoginPage) & Dashboard
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── package.json
+│   └── vite.config.js
 └── src/                       # Mã nguồn giải pháp Backend .NET 10
     ├── SmartLibAI.sln         # File Solution quản lý toàn bộ các project
     ├── SmartLibAI.Core/       # Tầng nghiệp vụ lõi (Entities, DTOs, Interfaces, Services)
@@ -84,46 +95,43 @@ LV23-088-Library-Revenue-AI/
 
 ### Yêu cầu môi trường:
 * [.NET 10 SDK](https://dotnet.microsoft.com/download) (hoặc phiên bản mới nhất hỗ trợ `net10.0`).
-* [Microsoft SQL Server](https://www.microsoft.com/sql-server) (LocalDB / Express / Standard) & SSMS / Azure Data Studio.
+* [Node.js](https://nodejs.org/) (phiên bản 18+ trở lên) & npm.
+* [Microsoft SQL Server](https://www.microsoft.com/sql-server) (LocalDB / Express / Standard) & SSMS / sqlcmd.
 * [Git](https://git-scm.com/).
 
 ### Các bước thực hiện:
 
 #### Bước 1: Khởi tạo Cơ sở dữ liệu
-1. Mở SQL Server Management Studio (SSMS) hoặc công cụ quản trị SQL tương đương.
-2. Thực thi script [`data/01_schema_smartlib_ai.sql`](data/01_schema_smartlib_ai.sql) để tạo cơ sở dữ liệu `SmartLibAI` và 12 bảng cấu trúc chuẩn.
-3. Thực thi script [`data/02_seed_dummy_data.sql`](data/02_seed_dummy_data.sql) để nạp các bản ghi dữ liệu mẫu phục vụ kiểm thử.
-
-#### Bước 2: Cấu hình chuỗi kết nối Backend
-Mở tệp [`src/SmartLibAI.API/appsettings.json`](src/SmartLibAI.API/appsettings.json) và điều chỉnh chuỗi kết nối CSDL nếu cần:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=SmartLibAI;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
-  }
-}
+Chạy lần lượt 2 kịch bản SQL bằng công cụ `sqlcmd` hoặc SSMS:
+```powershell
+sqlcmd -S localhost -E -i data/01_schema_smartlib_ai.sql
+sqlcmd -S localhost -E -i data/02_seed_dummy_data.sql
 ```
 
-#### Bước 3: Biên dịch & Khởi chạy Backend Web API
-Mở cửa sổ dòng lệnh tại thư mục gốc của repository:
-
-```bash
-# Khôi phục các gói phụ thuộc và biên dịch solution
+#### Bước 2: Khởi chạy Backend Web API (.NET 10)
+```powershell
 dotnet restore src/SmartLibAI.sln
 dotnet build src/SmartLibAI.sln
-
-# Khởi chạy dự án Web API
 dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj
 ```
+* **Swagger UI API:** Truy cập 👉 **`http://localhost:5264/index.html`** (hoặc port hiển thị trên console).
 
-#### Bước 4: Kiểm tra & Trải nghiệm API qua Swagger UI
-* Khi ứng dụng khởi chạy thành công, truy cập trình duyệt tại địa chỉ gốc:  
-  👉 **`http://localhost:5000`** (hoặc port được hiển thị trên console terminal).
-* Giao diện **Swagger UI** sẽ tự động hiển thị với đầy đủ các endpoints:
-  * `GET /api/health`: Kiểm tra trạng thái hoạt động hệ thống.
-  * `POST /api/auth/login`: Đăng nhập hệ thống và lấy mã JWT Token.
-  * `GET /api/books`: Tra cứu danh mục sách thư viện.
-* Bấm vào nút **Authorize** ở góc trên bên phải giao diện Swagger và nhập `Bearer {token}` để xác thực quyền truy cập các API yêu cầu bảo mật.
+#### Bước 3: Khởi chạy Cổng Quản trị Frontend (React)
+Mở một tab terminal mới tại thư mục gốc của dự án:
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+* **Cổng Quản trị Web:** Mở trình duyệt truy cập 👉 **`http://localhost:5173`**
+
+#### Bước 4: Danh sách tài khoản kiểm thử sẵn có trong hệ thống
+
+| Vai trò | Tài khoản đăng nhập (Username / Email) | Mật khẩu | Chức danh | Quyền hạn truy cập |
+| :--- | :--- | :--- | :--- | :--- |
+| **Admin** | `khoanv` *(hoặc `khoanv249@gmail.com`)* | `24092005k` | **Nguyễn Võ Lê Khoa** | Toàn quyền Quản trị hệ thống |
+| **Staff** | `nhatnam` *(hoặc `nguyennhatnam213654@gmail.com`)* | `14022005N` | **Nguyễn Thành Nhất Nam** | Nhân viên thư viện (Mượn/trả/phạt) |
+| **Reader** | `duchuy` *(hoặc `duchuy3d2005@gmail.com`)* | `25022005H` | **Trần Đức Huy** | Độc giả *(Bị chặn đăng nhập vào Portal)* |
 
 ---
 

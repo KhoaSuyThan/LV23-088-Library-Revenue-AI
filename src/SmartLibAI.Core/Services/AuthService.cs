@@ -34,8 +34,9 @@ public class AuthService : IAuthService
     /// </summary>
     public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginRequestDto request)
     {
-        // 1. Tìm tài khoản người dùng theo username
-        var users = await _userRepository.FindAsync(u => u.Username == request.Username.Trim());
+        // 1. Tìm tài khoản người dùng theo Username hoặc Email
+        var identifier = request.Username.Trim();
+        var users = await _userRepository.FindAsync(u => u.Username == identifier || (u.Email != null && u.Email == identifier));
         var user = users.FirstOrDefault();
 
         if (user == null)
@@ -54,7 +55,13 @@ public class AuthService : IAuthService
         var role = await _roleRepository.GetByIdAsync(user.RoleID);
         string roleName = role?.RoleName ?? "Reader";
 
-        // 4. Sinh JWT Token có chứa Name, NameIdentifier và Role
+        // 4. Kiểm tra phân quyền RBAC: Chặn tài khoản Độc giả (Reader) truy cập portal quản trị
+        if (string.Equals(roleName, "Reader", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản độc giả không có quyền truy cập vào Cổng Quản trị & Nghiệp vụ nội bộ.");
+        }
+
+        // 5. Sinh JWT Token có chứa Name, NameIdentifier và Role
         string token = GenerateToken(user, roleName);
 
         var durationInHours = Convert.ToDouble(_configuration["JwtSettings:DurationInHours"] ?? "8");
