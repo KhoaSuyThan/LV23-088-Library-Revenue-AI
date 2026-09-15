@@ -1,0 +1,114 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using SmartLibAI.API.Middlewares;
+using SmartLibAI.Core.Interfaces;
+using SmartLibAI.Core.Services;
+using SmartLibAI.Infrastructure.Data;
+using SmartLibAI.Infrastructure.Repositories;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 1. Cấu hình DbContext kết nối SQL Server
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<SmartLibDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// 2. Đăng ký DI cho Repositories và Business Services
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookService, BookService>();
+
+// 3. Cấu hình JWT Authentication & Authorization
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["SecretKey"] ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"] ?? "SmartLibServer",
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"] ?? "SmartLibClient",
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// 4. Cấu hình CORS mở rộng cho kết nối Frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// 5. Cấu hình Controllers và SwaggerGen với Bearer Token
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SmartLib AI API",
+        Version = "v1",
+        Description = "Nền tảng Backend Web API cho hệ thống SmartLib AI (LV23-088) chạy trên .NET 10"
+    });
+
+    // Thêm nút Authorize cho JWT Bearer Token
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Nhập mã token JWT theo định dạng: Bearer {token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    // Thêm Security Requirement cho Bearer Token (.NET 10 / Swashbuckle 10.x)
+    c.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", doc, null)] = new List<string>()
+    });
+});
+
+var app = builder.Build();
+
+// 6. Middleware Pipeline
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartLib AI API v1");
+        c.RoutePrefix = string.Empty; // Mở Swagger UI tại trang chủ root "/"
+    });
+}
+
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
