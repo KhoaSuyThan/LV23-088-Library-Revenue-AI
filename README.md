@@ -31,7 +31,7 @@ Dự án **LV23-088 (SmartLib AI)** tập trung giải quyết bài toán quản
 ## 3. Liên kết tài nguyên & Minh chứng quản lý
 
 * **Jira Cloud Workspace:** [Theo dõi tiến độ Sprint & Backlog](https://khoanv249.atlassian.net/jira/software/projects/L0LRA/boards/2)
-* **GitHub Repository:** [Kho lưu trữ mã nguồn dự án](https://github.com/KhoaSuyThan/LV23-088-Library-Revenue-AI)
+* **GitHub Repository:** [Kho lưu trữ mã nguồn dự án (Nhánh `develop`)](https://github.com/KhoaSuyThan/LV23-088-Library-Revenue-AI)
 * **Google Drive Workspace:** [Thư mục lưu trữ tài liệu & minh chứng dự án](https://drive.google.com/drive/folders/1dNWi_LnFo-nnB-v9ey1Er508-DRr0E3d?usp=drive_link)
 * **Figma Prototype:** *(Đang cập nhật link hoàn thiện từ Đức Huy)*
 * **Cơ sở dữ liệu (dbdiagram):** *(Đang cập nhật link sơ đồ quan hệ ERD)*
@@ -51,7 +51,7 @@ Hệ thống được phát triển theo mô hình phân tách độc lập (Dec
   * **Tầng Infrastructure (`SmartLibAI.Infrastructure`):** Quản trị CSDL qua `SmartLibDbContext` (Entity Framework Core 10) với cấu hình Fluent API chi tiết, triển khai `GenericRepository<T>`.
   * **Tầng API (`SmartLibAI.API`):** Controllers, Dependency Injection, Swagger UI tích hợp xác thực Bearer Token, Global Exception Middleware và CORS.
 * **Cơ sở dữ liệu:** Microsoft SQL Server chuẩn hóa 12 bảng quan hệ:
-  * `Roles` *(Admin, Staff, Reader)*, `Users`, `Readers`, `Notifications` (Quản trị & Người dùng)
+  * `Roles` *(Admin, Staff, Reader)*, `Users` *(bổ sung trường `IsActive`)*, `Readers`, `Notifications` (Quản trị & Người dùng)
   * `Categories`, `Books`, `BookCopies` (Quản lý tài nguyên sách)
   * `Borrowings`, `BorrowingDetails` (Nghiệp vụ Mượn / Trả)
   * `FineRules`, `FineReceipts`, `AIPredictionLogs` (Tài chính & Dự báo AI)
@@ -70,10 +70,16 @@ LV23-088-Library-Revenue-AI/
 ├── CHANGELOG.md               # Nhật ký ghi nhận lịch sử thay đổi mã nguồn
 ├── LICENSE                    # Giấy phép phát hành phi thương mại & học thuật
 ├── README.md                  # Tài liệu tổng quan và hướng dẫn dự án
+├── package.json               # Cấu hình scripts điều phối khởi chạy từ thư mục gốc
+├── api.cmd                    # Lệnh tắt chạy nhanh Backend trên Windows
+├── dev.cmd                    # Lệnh tắt chạy nhanh Frontend trên Windows
 ├── data/                      # Kịch bản CSDL và dữ liệu mẫu demo
-│   ├── 01_schema_smartlib_ai.sql   # Script khởi tạo 12 bảng CSDL SQL Server
-│   ├── 02_seed_dummy_data.sql      # Script nạp dữ liệu mẫu (3 vai trò, 3 tài khoản nhóm)
+│   ├── 01_schema_smartlib_ai.sql   # Script khởi tạo 12 bảng CSDL SQL Server (có IsActive)
+│   ├── 02_seed_dummy_data.sql      # Script nạp dữ liệu mẫu (3 tài khoản chuẩn & 200 lượt mượn)
 │   └── books.csv                   # Tập dữ liệu Kaggle thông tin sách thực tế
+├── DtbDoAnCS/                 # Bản sao lưu kịch bản CSDL chuẩn hóa theo quy định đồ án
+│   ├── 01_schema_smartlib_ai.sql
+│   └── 02_seed_dummy_data.sql
 ├── frontend/                  # Cổng Quản trị & Nghiệp vụ Thư viện (React 19 + Vite)
 │   ├── src/
 │   │   ├── api/               # Cấu hình gọi Backend API (authApi.js)
@@ -96,66 +102,92 @@ LV23-088-Library-Revenue-AI/
 ### Yêu cầu môi trường:
 * [.NET 10 SDK](https://dotnet.microsoft.com/download) (hoặc phiên bản mới nhất hỗ trợ `net10.0`).
 * [Node.js](https://nodejs.org/) (phiên bản 18+ trở lên) & npm.
-* [Microsoft SQL Server](https://www.microsoft.com/sql-server) (LocalDB / Express / Standard) & SSMS / sqlcmd.
+* [Microsoft SQL Server](https://www.microsoft.com/sql-server) (LocalDB / Express / Standard) & SSMS / Azure Data Studio.
 * [Git](https://git-scm.com/).
+
+---
 
 ### Các bước thực hiện:
 
-#### Bước 1: Khởi tạo Cơ sở dữ liệu
-Chạy lần lượt 2 kịch bản SQL bằng công cụ `sqlcmd` hoặc SSMS:
+#### Bước 1: Khởi tạo Cơ sở dữ liệu SQL Server
+Mở **SQL Server Management Studio (SSMS)** hoặc dùng `sqlcmd` chạy lần lượt 2 kịch bản SQL:
 ```powershell
 sqlcmd -S localhost -E -i data/01_schema_smartlib_ai.sql
 sqlcmd -S localhost -E -i data/02_seed_dummy_data.sql
 ```
 
-#### Bước 2: Khởi chạy Backend Web API (.NET 10)
-```powershell
-dotnet restore src/SmartLibAI.sln
-dotnet build src/SmartLibAI.sln
-dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj
-```
-* **Swagger UI API:** Truy cập 👉 **`http://localhost:5264/index.html`** (hoặc port hiển thị trên console).
+---
 
-#### Bước 3: Khởi chạy Cổng Quản trị Frontend (React)
-Mở một tab terminal mới tại thư mục gốc của dự án:
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-* **Cổng Quản trị Web:** Mở trình duyệt truy cập 👉 **`http://localhost:5173`**
+#### Bước 2: Khởi chạy Backend Web API (.NET 10)
+Tại thư mục gốc của dự án, bạn có thể chọn **1 trong các cách sau**:
+
+* **Cách 1 (Nhanh nhất bằng npm):**
+  ```bash
+  npm run api
+  ```
+* **Cách 2 (Bằng tập lệnh tắt trên Windows PowerShell / CMD):**
+  ```powershell
+  .\api
+  ```
+* **Cách 3 (Lệnh chuẩn .NET CLI):**
+  ```powershell
+  dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj
+  ```
+
+👉 **Swagger UI API Document:** Truy cập trình duyệt tại **`http://localhost:5264/index.html`** (hoặc cổng HTTP hiển thị trên màn hình console).
+
+---
+
+#### Bước 3: Khởi chạy Cổng Quản trị Frontend (React 19 + Vite)
+Mở một tab terminal mới tại **thư mục gốc của dự án**:
+
+* **Khởi chạy trực tiếp (Không cần `cd frontend`):**
+  ```bash
+  npm run dev
+  ```
+  *(hoặc gõ `.\dev` trên PowerShell)*
+
+👉 **Cổng Quản trị Web:** Mở trình duyệt truy cập **`http://localhost:5173`**
+
+---
 
 #### Bước 4: Danh sách tài khoản kiểm thử sẵn có trong hệ thống
 
-| Vai trò | Tài khoản đăng nhập (Username / Email) | Mật khẩu | Chức danh | Quyền hạn truy cập |
-| :--- | :--- | :--- | :--- | :--- |
-| **Admin** | `khoanv` *(hoặc `khoanv249@gmail.com`)* | `24092005k` | **Nguyễn Võ Lê Khoa** | Toàn quyền Quản trị hệ thống |
-| **Staff** | `nhatnam` *(hoặc `nguyennhatnam213654@gmail.com`)* | `14022005N` | **Nguyễn Thành Nhất Nam** | Nhân viên thư viện (Mượn/trả/phạt) |
-| **Reader** | `duchuy` *(hoặc `duchuy3d2005@gmail.com`)* | `25022005H` | **Trần Đức Huy** | Độc giả *(Bị chặn đăng nhập vào Portal)* |
+| Vai trò | Tên đăng nhập | Địa chỉ Email | Mật khẩu mặc định | Họ và tên | Quyền hạn truy cập |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Admin** | `khoanv` | `khoanv249@gmail.com` | `24092005k` | **Nguyễn Võ Lê Khoa** | Toàn quyền Quản trị hệ thống |
+| **Staff** | `nhatnam` | `nguyennhatnam213654@gmail.com` | `14022005N` | **Nguyễn Thành Nhất Nam** | Quản lý sách, xử lý mượn/trả/phạt |
+| **Reader** | `duchuy` | `duchuy3d2005@gmail.com` | `25022005H` | **Trần Đức Huy** | Độc giả *(Bị chặn đăng nhập vào Portal quản trị)* |
 
 ---
 
 ## 7. Quy chuẩn phát triển mã nguồn (Git Workflow)
 
-Dự án áp dụng mô hình phân nhánh **Gitflow rút gọn**:
+Dự án áp dụng mô hình phân nhánh **Gitflow**:
 
-* `main`: Nhánh ổn định (Production), chỉ tiếp nhận mã nguồn sau khi hoàn thành Sprint và kiểm thử thành công.
-* `develop`: Nhánh làm việc trung tâm, tích hợp các tính năng của các thành viên.
-* `feat/<ten-tinh-nang>`: Nhánh con được rẽ nhánh để mỗi cá nhân phát triển độc lập (ví dụ: `feat/backend`, `feat/auth`, `feat/borrow-api`, `feat/ai-model`).
+* `main`: Nhánh ổn định (Production), chỉ tiếp nhận mã nguồn sau khi hoàn thành Sprint và nghiệm thu.
+* `develop`: Nhánh làm việc trung tâm, tích hợp các tính năng của toàn nhóm.
+* `feat/<ten-tinh-nang>`: Nhánh phát triển tính năng độc lập (ví dụ: `feat/LOLRA-9`, `feat/borrow-api`, `feat/ai-model`).
 
 ### Quy ước đặt tên commit (Conventional Commits):
-* `feat`: Thêm một tính năng mới.
+```text
+<loại-thay-đổi>(<phạm-vi>): <mô tả nội dung bằng tiếng Việt> (<mã-công-việc>)
+```
+* **Ví dụ:** `feat(auth): hoàn thiện đăng nhập, đăng xuất, hồ sơ cá nhân và phân quyền RBAC JWT (LOLRA-9)`
+
+Các tiền tố thường dùng:
+* `feat`: Thêm tính năng mới.
 * `fix`: Sửa lỗi phát sinh.
 * `docs`: Cập nhật tài liệu, README.
 * `style`: Chỉnh sửa giao diện, định dạng code.
-* `refactor`: Tối ưu hóa cấu trúc mã nguồn.
+* `refactor`: Tối ưu hóa cấu trúc mã nguồn mà không đổi logic.
 
 ---
 
 ## 8. Lộ trình triển khai (Sprint Roadmap)
 
 * **Sprint 1 (Tuần 1):** Khởi động dự án, Project Charter, ma trận RACI, thiết lập Jira Backlog & Git Repo, khảo sát phạm vi và phác thảo sơ bộ UI/DB.
-* **Sprint 2 (Tuần 2 - 3):** Đặc tả chi tiết SRS, thiết kế ERD 12 bảng chuẩn hóa, dựng Prototype Figma, khởi tạo dữ liệu mẫu (`data/`) và cấu trúc Backend N-Tier .NET 10.
+* **Sprint 2 (Tuần 2 - 3):** Đặc tả chi tiết SRS, thiết kế ERD 12 bảng chuẩn hóa, dựng Prototype Figma, khởi tạo dữ liệu mẫu (`data/`) và cấu trúc Backend N-Tier .NET 10. Hoàn thành US-01 (LOLRA-9: Xác thực & Phân quyền RBAC).
 * **Sprint 3 (Tuần 4 - 6):** Lập trình các nghiệp vụ lõi (Mượn/Trả, Xử lý tính phạt, Dashboard doanh thu) và xây dựng module AI.
 * **Sprint 4 (Tuần 7 - 8):** Tích hợp toàn diện hệ thống, kiểm thử hệ thống (System Test), sửa lỗi (Bug Fixing) và đóng gói triển khai.
 * **Nghiệm thu (Tuần 9):** Báo cáo và bảo vệ đồ án trước hội đồng giảng viên.

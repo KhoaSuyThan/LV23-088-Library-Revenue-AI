@@ -1,0 +1,22 @@
+{
+  "name": "smartlib-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SmartLib AI Monorepo - Thu vien thong minh & Du bao doanh thu AI",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "api": "dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj",
+    "backend": "dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "smartlib",
+    "react",
+    "dotnet",
+    "ai"
+  ],
+  "author": "KhoaSuyThan",
+  "license": "MIT"
+}
