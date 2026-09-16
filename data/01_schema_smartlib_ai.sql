@@ -45,6 +45,7 @@ CREATE TABLE Users (
     PasswordHash VARCHAR(255) NOT NULL,
     FullName NVARCHAR(100) NOT NULL,
     Email VARCHAR(100) NULL,
+    IsActive BIT NOT NULL DEFAULT 1, -- Trạng thái tài khoản: 1 = Đang hoạt động, 0 = Đã bị khóa
     CreatedAt DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (RoleID) REFERENCES Roles(RoleID)
 );

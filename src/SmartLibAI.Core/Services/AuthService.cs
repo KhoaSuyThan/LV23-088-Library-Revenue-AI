@@ -30,41 +30,51 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Thực hiện xác thực đăng nhập người dùng bằng Username và Password.
+    /// Thực hiện xác thực đăng nhập người dùng bằng Email hoặc Username và Password.
     /// </summary>
     public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginRequestDto request)
     {
-        // 1. Tìm tài khoản người dùng theo Username hoặc Email
-        var identifier = request.Username.Trim();
+        // 1. Tìm tài khoản người dùng theo Email hoặc Username
+        var identifier = request.GetIdentifier();
         var users = await _userRepository.FindAsync(u => u.Username == identifier || (u.Email != null && u.Email == identifier));
         var user = users.FirstOrDefault();
 
+        // Kiểm tra tài khoản tồn tại
         if (user == null)
         {
-            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản hoặc mật khẩu không chính xác");
+            return ApiResponse<AuthResponseDto>.ErrorResult("Email hoặc mật khẩu không chính xác");
         }
 
-        // 2. Xác thực mật khẩu thông qua thư viện BCrypt
+        // 2. Kiểm tra trạng thái tài khoản: IsActive = false -> Đã bị khóa
+        if (!user.IsActive)
+        {
+            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản đã bị khóa hoặc ngừng hoạt động");
+        }
+
+        // 3. Xác thực mật khẩu thông qua thư viện BCrypt
         bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
         if (!isPasswordValid)
         {
-            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản hoặc mật khẩu không chính xác");
+            return ApiResponse<AuthResponseDto>.ErrorResult("Email hoặc mật khẩu không chính xác");
         }
 
-        // 3. Lấy thông tin Role để gán quyền vào claims
+        // 4. Lấy thông tin Role để gán quyền vào claims
         var role = await _roleRepository.GetByIdAsync(user.RoleID);
         string roleName = role?.RoleName ?? "Reader";
 
-        // 4. Kiểm tra phân quyền RBAC: Chặn tài khoản Độc giả (Reader) truy cập portal quản trị
+        // 5. Kiểm tra phân quyền RBAC: Chặn tài khoản Độc giả (Reader) truy cập portal quản trị
         if (string.Equals(roleName, "Reader", StringComparison.OrdinalIgnoreCase))
         {
             return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản độc giả không có quyền truy cập vào Cổng Quản trị & Nghiệp vụ nội bộ.");
         }
 
-        // 5. Sinh JWT Token có chứa Name, NameIdentifier và Role
+        // 6. Sinh JWT Token có chứa đầy đủ claims (sub/nameid, email, role, exp)
         string token = GenerateToken(user, roleName);
 
-        var durationInHours = Convert.ToDouble(_configuration["JwtSettings:DurationInHours"] ?? "8");
+        var durationInHours = Convert.ToDouble(
+            _configuration["JwtSettings:ExpiryHours"] 
+            ?? _configuration["JwtSettings:DurationInHours"] 
+            ?? "8");
         var expiresAt = DateTime.UtcNow.AddHours(durationInHours);
 
         var responseData = new AuthResponseDto
@@ -74,6 +84,7 @@ public class AuthService : IAuthService
             UserID = user.UserID,
             Username = user.Username,
             FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
             Role = roleName
         };
 
@@ -85,28 +96,37 @@ public class AuthService : IAuthService
     /// </summary>
     public string GenerateToken(User user, string roleName)
     {
-        var secretKey = _configuration["JwtSettings:SecretKey"]
+        var secretKey = _configuration["JwtSettings:Key"]
+            ?? _configuration["JwtSettings:SecretKey"]
             ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
         var issuer = _configuration["JwtSettings:Issuer"] ?? "SmartLibServer";
         var audience = _configuration["JwtSettings:Audience"] ?? "SmartLibClient";
-        var durationInHours = Convert.ToDouble(_configuration["JwtSettings:DurationInHours"] ?? "8");
+        var durationInHours = Convert.ToDouble(
+            _configuration["JwtSettings:ExpiryHours"] 
+            ?? _configuration["JwtSettings:DurationInHours"] 
+            ?? "8");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Khởi tạo các Claims định danh người dùng
+        // Khởi tạo các Claims định danh chuẩn hóa theo tiêu chí kiểm tra JWT Token
         var claims = new List<Claim>
         {
+            new Claim(JwtRegisteredClaimNames.Sub, user.UserID.ToString()),
+            new Claim("nameid", user.UserID.ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.UserID.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
+            new Claim("username", user.Username),
             new Claim("FullName", user.FullName),
             new Claim(ClaimTypes.Role, roleName),
+            new Claim("role", roleName),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         if (!string.IsNullOrEmpty(user.Email))
         {
             claims.Add(new Claim(ClaimTypes.Email, user.Email));
+            claims.Add(new Claim("email", user.Email));
         }
 
         var tokenDescriptor = new SecurityTokenDescriptor

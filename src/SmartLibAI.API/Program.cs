@@ -23,7 +23,7 @@ builder.Services.AddScoped<IBookService, BookService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
+var secretKey = jwtSettings["Key"] ?? jwtSettings["SecretKey"] ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -39,9 +39,9 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ValidateIssuer = true,
-        ValidIssuer = jwtSettings["Issuer"] ?? "SmartLibServer",
+        ValidIssuer = jwtSettings["Issuer"] ?? "SmartLibAI",
         ValidateAudience = true,
-        ValidAudience = jwtSettings["Audience"] ?? "SmartLibClient",
+        ValidAudience = jwtSettings["Audience"] ?? "SmartLibAIUser",
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };

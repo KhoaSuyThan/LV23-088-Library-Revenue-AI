@@ -17,6 +17,11 @@ public class User
 
     public string? Email { get; set; }
 
+    /// <summary>
+    /// Trạng thái kích hoạt: true = Đang hoạt động, false = Đã bị khóa
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties

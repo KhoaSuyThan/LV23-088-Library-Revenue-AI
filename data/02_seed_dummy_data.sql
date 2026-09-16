@@ -17,36 +17,21 @@ VALUES (N'Công nghệ thông tin'), (N'Khoa học dữ liệu & AI'), (N'Kinh t
 INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier) 
 VALUES (N'Phạt trễ hạn tiêu chuẩn', 5000, 1.0);
 
--- 2. TÀI KHOẢN ADMIN & NHÂN VIÊN MẪU (BẢO MẬT BCRYPT CHUẨN)
-INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email) 
+-- 2. TÀI KHOẢN ADMIN & NHÂN VIÊN MẪU (BẢO MẬT BCRYPT CHUẨN, ISACTIVE = 1)
+INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive) 
 VALUES 
-(1, 'khoanv', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Võ Lê Khoa', 'khoanv249@gmail.com'),
-(2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com');
+(1, 'khoanv', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Võ Lê Khoa', 'khoanv249@gmail.com', 1),
+(2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com', 1);
 
--- 3. TẠO ĐỘC GIẢ (USERS + READERS)
+-- 3. TẠO ĐỘC GIẢ ĐẠI DIỆN (USERS + READERS, ISACTIVE = 1)
 -- Độc giả đại diện: Trần Đức Huy
 DECLARE @NewUserID INT;
-INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email)
-VALUES (3, 'duchuy', '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Trần Đức Huy', 'duchuy3d2005@gmail.com');
+INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
+VALUES (3, 'duchuy', '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Trần Đức Huy', 'duchuy3d2005@gmail.com', 1);
 
 SET @NewUserID = SCOPE_IDENTITY();
 INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate)
 VALUES (@NewUserID, 'RD20260001', 'Standard', '2027-12-31');
-
--- Tạo thêm 9 độc giả mẫu tiếp theo (từ reader2 đến reader10)
-DECLARE @u INT = 2;
-WHILE @u <= 10
-BEGIN
-    INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email) 
-    VALUES (3, 'reader' + CAST(@u AS VARCHAR), '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Độc giả ' + CAST(@u AS VARCHAR), 'reader' + CAST(@u AS VARCHAR) + '@smartlib.edu.vn');
-    
-    SET @NewUserID = SCOPE_IDENTITY();
-
-    INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate)
-    VALUES (@NewUserID, 'RD2026' + RIGHT('0000' + CAST(@u AS VARCHAR), 4), 'Standard', '2027-12-31');
-    
-    SET @u = @u + 1;
-END
 
 -- 4. TẠO 20 ĐẦU SÁCH VÀ BẢN SAO MÃ VẠCH (BOOKCOPIES)
 DECLARE @b INT = 1;
@@ -71,9 +56,9 @@ BEGIN
     SET @b = @b + 1;
 END
 
--- 5. SINH 200 LƯỢT MƯỢN TRẢ, TIỀN PHẠT & ĐÁNH GIÁ AI
+-- 5. SINH 200 LƯỢT MƯỢN TRẢ, TIỀN PHẠT & ĐÁNH GIÁ AI (GÁN CHO ĐỘC GIẢ DUY NHẤT TRẦN ĐỨC HUY)
 DECLARE @Counter INT = 1;
-DECLARE @RandomReader INT;
+DECLARE @RandomReader INT = 1;
 DECLARE @RandomCopy INT;
 DECLARE @RandomDaysOffset INT;
 DECLARE @BorrowDate DATETIME;
@@ -85,7 +70,6 @@ DECLARE @FineAmount DECIMAL(18,2);
 
 WHILE @Counter <= 200
 BEGIN
-    SET @RandomReader = (ABS(CHECKSUM(NEWID())) % 10) + 1;
     SET @RandomCopy = (ABS(CHECKSUM(NEWID())) % 40) + 1;
     SET @RandomDaysOffset = (ABS(CHECKSUM(NEWID())) % 120) * -1;
     SET @BorrowDate = DATEADD(DAY, @RandomDaysOffset, GETDATE());

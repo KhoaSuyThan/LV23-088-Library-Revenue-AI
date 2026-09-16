@@ -36,6 +36,13 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request);
         if (!result.Success)
         {
+            // Nếu tài khoản bị khóa, trả về mã HTTP 403 Forbidden theo tiêu chí kiểm thử
+            if (result.Message.Contains("khóa", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, result);
+            }
+
+            // Nếu sai tài khoản hoặc mật khẩu, trả về 401 Unauthorized
             return Unauthorized(result);
         }
 
@@ -60,13 +67,17 @@ public class AuthController : ControllerBase
     [Authorize]
     public IActionResult GetProfile()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var username = User.FindFirstValue(ClaimTypes.Name);
-        var fullName = User.FindFirstValue("FullName");
-        var role = User.FindFirstValue(ClaimTypes.Role);
-        var email = User.FindFirstValue(ClaimTypes.Email);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? User.FindFirstValue("sub") 
+            ?? User.FindFirstValue("nameid");
+        int.TryParse(userIdStr, out int userId);
 
-        var profile = new
+        var username = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("username") ?? string.Empty;
+        var fullName = User.FindFirstValue("FullName") ?? string.Empty;
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role") ?? string.Empty;
+        var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email") ?? string.Empty;
+
+        var profile = new UserProfileDto
         {
             UserID = userId,
             Username = username,
@@ -75,6 +86,6 @@ public class AuthController : ControllerBase
             Email = email
         };
 
-        return Ok(ApiResponse<object>.SuccessResult(profile, "Lấy thông tin tài khoản thành công"));
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(profile, "Lấy thông tin tài khoản thành công"));
     }
 }
