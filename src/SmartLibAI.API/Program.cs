@@ -18,8 +18,11 @@ builder.Services.AddDbContext<SmartLibDbContext>(options =>
 
 // 2. Đăng ký DI cho Repositories và Business Services
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IBookRepository, BookRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
