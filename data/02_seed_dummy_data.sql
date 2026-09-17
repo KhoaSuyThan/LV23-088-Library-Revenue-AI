@@ -12,7 +12,17 @@ GO
 INSERT INTO Roles (RoleName) VALUES ('Admin'), ('Staff'), ('Reader');
 
 INSERT INTO Categories (CategoryName) 
-VALUES (N'Công nghệ thông tin'), (N'Khoa học dữ liệu & AI'), (N'Kinh tế & Quản trị'), (N'Văn học & Nghệ thuật');
+VALUES 
+    (N'Công nghệ thông tin'), 
+    (N'Khoa học dữ liệu & AI'), 
+    (N'Khoa học tự nhiên & Kỹ thuật'), 
+    (N'Kinh tế & Quản trị'), 
+    (N'Lịch sử & Địa lý'), 
+    (N'Ngoại ngữ & Từ điển'), 
+    (N'Tâm lý & Kỹ năng sống'), 
+    (N'Triết học & Khoa học xã hội'), 
+    (N'Văn học & Nghệ thuật'), 
+    (N'Y học & Sức khỏe');
 
 INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier) 
 VALUES (N'Phạt trễ hạn tiêu chuẩn', 5000, 1.0);
@@ -40,7 +50,7 @@ WHILE @b <= 20
 BEGIN
     INSERT INTO Books (CategoryID, ISBN, Title, Author, Publisher, BasePrice) 
     VALUES (
-        (@b % 4) + 1, 
+        (@b % 10) + 1, 
         '9780439' + RIGHT('000000' + CAST(@b AS VARCHAR), 6),
         N'Đầu sách SmartLib Số ' + CAST(@b AS VARCHAR), 
         N'Tác giả Nhóm LV23-088', 

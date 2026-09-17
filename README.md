@@ -31,10 +31,9 @@ Dự án **LV23-088 (SmartLib AI)** tập trung giải quyết bài toán quản
 ## 3. Liên kết tài nguyên & Minh chứng quản lý
 
 * **Jira Cloud Workspace:** [Theo dõi tiến độ Sprint & Backlog](https://khoanv249.atlassian.net/jira/software/projects/L0LRA/boards/2)
-* **GitHub Repository:** [Kho lưu trữ mã nguồn dự án (Nhánh `develop`)](https://github.com/KhoaSuyThan/LV23-088-Library-Revenue-AI)
+* **GitHub Repository:** [Kho lưu trữ mã nguồn dự án (Nhánh `main`)](https://github.com/KhoaSuyThan/LV23-088-Library-Revenue-AI)
 * **Google Drive Workspace:** [Thư mục lưu trữ tài liệu & minh chứng dự án](https://drive.google.com/drive/folders/1dNWi_LnFo-nnB-v9ey1Er508-DRr0E3d?usp=drive_link)
-* **Figma Prototype:** *(Đang cập nhật link hoàn thiện từ Đức Huy)*
-* **Cơ sở dữ liệu (dbdiagram):** *(Đang cập nhật link sơ đồ quan hệ ERD)*
+* **Figma Prototype:** [Thiết kế giao diện Prototype Figma](https://www.figma.com/design/CjIXDOJma0kSL0UTjTMOXq/Untitled?node-id=47-867&t=lb1ircxLC0sNDjTx-0)
 
 ---
 
@@ -73,13 +72,14 @@ LV23-088-Library-Revenue-AI/
 ├── package.json               # Cấu hình scripts điều phối khởi chạy từ thư mục gốc
 ├── api.cmd                    # Lệnh tắt chạy nhanh Backend trên Windows
 ├── dev.cmd                    # Lệnh tắt chạy nhanh Frontend trên Windows
-├── data/                      # Kịch bản CSDL và dữ liệu mẫu demo
+├── data/                      # Kịch bản CSDL và dữ liệu sách thực tế
 │   ├── 01_schema_smartlib_ai.sql   # Script khởi tạo 12 bảng CSDL SQL Server (có IsActive)
-│   ├── 02_seed_dummy_data.sql      # Script nạp dữ liệu mẫu (3 tài khoản chuẩn & 200 lượt mượn)
-│   └── books.csv                   # Tập dữ liệu Kaggle thông tin sách thực tế
-├── DtbDoAnCS/                 # Bản sao lưu kịch bản CSDL chuẩn hóa theo quy định đồ án
-│   ├── 01_schema_smartlib_ai.sql
-│   └── 02_seed_dummy_data.sql
+│   ├── 02_seed_dummy_data.sql      # Script nạp 10 thể loại chuẩn & 200 lượt mượn mẫu
+│   ├── 03_import_books_and_copies.sql # Script nạp hơn 11.000 sách Kaggle & bản sao mã vạch
+│   ├── clean_kaggle_books.py       # Script Python tiền xử lý và chuẩn hóa dữ liệu sách
+│   ├── cleaned_books.csv           # Dữ liệu sách sạch (UTF-8 with BOM)
+│   ├── cleaned_book_copies.csv     # Dữ liệu bản sao sách (22.246 barcode)
+│   └── books.csv                   # Tập dữ liệu Kaggle thông tin sách thô ban đầu
 ├── frontend/                  # Cổng Quản trị & Nghiệp vụ Thư viện (React 19 + Vite)
 │   ├── src/
 │   │   ├── api/               # Cấu hình gọi Backend API (authApi.js)
@@ -184,13 +184,19 @@ Các tiền tố thường dùng:
 
 ---
 
-## 8. Lộ trình triển khai (Sprint Roadmap)
+## 8. Lộ trình triển khai (Sprint Roadmap - 8 Sprints)
 
-* **Sprint 1 (Tuần 1):** Khởi động dự án, Project Charter, ma trận RACI, thiết lập Jira Backlog & Git Repo, khảo sát phạm vi và phác thảo sơ bộ UI/DB.
-* **Sprint 2 (Tuần 2 - 3):** Đặc tả chi tiết SRS, thiết kế ERD 12 bảng chuẩn hóa, dựng Prototype Figma, khởi tạo dữ liệu mẫu (`data/`) và cấu trúc Backend N-Tier .NET 10. Hoàn thành US-01 (LOLRA-9: Xác thực & Phân quyền RBAC).
-* **Sprint 3 (Tuần 4 - 6):** Lập trình các nghiệp vụ lõi (Mượn/Trả, Xử lý tính phạt, Dashboard doanh thu) và xây dựng module AI.
-* **Sprint 4 (Tuần 7 - 8):** Tích hợp toàn diện hệ thống, kiểm thử hệ thống (System Test), sửa lỗi (Bug Fixing) và đóng gói triển khai.
-* **Nghiệm thu (Tuần 9):** Báo cáo và bảo vệ đồ án trước hội đồng giảng viên.
+| Sprint | Thời gian | Nội dung công việc chính | Kết quả bàn giao (Deliverables) |
+| :---: | :---: | :--- | :--- |
+| **Sprint 1** | 08/09 – 13/09/2026 | Khởi động dự án, lập Project Charter v0.1, ma trận RACI, tạo Jira/GitHub, Figma v0.1 | Charter, Backlog 16 stories, Figma UI Flow |
+| **Sprint 2** | 14/09 – 20/09/2026 | Hoàn thiện SRS, WBS, sơ đồ Gantt baseline, thiết kế ERD 12 bảng | SRS Spec, Database Schema, Gantt Chart |
+| **Sprint 3** | 21/09 – 27/09/2026 | Dựng khung Backend API, DB migration, Module Auth (RBAC), CRUD cơ bản | Core Web API, DB seed data, Auth APIs |
+| **Sprint 4** | 28/09 – 04/10/2026 | Hoàn thiện nghiệp vụ Mượn - Trả sách qua Barcode, tính phạt cơ bản | Demo giữa kỳ (Midterm Demo) |
+| **Sprint 5** | 05/10 – 11/10/2026 | Xây dựng Dashboard doanh thu và huấn luyện/tích hợp module AI cảnh báo trễ | Financial Dashboard, Model AI (>90% Acc) |
+| **Sprint 6** | 12/10 – 18/10/2026 | Tích hợp toàn diện (Feature complete), kiểm thử hệ thống, fix lỗi Critical/High | Test Run Report, Defect Log resolved |
+| **Sprint 7** | 19/10 – 25/10/2026 | Triển khai demo lên Cloud, chạy kiểm thử chấp nhận người dùng (UAT) | Staging Deployment, UAT Sign-off |
+| **Sprint 8** | 26/10 – 01/11/2026 | Đóng gói sản phẩm (Final Release), rà soát tài liệu /docs, nghiệm thu | Source package v1.0, Final Docs, Gate 8 |
+| **Hậu kỳ** | 02/11 – 15/11/2026 | Chuẩn bị slide thuyết trình, video demo sản phẩm và tham gia bảo vệ đồ án | Presentation Deck, Demo Video |
 
 ---
 
