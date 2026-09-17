@@ -10,5 +10,7 @@ public interface IBookService
 {
     Task<ApiResponse<IReadOnlyList<BookDto>>> GetBooksAsync();
 
+    Task<ApiResponse<PagedResult<BookDto>>> GetPagedBooksAsync(BookFilterDto filter);
+
     Task<ApiResponse<BookDto>> GetBookByIdAsync(int id);
 }

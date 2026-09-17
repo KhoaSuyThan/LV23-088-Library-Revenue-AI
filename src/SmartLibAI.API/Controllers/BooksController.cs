@@ -20,10 +20,21 @@ public class BooksController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách toàn bộ sách có trong hệ thống thư viện.
+    /// Lấy danh sách sách có phân trang tại Server và hỗ trợ tìm kiếm theo từ khóa / lọc theo thể loại.
     /// </summary>
+    /// <param name="filter">Tham số phân trang: pageNumber, pageSize, keyword, categoryID</param>
     [HttpGet]
-    public async Task<IActionResult> GetBooks()
+    public async Task<IActionResult> GetBooks([FromQuery] BookFilterDto filter)
+    {
+        var result = await _bookService.GetPagedBooksAsync(filter);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy toàn bộ sách (không phân trang - phục vụ xuất báo cáo).
+    /// </summary>
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllBooks()
     {
         var result = await _bookService.GetBooksAsync();
         return Ok(result);

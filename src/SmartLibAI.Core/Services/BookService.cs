@@ -1,27 +1,28 @@
 using SmartLibAI.Core.DTOs.Books;
 using SmartLibAI.Core.DTOs.Common;
-using SmartLibAI.Core.Entities;
 using SmartLibAI.Core.Interfaces;
 
 namespace SmartLibAI.Core.Services;
 
 /// <summary>
-/// Dịch vụ xử lý tra cứu và hiển thị danh sách đầu sách trong thư viện.
+/// Dịch vụ xử lý nghiệp vụ tra cứu và quản lý thông tin sách trong thư viện.
 /// </summary>
 public class BookService : IBookService
 {
-    private readonly IGenericRepository<Book> _bookRepository;
-    private readonly IGenericRepository<Category> _categoryRepository;
-    private readonly IGenericRepository<BookCopy> _copyRepository;
+    private readonly IBookRepository _bookRepository;
 
-    public BookService(
-        IGenericRepository<Book> bookRepository,
-        IGenericRepository<Category> categoryRepository,
-        IGenericRepository<BookCopy> copyRepository)
+    public BookService(IBookRepository bookRepository)
     {
         _bookRepository = bookRepository;
-        _categoryRepository = categoryRepository;
-        _copyRepository = copyRepository;
+    }
+
+    /// <summary>
+    /// Lấy danh sách sách có phân trang và tìm kiếm theo từ khóa/thể loại.
+    /// </summary>
+    public async Task<ApiResponse<PagedResult<BookDto>>> GetPagedBooksAsync(BookFilterDto filter)
+    {
+        var result = await _bookRepository.GetPagedBooksAsync(filter);
+        return ApiResponse<PagedResult<BookDto>>.SuccessResult(result, "Lấy danh sách sách phân trang thành công");
     }
 
     /// <summary>
@@ -29,31 +30,8 @@ public class BookService : IBookService
     /// </summary>
     public async Task<ApiResponse<IReadOnlyList<BookDto>>> GetBooksAsync()
     {
-        var books = await _bookRepository.GetAllAsync();
-        var categories = await _categoryRepository.GetAllAsync();
-        var categoryMap = categories.ToDictionary(c => c.CategoryID, c => c.CategoryName);
-
-        var allCopies = await _copyRepository.GetAllAsync();
-
-        var bookDtos = books.Select(b =>
-        {
-            var copies = allCopies.Where(c => c.BookID == b.BookID).ToList();
-            return new BookDto
-            {
-                BookID = b.BookID,
-                CategoryID = b.CategoryID,
-                CategoryName = categoryMap.TryGetValue(b.CategoryID, out var name) ? name : "Chưa phân loại",
-                ISBN = b.ISBN,
-                Title = b.Title,
-                Author = b.Author,
-                Publisher = b.Publisher,
-                BasePrice = b.BasePrice,
-                TotalCopies = copies.Count,
-                AvailableCopies = copies.Count(c => c.Status.Equals("Available", StringComparison.OrdinalIgnoreCase))
-            };
-        }).ToList();
-
-        return ApiResponse<IReadOnlyList<BookDto>>.SuccessResult(bookDtos, "Lấy danh sách sách thành công");
+        var books = await _bookRepository.GetAllBooksWithCopiesAsync();
+        return ApiResponse<IReadOnlyList<BookDto>>.SuccessResult(books, "Lấy toàn bộ danh sách sách thành công");
     }
 
     /// <summary>
@@ -61,29 +39,12 @@ public class BookService : IBookService
     /// </summary>
     public async Task<ApiResponse<BookDto>> GetBookByIdAsync(int id)
     {
-        var book = await _bookRepository.GetByIdAsync(id);
+        var book = await _bookRepository.GetBookDetailByIdAsync(id);
         if (book == null)
         {
             return ApiResponse<BookDto>.ErrorResult($"Không tìm thấy sách với mã ID {id}");
         }
 
-        var category = await _categoryRepository.GetByIdAsync(book.CategoryID);
-        var copies = await _copyRepository.FindAsync(c => c.BookID == id);
-
-        var bookDto = new BookDto
-        {
-            BookID = book.BookID,
-            CategoryID = book.CategoryID,
-            CategoryName = category?.CategoryName ?? "Chưa phân loại",
-            ISBN = book.ISBN,
-            Title = book.Title,
-            Author = book.Author,
-            Publisher = book.Publisher,
-            BasePrice = book.BasePrice,
-            TotalCopies = copies.Count,
-            AvailableCopies = copies.Count(c => c.Status.Equals("Available", StringComparison.OrdinalIgnoreCase))
-        };
-
-        return ApiResponse<BookDto>.SuccessResult(bookDto, "Lấy chi tiết sách thành công");
+        return ApiResponse<BookDto>.SuccessResult(book, "Lấy chi tiết sách thành công");
     }
 }
