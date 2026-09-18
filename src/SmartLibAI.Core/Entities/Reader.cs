@@ -14,6 +14,11 @@ public class Reader
     public string MemberType { get; set; } = "Standard";
 
     public DateTime ExpiryDate { get; set; }
+ 
+    /// <summary>
+    /// Điểm tín nhiệm bạn đọc (0 - 100, mặc định 100 điểm).
+    /// </summary>
+    public int CreditScore { get; set; } = 100;
 
     // Navigation properties
     public User User { get; set; } = null!;

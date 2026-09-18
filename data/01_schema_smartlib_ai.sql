@@ -56,6 +56,7 @@ CREATE TABLE Readers (
     ReaderCode VARCHAR(20) NOT NULL UNIQUE,
     MemberType NVARCHAR(50) DEFAULT 'Standard',
     ExpiryDate DATE NOT NULL,
+    CreditScore INT NOT NULL DEFAULT 100, -- Điểm tín nhiệm bạn đọc (0 - 100, mặc định 100 điểm)
     FOREIGN KEY (UserID) REFERENCES Users(UserID)
 );
 
@@ -85,6 +86,7 @@ CREATE TABLE Books (
     Author NVARCHAR(800) NOT NULL,
     Publisher NVARCHAR(200) NULL,
     BasePrice DECIMAL(18,2) NOT NULL DEFAULT 50000,
+    IsActive BIT NOT NULL DEFAULT 1, -- Trạng thái lưu hành: 1 = Đang lưu hành, 0 = Ngưng lưu hành (Xóa mềm)
     FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID)
 );
 
@@ -130,6 +132,12 @@ CREATE TABLE FineRules (
     RuleName NVARCHAR(100) NOT NULL,
     FinePerDay DECIMAL(18,2) DEFAULT 5000,
     DamageMultiplier DECIMAL(4,2) DEFAULT 1.0,
+    StudentBorrowLimit INT NOT NULL DEFAULT 5, -- Hạn mức mượn Sinh viên: tối đa 5 cuốn
+    StudentBorrowDays INT NOT NULL DEFAULT 14, -- Thời hạn mượn Sinh viên: 14 ngày
+    LecturerBorrowLimit INT NOT NULL DEFAULT 10, -- Hạn mức mượn Giảng viên: tối đa 10 cuốn
+    LecturerBorrowDays INT NOT NULL DEFAULT 30, -- Thời hạn mượn Giảng viên: 30 ngày
+    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 10.0, -- Mức phụ thu đền bù sách mất/hỏng (10%)
+    ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Tỷ lệ giảm trừ tiền phạt theo điểm rèn luyện
     IsActive BIT DEFAULT 1
 );
 

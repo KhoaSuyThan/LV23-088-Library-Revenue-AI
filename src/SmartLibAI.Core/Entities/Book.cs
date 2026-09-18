@@ -19,6 +19,11 @@ public class Book
 
     public decimal BasePrice { get; set; } = 50000m;
 
+    /// <summary>
+    /// Trạng thái lưu hành: true = Đang lưu hành, false = Ngưng lưu hành (Xóa mềm).
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
     // Navigation properties
     public Category Category { get; set; } = null!;
 

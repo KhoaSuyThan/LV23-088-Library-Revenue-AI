@@ -94,6 +94,8 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.ExpiryDate)
                 .HasColumnType("date")
                 .IsRequired();
+            entity.Property(e => e.CreditScore)
+                .HasDefaultValue(100);
 
             entity.HasOne(e => e.User)
                 .WithOne(u => u.Reader)
@@ -154,6 +156,8 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.BasePrice)
                 .HasColumnType("decimal(18,2)")
                 .HasDefaultValue(50000m);
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true);
 
             entity.HasOne(e => e.Category)
                 .WithMany(c => c.Books)
@@ -248,6 +252,20 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.DamageMultiplier)
                 .HasColumnType("decimal(4,2)")
                 .HasDefaultValue(1.0m);
+            entity.Property(e => e.StudentBorrowLimit)
+                .HasDefaultValue(5);
+            entity.Property(e => e.StudentBorrowDays)
+                .HasDefaultValue(14);
+            entity.Property(e => e.LecturerBorrowLimit)
+                .HasDefaultValue(10);
+            entity.Property(e => e.LecturerBorrowDays)
+                .HasDefaultValue(30);
+            entity.Property(e => e.DamageFeePercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(10.0m);
+            entity.Property(e => e.ConductScoreDiscountPercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(20.0m);
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true);
         });

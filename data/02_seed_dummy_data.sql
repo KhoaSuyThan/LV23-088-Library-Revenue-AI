@@ -24,8 +24,8 @@ VALUES
     (N'Văn học & Nghệ thuật'), 
     (N'Y học & Sức khỏe');
 
-INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier) 
-VALUES (N'Phạt trễ hạn tiêu chuẩn', 5000, 1.0);
+INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier, StudentBorrowLimit, StudentBorrowDays, LecturerBorrowLimit, LecturerBorrowDays, DamageFeePercent, ConductScoreDiscountPercent) 
+VALUES (N'Quy định Thư viện Tiêu chuẩn', 5000, 1.0, 5, 14, 10, 30, 10.0, 20.0);
 
 -- 2. TÀI KHOẢN ADMIN & NHÂN VIÊN MẪU (BẢO MẬT BCRYPT CHUẨN, ISACTIVE = 1)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive) 
@@ -33,29 +33,30 @@ VALUES
 (1, 'khoanv', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Võ Lê Khoa', 'khoanv249@gmail.com', 1),
 (2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com', 1);
 
--- 3. TẠO ĐỘC GIẢ ĐẠI DIỆN (USERS + READERS, ISACTIVE = 1)
+-- 3. TẠO ĐỘC GIẢ ĐẠI DIỆN (USERS + READERS, ISACTIVE = 1, CREDIT SCORE = 100)
 -- Độc giả đại diện: Trần Đức Huy
 DECLARE @NewUserID INT;
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
 VALUES (3, 'duchuy', '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Trần Đức Huy', 'duchuy3d2005@gmail.com', 1);
 
 SET @NewUserID = SCOPE_IDENTITY();
-INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate)
-VALUES (@NewUserID, 'RD20260001', 'Standard', '2027-12-31');
+INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate, CreditScore)
+VALUES (@NewUserID, 'RD20260001', 'Standard', '2027-12-31', 100);
 
--- 4. TẠO 20 ĐẦU SÁCH VÀ BẢN SAO MÃ VẠCH (BOOKCOPIES)
+-- 4. TẠO 20 ĐẦU SÁCH VÀ BẢN SAO MÃ VẠCH (BOOKCOPIES, ISACTIVE = 1)
 DECLARE @b INT = 1;
 DECLARE @NewBookID INT;
 WHILE @b <= 20
 BEGIN
-    INSERT INTO Books (CategoryID, ISBN, Title, Author, Publisher, BasePrice) 
+    INSERT INTO Books (CategoryID, ISBN, Title, Author, Publisher, BasePrice, IsActive) 
     VALUES (
         (@b % 10) + 1, 
         '9780439' + RIGHT('000000' + CAST(@b AS VARCHAR), 6),
         N'Đầu sách SmartLib Số ' + CAST(@b AS VARCHAR), 
         N'Tác giả Nhóm LV23-088', 
         N'NXB Đại học Quốc gia',
-        85000
+        85000,
+        1
     );
     
     SET @NewBookID = SCOPE_IDENTITY();
