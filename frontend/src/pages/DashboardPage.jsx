@@ -1,8 +1,33 @@
 import React from 'react';
-import { BookOpen, LogOut, ShieldCheck, User, CheckCircle, Database } from 'lucide-react';
+import {
+  BookOpen,
+  LayoutGrid,
+  BookMarked,
+  ArrowLeftRight,
+  CircleDollarSign,
+  Users,
+  Settings,
+  Search,
+  Calendar,
+  FileSpreadsheet,
+  AlertTriangle,
+  GraduationCap,
+  ReceiptText,
+  Bell,
+  LogOut
+} from 'lucide-react';
 import { authApi } from '../api/authApi';
+import './DashboardPage.css';
 
+/**
+ * Trang Dashboard Tổng quan SmartLib AI
+ * Tái hiện 100% giao diện Figma và tối ưu:
+ * - Sticky Topbar ghim cố định khi cuộn.
+ * - Bố cục 2 cột biểu đồ: Biểu đồ đường Xu hướng 30 ngày + Biểu đồ tròn Doughnut Cơ cấu Nguồn thu phạt.
+ * - Bảng danh sách độc giả có nguy cơ trễ hạn cao (AI Score).
+ */
 export default function DashboardPage({ user, onLogout }) {
+  // Xử lý đăng xuất tài khoản
   const handleLogout = () => {
     authApi.logout();
     if (onLogout) {
@@ -10,176 +35,465 @@ export default function DashboardPage({ user, onLogout }) {
     }
   };
 
-  const roleColor = user?.role === 'Admin' ? '#6366f1' : '#10b981';
+  // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
+  const isAdmin = user?.role === 'Admin';
+
+  // Dữ liệu mẫu danh sách độc giả có nguy cơ trễ hạn cao (AI phân tích) theo Figma
+  const aiRiskReaders = [
+    {
+      id: 'PM-9920',
+      name: 'Nguyễn Văn Minh',
+      studentCode: '102220184',
+      bookTitle: 'Nhập môn Machine Learning',
+      dueDate: '25/09/2026',
+      score: 92,
+      scoreColor: '#ef4444' // Đỏ (Nguy cơ rất cao)
+    },
+    {
+      id: 'PM-9842',
+      name: 'Trần Thị Hồng Hạnh',
+      studentCode: '102210103',
+      bookTitle: 'Giáo trình Cấu trúc dữ liệu',
+      dueDate: '26/09/2026',
+      score: 78,
+      scoreColor: '#f97316' // Cam (Nguy cơ cao)
+    },
+    {
+      id: 'PM-9811',
+      name: 'Lê Hoàng Nam',
+      studentCode: '102220455',
+      bookTitle: 'Database Systems 10th Ed',
+      dueDate: '28/09/2026',
+      score: 55,
+      scoreColor: '#eab308' // Vàng cam (Nguy cơ trung bình)
+    }
+  ];
+
+  // Dữ liệu cơ cấu nguồn thu phạt (khớp với thẻ KPI 15.450.000 VNĐ)
+  const revenueSources = [
+    {
+      label: 'Phạt trễ hạn theo ngày',
+      amount: '10.042.500đ',
+      percentage: '65%',
+      color: '#3b82f6'
+    },
+    {
+      label: 'Bồi hoàn sách hỏng/mất',
+      amount: '3.862.500đ',
+      percentage: '25%',
+      color: '#f97316'
+    },
+    {
+      label: 'Phí cấp lại thẻ bạn đọc',
+      amount: '1.545.000đ',
+      percentage: '10%',
+      color: '#8b5cf6'
+    }
+  ];
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f8fafc',
-      fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif"
-    }}>
-      {/* HEADER QUẢN TRỊ */}
-      <header style={{
-        background: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '0 32px',
-        height: '70px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #6688f6, #5373ea)',
-            color: '#fff',
-            width: '42px',
-            height: '42px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <BookOpen size={24} />
+    <div className="dashboard-container">
+      {/* ====================================================================
+          1. THANH SIDEBAR (DARK NAVY #0F172A)
+          ==================================================================== */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-top">
+          {/* Logo Brand SmartLib AI */}
+          <div className="sidebar-brand">
+            <div className="brand-icon-box">
+              <BookOpen size={22} strokeWidth={2.4} />
+            </div>
+            <span className="brand-name">SmartLib AI</span>
           </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#1e293b' }}>
-              SmartLib AI
-            </h2>
-            <span style={{ fontSize: '11.5px', color: '#64748b' }}>Cổng Quản trị & Nghiệp vụ Thư viện</span>
-          </div>
+
+          {/* Menu Navigation Items (Giao diện hiển thị theo Figma) */}
+          <ul className="sidebar-menu">
+            <li className="menu-item active">
+              <div className="menu-icon">
+                <LayoutGrid size={18} />
+              </div>
+              <span>Tổng quan (Dashboard)</span>
+            </li>
+
+            <li className="menu-item">
+              <div className="menu-icon">
+                <BookMarked size={18} />
+              </div>
+              <span>Quản lý Sách (Catalog)</span>
+            </li>
+
+            <li className="menu-item">
+              <div className="menu-icon">
+                <ArrowLeftRight size={18} />
+              </div>
+              <span>Mượn - Trả sách (Circulation)</span>
+            </li>
+
+            <li className="menu-item">
+              <div className="menu-icon">
+                <CircleDollarSign size={18} />
+              </div>
+              <span>Báo cáo Thu phạt (Revenue & Fines)</span>
+            </li>
+
+            <li className="menu-item">
+              <div className="menu-icon">
+                <Users size={18} />
+              </div>
+              <span>Hồ sơ Độc giả (Readers)</span>
+            </li>
+
+            {/* Phân quyền: Cài đặt quy định chỉ hiển thị cho Admin */}
+            {isAdmin && (
+              <li className="menu-item">
+                <div className="menu-icon">
+                  <Settings size={18} />
+                </div>
+                <span>Cài đặt quy định (Settings)</span>
+              </li>
+            )}
+          </ul>
         </div>
 
-        {/* THÔNG TIN NGƯỜI DÙNG & NÚT ĐĂNG XUẤT */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: '#e0e7ff',
-              color: '#4338ca',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '15px'
-            }}>
-              {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
-                {user?.fullName || user?.username}
-              </div>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#fff',
-                backgroundColor: roleColor,
-                padding: '2px 8px',
-                borderRadius: '12px',
-                textTransform: 'uppercase'
-              }}>
-                {user?.role}
-              </span>
-            </div>
+        {/* Chân Sidebar: Trạng thái hệ thống & Nút đăng xuất */}
+        <div className="sidebar-footer">
+          <div className="system-status">
+            <div className="status-dot"></div>
+            <span>Hệ thống vận hành ổn định</span>
           </div>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#fee2e2',
-              color: '#dc2626',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '8px 14px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fecaca'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-            title="Đăng xuất khỏi hệ thống"
-          >
-            <LogOut size={16} />
+          <button className="logout-btn" onClick={handleLogout} title="Đăng xuất khỏi hệ thống">
+            <LogOut size={15} />
             <span>Đăng xuất</span>
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* NỘI DUNG DASHBOARD */}
-      <main style={{ maxWidth: '1080px', margin: '40px auto', padding: '0 20px' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
-          borderRadius: '20px',
-          padding: '36px',
-          color: '#ffffff',
-          boxShadow: '0 12px 30px rgba(59, 130, 246, 0.25)',
-          marginBottom: '32px'
-        }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '14px' }}>
-            <CheckCircle size={14} /> Xác thực thành công (RBAC Verified)
-          </div>
-          <h1 style={{ margin: '0 0 10px', fontSize: '28px', fontWeight: 800 }}>
-            Xin chào, {user?.fullName}!
-          </h1>
-          <p style={{ margin: 0, fontSize: '15px', opacity: 0.9, maxWidth: '600px', lineHeight: 1.5 }}>
-            Bạn đang truy cập với vai trò <strong>{user?.role}</strong> trên hệ thống SmartLib AI Backend .NET 10. Phiên làm việc bảo mật bằng chuẩn JSON Web Token (JWT).
-          </p>
-        </div>
-
-        {/* THÔNG TIN KẾT NỐI HỆ THỐNG */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px'
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', color: '#3b82f6' }}>
-              <ShieldCheck size={24} />
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#1e293b' }}>Thông tin phiên</h3>
-            </div>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 8px' }}>
-              <strong>Tên tài khoản:</strong> {user?.username}
-            </p>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 8px' }}>
-              <strong>Họ và tên:</strong> {user?.fullName}
-            </p>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
-              <strong>Mã định danh UserID:</strong> {user?.userID}
-            </p>
+      {/* ====================================================================
+          2. NỘI DUNG CHÍNH (MAIN CONTENT)
+          ==================================================================== */}
+      <main className="dashboard-main">
+        {/* Thanh Header Topbar (Ghim cố định Sticky) */}
+        <header className="dashboard-header">
+          {/* Ô tìm kiếm thông minh */}
+          <div className="header-search-box">
+            <Search size={18} />
+            <input
+              type="text"
+              className="header-search-input"
+              placeholder="Tìm kiếm sách, độc giả, phiếu mượn..."
+              readOnly
+            />
           </div>
 
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', color: '#10b981' }}>
-              <Database size={24} />
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#1e293b' }}>Hạ tầng Backend</h3>
+          {/* Cụm hành động bên phải */}
+          <div className="header-right">
+            {/* Bộ chọn tháng */}
+            <div className="date-badge">
+              <Calendar size={16} />
+              <span>Tháng 09/2026</span>
             </div>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 8px' }}>
-              <strong>Nền tảng:</strong> ASP.NET Core Web API (.NET 10)
-            </p>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 8px' }}>
-              <strong>Cơ sở dữ liệu:</strong> SQL Server (12 bảng chuẩn hóa)
-            </p>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
-              <strong>Kiến trúc:</strong> N-Tier (Core, Infrastructure, Web API)
-            </p>
+
+            {/* Nút xuất báo cáo Excel (Giao diện hiển thị) */}
+            <button className="btn-excel" type="button">
+              <FileSpreadsheet size={16} />
+              <span>Xuất báo cáo Excel</span>
+            </button>
+
+            {/* Thông tin người dùng đăng nhập */}
+            <div className="user-profile">
+              <div className="user-text">
+                <span className="user-name-title">
+                  {user?.fullName || (isAdmin ? 'Thủ thư (Admin)' : 'Thủ thư (Staff)')}
+                </span>
+                <span className="user-dept">Ban Quản Lý Thư Viện</span>
+              </div>
+              <div className="user-avatar" title={user?.role || 'Admin'}>
+                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Thân nội dung Dashboard */}
+        <div className="dashboard-content">
+          {/* ----------------------------------------------------------------
+              HÀNG 3 THẺ CHỈ SỐ THỐNG KÊ (KPI METRIC CARDS)
+              ---------------------------------------------------------------- */}
+          <div className="kpi-grid">
+            {/* Thẻ 1: Tổng doanh thu phạt tháng */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <h3 className="kpi-title">Tổng doanh thu phạt tháng</h3>
+                <div className="kpi-icon-box kpi-icon-blue">
+                  <ReceiptText size={20} />
+                </div>
+              </div>
+              <div className="kpi-value">15.450.000 VNĐ</div>
+              <div className="kpi-subtext-box">
+                <span className="badge-growth">+12%</span>
+                <span>so với tháng trước</span>
+              </div>
+            </div>
+
+            {/* Thẻ 2: Tiền phạt trễ hạn dự kiến */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <h3 className="kpi-title">Tiền phạt trễ hạn dự kiến</h3>
+                <div className="kpi-icon-box kpi-icon-yellow">
+                  <AlertTriangle size={20} />
+                </div>
+              </div>
+              <div className="kpi-value">2.350.000 VNĐ</div>
+              <div className="kpi-subtext-box">
+                <span>47 lượt mượn quá hạn</span>
+              </div>
+            </div>
+
+            {/* Thẻ 3: Chỉ số nguy cơ trễ hạn (AI) */}
+            <div className="kpi-card">
+              <div className="kpi-header">
+                <h3 className="kpi-title">Chỉ số nguy cơ trễ hạn (AI)</h3>
+                <div className="kpi-icon-box kpi-icon-red">
+                  <GraduationCap size={20} />
+                </div>
+              </div>
+              <div className="kpi-value" style={{ color: '#0f172a' }}>Trung bình cao</div>
+              <div className="kpi-subtext-box">
+                <span>Độ chính xác mô hình: <strong>88%</strong></span>
+              </div>
+            </div>
+          </div>
+
+          {/* ----------------------------------------------------------------
+              HÀNG BIỂU ĐỒ KÉP (2 CỘT: XU HƯỚNG 30 NGÀY + CƠ CẤU NGUỒN THU)
+              ---------------------------------------------------------------- */}
+          <div className="charts-row">
+            {/* CỘT TRÁI: Biểu đồ Thu phạt & Xu hướng Trễ hạn 30 ngày */}
+            <div className="chart-card">
+              <div className="chart-header">
+                <h3 className="chart-title">Biểu đồ Thu phạt & Xu hướng Trễ hạn 30 ngày tới</h3>
+                <div className="chart-legend">
+                  <div className="legend-item">
+                    <div className="legend-dot-blue"></div>
+                    <span>Doanh thu kỳ vọng</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-dot-red"></div>
+                    <span>AI dự báo</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Đồ thị SVG trực quan 2 đường cong */}
+              <div className="chart-svg-wrapper">
+                <svg viewBox="0 0 1000 220" preserveAspectRatio="none">
+                  {/* Các đường gióng ngang mờ */}
+                  <line x1="30" y1="40" x2="970" y2="40" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="30" y1="90" x2="970" y2="90" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="30" y1="140" x2="970" y2="140" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="30" y1="180" x2="970" y2="180" stroke="#e2e8f0" strokeWidth="1" />
+
+                  {/* Đường xanh: Doanh thu kỳ vọng */}
+                  <path
+                    d="M 30 180 
+                       L 180 150 
+                       L 330 170 
+                       L 480 135 
+                       L 630 145 
+                       L 780 120 
+                       L 860 145 
+                       L 970 115"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Đường đỏ: AI dự báo */}
+                  <path
+                    d="M 30 180 
+                       L 160 140 
+                       L 280 115 
+                       L 400 145 
+                       L 520 110 
+                       L 640 140 
+                       L 760 125 
+                       L 880 90 
+                       L 970 120"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Nhãn các mốc thời gian trục hoành */}
+                  <text x="30" y="206" fill="#94a3b8" fontSize="12" textAnchor="start">01/09</text>
+                  <text x="180" y="206" fill="#94a3b8" fontSize="12" textAnchor="middle">05/09</text>
+                  <text x="340" y="206" fill="#94a3b8" fontSize="12" textAnchor="middle">10/09</text>
+                  <text x="500" y="206" fill="#94a3b8" fontSize="12" textAnchor="middle">15/09</text>
+                  <text x="660" y="206" fill="#94a3b8" fontSize="12" textAnchor="middle">20/09</text>
+                  <text x="810" y="206" fill="#94a3b8" fontSize="12" textAnchor="middle">25/09</text>
+                  <text x="970" y="206" fill="#94a3b8" fontSize="12" textAnchor="end">30/09 (Dự báo)</text>
+                </svg>
+              </div>
+            </div>
+
+            {/* CỘT PHẢI: Biểu đồ tròn Doughnut Cơ cấu Nguồn thu phạt */}
+            <div className="doughnut-card">
+              <div className="doughnut-header">
+                <h3 className="doughnut-title">Cơ cấu Nguồn thu Phạt</h3>
+                <p className="doughnut-subtitle">Dòng tiền phạt tháng 09/2026</p>
+              </div>
+
+              {/* Vòng tròn SVG Doughnut Chart */}
+              <div className="doughnut-chart-wrapper">
+                <svg viewBox="0 0 160 160">
+                  {/* Vòng nền mờ */}
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="58"
+                    fill="none"
+                    stroke="#f1f5f9"
+                    strokeWidth="16"
+                  />
+
+                  {/* Phân khúc 1: Phạt trễ hạn theo ngày (65%) - Màu xanh dương #3b82f6 */}
+                  {/* Chu vi: 2 * PI * 58 = 364.4. 65% = 236.9 */}
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="58"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="16"
+                    strokeDasharray="236.9 364.4"
+                    strokeDashoffset="0"
+                    transform="rotate(-90 80 80)"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Phân khúc 2: Bồi hoàn hỏng/mất sách (25%) - Màu cam #f97316 */}
+                  {/* 25% = 91.1. Offset = -236.9 */}
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="58"
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="16"
+                    strokeDasharray="91.1 364.4"
+                    strokeDashoffset="-236.9"
+                    transform="rotate(-90 80 80)"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Phân khúc 3: Phí cấp lại thẻ bạn đọc (10%) - Màu tím #8b5cf6 */}
+                  {/* 10% = 36.4. Offset = -(236.9 + 91.1) = -328 */}
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="58"
+                    fill="none"
+                    stroke="#8b5cf6"
+                    strokeWidth="16"
+                    strokeDasharray="36.4 364.4"
+                    strokeDashoffset="-328"
+                    transform="rotate(-90 80 80)"
+                    strokeLinecap="round"
+                  />
+                </svg>
+
+                {/* Thông tin trọng tâm ở giữa hình tròn */}
+                <div className="doughnut-center-info">
+                  <span className="doughnut-center-amount">15.45M</span>
+                  <span className="doughnut-center-label">Tổng thu phạt</span>
+                </div>
+              </div>
+
+              {/* Danh sách chú giải chi tiết từng nguồn thu */}
+              <ul className="doughnut-legend-list">
+                {revenueSources.map((item, idx) => (
+                  <li key={idx} className="doughnut-legend-item">
+                    <div className="doughnut-legend-left">
+                      <div
+                        className="doughnut-color-indicator"
+                        style={{ backgroundColor: item.color }}
+                      ></div>
+                      <span>{item.label}</span>
+                    </div>
+                    <div className="doughnut-legend-right">
+                      <span className="doughnut-amount">{item.amount}</span>
+                      <span className="doughnut-percentage">{item.percentage}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* ----------------------------------------------------------------
+              BẢNG DANH SÁCH ĐỘC GIẢ CÓ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH)
+              ---------------------------------------------------------------- */}
+          <div className="table-card">
+            <div className="table-header">
+              <h3 className="table-title">Danh sách độc giả có nguy cơ trễ hạn cao (AI phân tích)</h3>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Mã phiếu mượn</th>
+                    <th>Họ tên độc giả (MSSV)</th>
+                    <th>Tên sách đang mượn</th>
+                    <th>Hạn trả sách</th>
+                    <th>Xác suất trễ (AI Score)</th>
+                    <th style={{ textAlign: 'center' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiRiskReaders.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className="borrowing-code-link">{row.id}</span>
+                      </td>
+                      <td>
+                        <span className="reader-name">{row.name}</span>{' '}
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>({row.studentCode})</span>
+                      </td>
+                      <td>{row.bookTitle}</td>
+                      <td>{row.dueDate}</td>
+                      <td>
+                        <div className="score-cell">
+                          <div className="score-bar-bg">
+                            <div
+                              className="score-bar-fill"
+                              style={{
+                                width: `${row.score}%`,
+                                backgroundColor: row.scoreColor
+                              }}
+                            ></div>
+                          </div>
+                          <span className="score-text" style={{ color: row.scoreColor }}>
+                            {row.score}%
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="btn-reminder" type="button">
+                          <Bell size={13} />
+                          <span>Gửi nhắc nhở</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </main>
