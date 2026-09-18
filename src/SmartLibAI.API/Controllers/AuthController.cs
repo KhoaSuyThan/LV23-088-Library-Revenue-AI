@@ -36,8 +36,10 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request);
         if (!result.Success)
         {
-            // Nếu tài khoản bị khóa, trả về mã HTTP 403 Forbidden theo tiêu chí kiểm thử
-            if (result.Message.Contains("khóa", StringComparison.OrdinalIgnoreCase))
+            // Nếu tài khoản bị khóa hoặc là tài khoản Reader, trả về mã HTTP 403 Forbidden theo tiêu chí kiểm thử
+            if (result.Message.Contains("khóa", StringComparison.OrdinalIgnoreCase) ||
+                result.Message.Contains("bạn đọc", StringComparison.OrdinalIgnoreCase) ||
+                result.Message.Contains("độc giả", StringComparison.OrdinalIgnoreCase))
             {
                 return StatusCode(StatusCodes.Status403Forbidden, result);
             }
