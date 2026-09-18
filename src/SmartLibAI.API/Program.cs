@@ -114,4 +114,75 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// 7. Tự động kiểm tra Schema CSDL & Khởi tạo dữ liệu mẫu (Auto-Migration & Seeding)
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var context = services.GetRequiredService<SmartLibDbContext>();
+
+        // Tự động kiểm tra và thêm các cột mới an toàn (Idempotent DDL)
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Books') AND name = 'IsActive')
+            BEGIN
+                ALTER TABLE Books ADD IsActive BIT NOT NULL DEFAULT 1;
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Readers') AND name = 'CreditScore')
+            BEGIN
+                ALTER TABLE Readers ADD CreditScore INT NOT NULL DEFAULT 100;
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'StudentBorrowLimit')
+            BEGIN
+                ALTER TABLE FineRules ADD 
+                    StudentBorrowLimit INT NOT NULL DEFAULT 5,
+                    StudentBorrowDays INT NOT NULL DEFAULT 14,
+                    LecturerBorrowLimit INT NOT NULL DEFAULT 10,
+                    LecturerBorrowDays INT NOT NULL DEFAULT 30,
+                    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 10.0,
+                    ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0;
+            END
+        ");
+
+        // Tự động nạp vai trò nếu chưa có
+        if (!await context.Roles.AnyAsync())
+        {
+            await context.Roles.AddRangeAsync(
+                new SmartLibAI.Core.Entities.Role { RoleName = "Admin" },
+                new SmartLibAI.Core.Entities.Role { RoleName = "Staff" },
+                new SmartLibAI.Core.Entities.Role { RoleName = "Reader" }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Tự động nạp quy định thư viện chuẩn nếu chưa có
+        if (!await context.FineRules.AnyAsync())
+        {
+            await context.FineRules.AddAsync(new SmartLibAI.Core.Entities.FineRule
+            {
+                RuleName = "Quy định Thư viện Tiêu chuẩn",
+                FinePerDay = 5000m,
+                DamageMultiplier = 1.0m,
+                StudentBorrowLimit = 5,
+                StudentBorrowDays = 14,
+                LecturerBorrowLimit = 10,
+                LecturerBorrowDays = 30,
+                DamageFeePercent = 10.0m,
+                ConductScoreDiscountPercent = 20.0m,
+                IsActive = true
+            });
+            await context.SaveChangesAsync();
+        }
+
+        logger.LogInformation("SmartLib AI: Kiểm tra CSDL và Seeding tự động thành công!");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "SmartLib AI: Lỗi trong quá trình tự động cập nhật CSDL và Seeding.");
+    }
+}
+
 app.Run();
