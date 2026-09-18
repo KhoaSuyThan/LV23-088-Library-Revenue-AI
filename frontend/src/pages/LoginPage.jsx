@@ -3,13 +3,20 @@ import { User, Eye, EyeOff, BookOpen, AlertCircle, Loader2, KeyRound } from 'luc
 import { authApi } from '../api/authApi';
 import './LoginPage.css';
 
-export default function LoginPage({ onLoginSuccess }) {
+export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState(sessionExpiredMessage || '');
+
+  // Lắng nghe khi có thông báo hết hạn phiên từ App
+  React.useEffect(() => {
+    if (sessionExpiredMessage) {
+      setErrorMessage(sessionExpiredMessage);
+    }
+  }, [sessionExpiredMessage]);
 
   // Hàm xử lý gửi form đăng nhập
   const handleSubmit = async (e) => {
@@ -84,10 +91,18 @@ export default function LoginPage({ onLoginSuccess }) {
               <div
                 className="quick-test-item"
                 onClick={() => fillQuickAccount('nguyennhatnam213654@gmail.com', '14022005N')}
-                title="Bấm để tự điền thông tin"
+                title="Bấm để tự điền thông tin Nhân viên"
               >
                 <span>👤 <strong>Nguyễn Thành Nhất Nam</strong></span>
                 <span className="quick-badge">STAFF</span>
+              </div>
+              <div
+                className="quick-test-item"
+                onClick={() => fillQuickAccount('duchuy3d2005@gmail.com', '25022005H')}
+                title="Bấm để kiểm thử chặn quyền Bạn đọc"
+              >
+                <span>👤 <strong>Trần Đức Huy</strong></span>
+                <span className="quick-badge" style={{ backgroundColor: '#64748b' }}>READER</span>
               </div>
             </div>
           </div>

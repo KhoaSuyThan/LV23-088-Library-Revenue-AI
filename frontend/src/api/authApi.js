@@ -19,6 +19,21 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Tự động bắt lỗi 401 Unauthorized khi Token hết hạn hoặc không hợp lệ
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Xóa phiên làm việc trong localStorage
+      localStorage.removeItem('smartlib_token');
+      localStorage.removeItem('smartlib_user');
+      // Phát sự kiện toàn cục để App.jsx tự động chuyển về trang đăng nhập
+      window.dispatchEvent(new CustomEvent('smartlib:auth_expired'));
+    }
+    return Promise.reject(error);
+  }
+);
+
 // API xác thực đăng nhập
 export const authApi = {
   login: async (username, password) => {

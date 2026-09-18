@@ -65,7 +65,7 @@ public class AuthService : IAuthService
         // 5. Kiểm tra phân quyền RBAC: Chặn tài khoản Độc giả (Reader) truy cập portal quản trị
         if (string.Equals(roleName, "Reader", StringComparison.OrdinalIgnoreCase))
         {
-            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản độc giả không có quyền truy cập vào Cổng Quản trị & Nghiệp vụ nội bộ.");
+            return ApiResponse<AuthResponseDto>.ErrorResult("Tài khoản bạn đọc không có quyền truy cập Cổng quản trị. Vui lòng sử dụng Cổng bạn đọc.");
         }
 
         // 6. Sinh JWT Token có chứa đầy đủ claims (sub/nameid, email, role, exp)
