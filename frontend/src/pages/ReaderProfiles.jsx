@@ -21,7 +21,7 @@ const fallbackAvatar = (name) =>
     name.charAt(0).toUpperCase()
   )}</text></svg>`;
 
-export default function ReaderProfiles({ user }) {
+export default function ReaderProfiles({ user, externalSearch = '' }) {
   // Bộ lọc danh sách
   const [facultyFilter, setFacultyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
@@ -148,16 +148,19 @@ export default function ReaderProfiles({ user }) {
     }
   ]);
 
-  // Độc giả được chọn hiển thị chi tiết bên cột phải (Mặc định chọn Nguyễn Văn A)
-  const [selectedReaderId, setSelectedReaderId] = useState('2180600123');
-
-  const selectedReader = useMemo(() => {
-    return readers.find((r) => r.id === selectedReaderId) || readers[0];
-  }, [readers, selectedReaderId]);
-
-  // Lọc danh sách theo các tiêu chí
+  // Lọc danh sách theo các tiêu chí (kèm từ khóa tìm kiếm trên Header)
   const filteredReaders = useMemo(() => {
+    const kw = externalSearch ? externalSearch.toLowerCase().trim() : '';
     return readers.filter((r) => {
+      // Lọc theo từ khóa tìm kiếm nhanh (Tên, MSSV, Email, Khoa)
+      if (kw) {
+        const matchSearch =
+          r.id.toLowerCase().includes(kw) ||
+          r.name.toLowerCase().includes(kw) ||
+          (r.email && r.email.toLowerCase().includes(kw)) ||
+          r.faculty.toLowerCase().includes(kw);
+        if (!matchSearch) return false;
+      }
       if (facultyFilter !== 'all' && r.faculty !== facultyFilter) return false;
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (riskFilter !== 'all') {
@@ -167,7 +170,15 @@ export default function ReaderProfiles({ user }) {
       }
       return true;
     });
-  }, [readers, facultyFilter, statusFilter, riskFilter]);
+  }, [readers, facultyFilter, statusFilter, riskFilter, externalSearch]);
+
+  // Độc giả được chọn hiển thị chi tiết bên cột phải (Mặc định chọn Nguyễn Văn A)
+  const [selectedReaderId, setSelectedReaderId] = useState('2180600123');
+
+  const selectedReader = useMemo(() => {
+    if (filteredReaders.length === 0) return readers[0] || null;
+    return filteredReaders.find((r) => r.id === selectedReaderId) || filteredReaders[0];
+  }, [readers, filteredReaders, selectedReaderId]);
 
   // Xử lý Khóa / Mở khóa thẻ độc giả
   const handleToggleLock = (readerId, e) => {
@@ -333,9 +344,24 @@ export default function ReaderProfiles({ user }) {
                 </tr>
               </thead>
               <tbody>
-                {filteredReaders.map((r) => {
-                  const isSelected = r.id === selectedReaderId;
-                  const isLocked = r.status === 'locked';
+                {filteredReaders.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        textAlign: 'center',
+                        padding: '40px 16px',
+                        color: '#64748b',
+                        fontSize: '13.5px'
+                      }}
+                    >
+                      Không tìm thấy hồ sơ độc giả nào phù hợp với từ khóa "{externalSearch}".
+                    </td>
+                  </tr>
+                ) : (
+                  filteredReaders.map((r) => {
+                    const isSelected = r.id === selectedReaderId;
+                    const isLocked = r.status === 'locked';
 
                   return (
                     <tr
@@ -450,8 +476,9 @@ export default function ReaderProfiles({ user }) {
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
+                })
+              )}
+            </tbody>
             </table>
           </div>
         </div>
