@@ -18,6 +18,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { authApi } from '../api/authApi';
+import LibrarySettings from './LibrarySettings';
 import './DashboardPage.css';
 
 /**
@@ -568,6 +569,11 @@ export default function DashboardPage({
                 </div>
               </div>
             </>
+          ) : activeTab === 'settings' ? (
+            /* ----------------------------------------------------------------
+                PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
+                ---------------------------------------------------------------- */
+            <LibrarySettings user={user} />
           ) : (
             /* ----------------------------------------------------------------
                 KHUNG MÀN HÌNH TRỐNG SẴN SÀNG CHO THÀNH VIÊN KHÁC LÀM GIAO DIỆN
