@@ -20,6 +20,7 @@ import {
 import { authApi } from '../api/authApi';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
+import BookCatalog from './BookCatalog';
 import './DashboardPage.css';
 
 /**
@@ -41,6 +42,9 @@ export default function DashboardPage({
   const pathParts = location.pathname.replace(/^\//, '').split('/');
   const activeTab = pathParts[0] || propActiveTab || 'dashboard';
   const subTab = pathParts[1] || '';
+
+  // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách (đồng bộ thanh Header)
+  const [catalogSearch, setCatalogSearch] = React.useState('');
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -258,6 +262,13 @@ export default function DashboardPage({
               <span className="breadcrumb-sep">/</span>
               <span className="breadcrumb-current">Hồ sơ Độc giả</span>
             </div>
+          ) : activeTab === 'catalog' ? (
+            /* Breadcrumbs cho phân hệ Quản lý Sách khớp 100% ảnh thiết kế */
+            <div className="header-breadcrumb">
+              <span className="breadcrumb-root">Trang chủ</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">Quản lý Sách</span>
+            </div>
           ) : (
             /* Ô tìm kiếm thông minh cho Dashboard */
             <div className="header-search-box">
@@ -273,7 +284,7 @@ export default function DashboardPage({
 
           {/* Cụm hành động bên phải */}
           <div className="header-right">
-            {activeTab === 'readers' ? (
+            {activeTab === 'readers' || activeTab === 'catalog' ? (
               <>
                 <div className="header-search-readers">
                   <Search size={16} />
@@ -281,6 +292,12 @@ export default function DashboardPage({
                     type="text"
                     className="header-search-input"
                     placeholder="Tìm kiếm..."
+                    value={activeTab === 'catalog' ? catalogSearch : ''}
+                    onChange={(e) => {
+                      if (activeTab === 'catalog') {
+                        setCatalogSearch(e.target.value);
+                      }
+                    }}
                   />
                 </div>
 
@@ -616,6 +633,11 @@ export default function DashboardPage({
                 PHÂN HỆ HỒ SƠ ĐỘC GIẢ (READERS) KHỚP 100% ẢNH FIGMA
                 ---------------------------------------------------------------- */
             <ReaderProfiles user={user} />
+          ) : activeTab === 'catalog' ? (
+            /* ----------------------------------------------------------------
+                PHÂN HỆ QUẢN LÝ SÁCH (BOOK CATALOG) KHỚP 100% ẢNH THIẾT KẾ
+                ---------------------------------------------------------------- */
+            <BookCatalog user={user} externalSearch={catalogSearch} />
           ) : (
             /* ----------------------------------------------------------------
                 KHUNG MÀN HÌNH TRỐNG SẴN SÀNG CHO THÀNH VIÊN KHÁC LÀM GIAO DIỆN
