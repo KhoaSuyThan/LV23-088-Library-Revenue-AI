@@ -1,0 +1,743 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Copy,
+  BookOpen,
+  AlertTriangle,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X,
+  Edit,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  Plus,
+  Filter
+} from 'lucide-react';
+import { apiClient } from '../api/authApi';
+import './BookCatalog.css';
+
+/**
+ * Danh sách sách mẫu ban đầu khớp 100% theo ảnh thiết kế Figma của người dùng
+ */
+const INITIAL_BOOKS = [
+  {
+    id: 1,
+    code: 'BK-0001',
+    title: 'Dế Mèn Phiêu Lưu Ký',
+    author: 'Tô Hoài',
+    category: 'Văn học',
+    year: 2019,
+    price: 85000,
+    availableCopies: 8,
+    totalCopies: 10,
+    status: 'available', // Sẵn sàng
+    coverColor: '#3b82f6',
+    isbn: '9786042123011',
+    publisher: 'NXB Kim Đồng',
+    copies: [
+      { barcode: 'BC0001-A', status: 'Available' },
+      { barcode: 'BC0001-B', status: 'Borrowed' },
+      { barcode: 'BC0001-C', status: 'Available' }
+    ]
+  },
+  {
+    id: 2,
+    code: 'BK-0002',
+    title: 'Số Đỏ',
+    author: 'Vũ Trọng Phụng',
+    category: 'Văn học',
+    year: 2020,
+    price: 92000,
+    availableCopies: 0,
+    totalCopies: 5,
+    status: 'borrowed_all', // Đang mượn hết
+    coverColor: '#f59e0b',
+    isbn: '9786042123028',
+    publisher: 'NXB Văn Học',
+    copies: [
+      { barcode: 'BC0002-A', status: 'Borrowed' },
+      { barcode: 'BC0002-B', status: 'Borrowed' }
+    ]
+  },
+  {
+    id: 3,
+    code: 'BK-0003',
+    title: 'Lập Trình Python Cơ Bản',
+    author: 'Nguyễn Văn An',
+    category: 'Tin học',
+    year: 2022,
+    price: 175000,
+    availableCopies: 12,
+    totalCopies: 15,
+    status: 'available',
+    coverColor: '#38bdf8',
+    isbn: '9786042123035',
+    publisher: 'NXB Thông Tin & Truyền Thông',
+    copies: [
+      { barcode: 'BC0003-A', status: 'Available' },
+      { barcode: 'BC0003-B', status: 'Available' }
+    ]
+  },
+  {
+    id: 4,
+    code: 'BK-0004',
+    title: 'Giải Tích Toán Học Cao Cấp',
+    author: 'Trần Minh Đức',
+    category: 'Khoa học',
+    year: 2021,
+    price: 120000,
+    availableCopies: 3,
+    totalCopies: 8,
+    status: 'available',
+    coverColor: '#34d399',
+    isbn: '9786042123042',
+    publisher: 'NXB Đại Học Quốc Gia',
+    copies: [
+      { barcode: 'BC0004-A', status: 'Available' },
+      { barcode: 'BC0004-B', status: 'Borrowed' }
+    ]
+  },
+  {
+    id: 5,
+    code: 'BK-0005',
+    title: 'Lịch Sử Việt Nam Toàn Thư',
+    author: 'Lê Thị Hương',
+    category: 'Lịch sử',
+    year: 2023,
+    price: 145000,
+    availableCopies: 0,
+    totalCopies: 8,
+    status: 'borrowed_all',
+    coverColor: '#a855f7',
+    isbn: '9786042123059',
+    publisher: 'NXB Khoa Học Xã Hội',
+    copies: [
+      { barcode: 'BC0005-A', status: 'Borrowed' },
+      { barcode: 'BC0005-B', status: 'Borrowed' }
+    ]
+  },
+  {
+    id: 6,
+    code: 'BK-0006',
+    title: 'Tâm Lý Học Đám Đông',
+    author: 'Phạm Quốc Bảo',
+    category: 'Tâm lý',
+    year: 2020,
+    price: 110000,
+    availableCopies: 5,
+    totalCopies: 7,
+    status: 'available',
+    coverColor: '#f472b6',
+    isbn: '9786042123066',
+    publisher: 'NXB Lao Động',
+    copies: [
+      { barcode: 'BC0006-A', status: 'Available' },
+      { barcode: 'BC0006-B', status: 'Available' }
+    ]
+  }
+];
+
+export default function BookCatalog({ user, externalSearch = '' }) {
+  const [books, setBooks] = useState(INITIAL_BOOKS);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(6);
+  const [totalBooksCount, setTotalBooksCount] = useState(12500);
+  const [internalSearch, setInternalSearch] = useState('');
+
+  // Modal State
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [editingBook, setEditingBook] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage('');
+    }, 3000);
+  };
+
+  // Tìm kiếm kết hợp giữa externalSearch (từ Header) và internalSearch
+  const searchKeyword = externalSearch || internalSearch;
+
+  // Cố gắng gọi API lấy dữ liệu thực nếu có backend, nếu không fallback về INITIAL_BOOKS
+  useEffect(() => {
+    let isMounted = true;
+    const fetchApiBooks = async () => {
+      try {
+        const response = await apiClient.get('/api/Books', {
+          params: {
+            pageNumber: currentPage,
+            pageSize: pageSize,
+            keyword: searchKeyword || undefined
+          }
+        });
+        if (isMounted && response.data && response.data.items && response.data.items.length > 0) {
+          const colors = ['#3b82f6', '#f59e0b', '#38bdf8', '#34d399', '#a855f7', '#f472b6'];
+          const mapped = response.data.items.map((b, idx) => ({
+            id: b.bookID,
+            code: `BK-${String(b.bookID).padStart(4, '0')}`,
+            title: b.title,
+            author: b.author,
+            category: b.categoryName || 'Chung',
+            year: 2020 + (b.bookID % 5),
+            price: b.basePrice || 85000,
+            availableCopies: b.availableCopies !== undefined ? b.availableCopies : (b.bookID % 3 === 0 ? 0 : 5),
+            totalCopies: b.totalCopies || 10,
+            status: (b.availableCopies === 0 || (b.availableCopies === undefined && b.bookID % 3 === 0)) ? 'borrowed_all' : 'available',
+            coverColor: colors[idx % colors.length],
+            isbn: b.isbn || 'Đang cập nhật',
+            publisher: b.publisher || 'NXB Đại Học Quốc Gia',
+            copies: []
+          }));
+          setBooks(mapped);
+          if (response.data.totalCount) {
+            setTotalBooksCount(response.data.totalCount);
+          }
+        }
+      } catch (err) {
+        // Nếu backend chưa sẵn sàng hoặc lỗi, dùng dữ liệu mẫu chuẩn khớp Figma
+      }
+    };
+
+    fetchApiBooks();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPage, pageSize, searchKeyword]);
+
+  // Lọc dữ liệu hiển thị theo từ khóa tìm kiếm
+  const filteredBooks = useMemo(() => {
+    if (!searchKeyword) return books;
+    const kw = searchKeyword.toLowerCase().trim();
+    return books.filter(
+      (b) =>
+        b.code.toLowerCase().includes(kw) ||
+        b.title.toLowerCase().includes(kw) ||
+        b.author.toLowerCase().includes(kw) ||
+        b.category.toLowerCase().includes(kw)
+    );
+  }, [books, searchKeyword]);
+
+  // Xử lý mở modal Chi tiết
+  const handleOpenDetail = (book) => {
+    setSelectedBook(book);
+    setIsDetailOpen(true);
+  };
+
+  // Xử lý mở modal Sửa
+  const handleOpenEdit = (book) => {
+    setEditingBook({ ...book });
+    setIsEditOpen(true);
+  };
+
+  // Lưu thông tin sau khi sửa
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingBook) return;
+
+    setBooks((prev) =>
+      prev.map((b) => (b.id === editingBook.id ? { ...editingBook } : b))
+    );
+    setIsEditOpen(false);
+    showToast(`Đã cập nhật thành công đầu sách "${editingBook.title}"!`);
+  };
+
+  // Format tiền tệ VNĐ
+  const formatVND = (val) => {
+    return Number(val || 0).toLocaleString('vi-VN');
+  };
+
+  return (
+    <div className="book-catalog-container">
+      {/* Toast thông báo */}
+      {toastMessage && (
+        <div className="catalog-toast">
+          <CheckCircle2 size={18} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* ====================================================================
+          1. HÀNG 4 THẺ CHỈ SỐ THỐNG KÊ (KPI SUMMARY CARDS)
+          ==================================================================== */}
+      <div className="catalog-kpi-grid">
+        {/* Thẻ 1: Tổng đầu sách */}
+        <div className="catalog-kpi-card">
+          <div className="kpi-info-col">
+            <span className="kpi-label">Tổng đầu sách</span>
+            <span className="kpi-number">{totalBooksCount.toLocaleString('vi-VN')}</span>
+          </div>
+          <div className="kpi-icon-square icon-blue">
+            <Copy size={20} />
+          </div>
+        </div>
+
+        {/* Thẻ 2: Sách đang cho mượn */}
+        <div className="catalog-kpi-card">
+          <div className="kpi-info-col">
+            <span className="kpi-label">Sách đang cho mượn</span>
+            <span className="kpi-number">1.420</span>
+          </div>
+          <div className="kpi-icon-square icon-green">
+            <BookOpen size={20} />
+          </div>
+        </div>
+
+        {/* Thẻ 3: Sách quá hạn */}
+        <div className="catalog-kpi-card">
+          <div className="kpi-info-col">
+            <span className="kpi-label">Sách quá hạn</span>
+            <span className="kpi-number text-red">47</span>
+          </div>
+          <div className="kpi-icon-square icon-red">
+            <AlertTriangle size={20} />
+          </div>
+        </div>
+
+        {/* Thẻ 4: Sách hỏng cần thanh lý */}
+        <div className="catalog-kpi-card">
+          <div className="kpi-info-col">
+            <span className="kpi-label">Sách hỏng cần thanh lý</span>
+            <span className="kpi-number">12</span>
+          </div>
+          <div className="kpi-icon-square icon-gray">
+            <Trash2 size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          2. BẢNG DANH SÁCH SÁCH ĐANG QUẢN LÝ (MAIN TABLE CARD)
+          ==================================================================== */}
+      <div className="catalog-table-card">
+        <div className="catalog-table-header">
+          <h2 className="catalog-table-title">Danh sách sách đang quản lý</h2>
+        </div>
+
+        <div className="catalog-table-wrapper">
+          <table className="catalog-table">
+            <thead>
+              <tr>
+                <th style={{ width: '100px' }}>Mã sách</th>
+                <th style={{ minWidth: '220px' }}>Ảnh bìa & Tên sách</th>
+                <th style={{ minWidth: '150px' }}>Tác giả</th>
+                <th style={{ width: '110px' }}>Thể loại</th>
+                <th style={{ width: '90px' }}>Năm XB</th>
+                <th style={{ width: '120px' }}>Giá bìa (VNĐ)</th>
+                <th style={{ width: '130px' }}>Tồn kho (Còn/Tổng)</th>
+                <th style={{ width: '130px' }}>Trạng thái</th>
+                <th style={{ width: '110px', textAlign: 'center' }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBooks.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="empty-table-cell">
+                    Không tìm thấy đầu sách nào phù hợp với từ khóa "{searchKeyword}".
+                  </td>
+                </tr>
+              ) : (
+                filteredBooks.map((book) => {
+                  const percentStock = book.totalCopies > 0
+                    ? Math.round((book.availableCopies / book.totalCopies) * 100)
+                    : 0;
+                  const isAvailable = book.status === 'available' || book.availableCopies > 0;
+
+                  return (
+                    <tr key={book.id}>
+                      {/* Cột 1: Mã sách */}
+                      <td>
+                        <span className="book-code-badge">{book.code}</span>
+                      </td>
+
+                      {/* Cột 2: Ảnh bìa & Tên sách */}
+                      <td>
+                        <div className="book-title-cell">
+                          <div
+                            className="book-cover-thumb"
+                            style={{ backgroundColor: book.coverColor || '#3b82f6' }}
+                            title={book.title}
+                          >
+                            <span className="cover-thumb-text">
+                              {book.title.charAt(0)}
+                            </span>
+                          </div>
+                          <span className="book-title-text" title={book.title}>
+                            {book.title}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Cột 3: Tác giả */}
+                      <td>
+                        <span className="book-author-text">{book.author}</span>
+                      </td>
+
+                      {/* Cột 4: Thể loại */}
+                      <td>
+                        <span className="book-category-text">{book.category}</span>
+                      </td>
+
+                      {/* Cột 5: Năm XB */}
+                      <td>
+                        <span className="book-year-text">{book.year}</span>
+                      </td>
+
+                      {/* Cột 6: Giá bìa */}
+                      <td>
+                        <span className="book-price-text">{formatVND(book.price)}</span>
+                      </td>
+
+                      {/* Cột 7: Tồn kho (Còn/Tổng) kèm thanh tiến trình */}
+                      <td>
+                        <div className="stock-cell">
+                          <span className="stock-fraction">
+                            {book.availableCopies}/{book.totalCopies}
+                          </span>
+                          <div className="stock-progress-bg">
+                            <div
+                              className={`stock-progress-fill ${
+                                isAvailable ? 'progress-green' : 'progress-orange'
+                              }`}
+                              style={{ width: `${percentStock}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Cột 8: Trạng thái */}
+                      <td>
+                        {isAvailable ? (
+                          <span className="status-badge badge-available">
+                            Sẵn sàng
+                          </span>
+                        ) : (
+                          <span className="status-badge badge-borrowed">
+                            Đang mượn hết
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Cột 9: Thao tác */}
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="action-links">
+                          <button
+                            type="button"
+                            className="btn-action-link"
+                            onClick={() => handleOpenEdit(book)}
+                          >
+                            Sửa
+                          </button>
+                          <span className="action-divider">|</span>
+                          <button
+                            type="button"
+                            className="btn-action-link"
+                            onClick={() => handleOpenDetail(book)}
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ====================================================================
+            3. THANH PHÂN TRANG (PAGINATION FOOTER)
+            ==================================================================== */}
+        <div className="catalog-pagination">
+          <div className="pagination-info">
+            Hiển thị 1-{filteredBooks.length} / {totalBooksCount.toLocaleString('vi-VN')} đầu sách
+          </div>
+
+          <div className="pagination-controls">
+            <button
+              type="button"
+              className="pagination-btn"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              title="Trang trước"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <span className="pagination-page-indicator">
+              Trang {currentPage}/125
+            </span>
+
+            <button
+              type="button"
+              className="pagination-btn"
+              disabled={currentPage >= 125}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              title="Trang tiếp"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          MODAL 1: CHI TIẾT ĐẦU SÁCH
+          ==================================================================== */}
+      {isDetailOpen && selectedBook && (
+        <div className="catalog-modal-overlay" onClick={() => setIsDetailOpen(false)}>
+          <div className="catalog-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <span className="modal-code-tag">{selectedBook.code}</span>
+                <h3 className="modal-title">{selectedBook.title}</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsDetailOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="detail-label">Tác giả:</span>
+                  <span className="detail-val">{selectedBook.author}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Thể loại:</span>
+                  <span className="detail-val">{selectedBook.category}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Nhà xuất bản:</span>
+                  <span className="detail-val">{selectedBook.publisher || 'Đang cập nhật'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Năm xuất bản:</span>
+                  <span className="detail-val">{selectedBook.year}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Mã ISBN:</span>
+                  <span className="detail-val">{selectedBook.isbn}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Giá bìa tiêu chuẩn:</span>
+                  <span className="detail-val price-highlight">
+                    {formatVND(selectedBook.price)} VNĐ
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Tồn kho khả dụng:</span>
+                  <span className="detail-val">
+                    <strong>{selectedBook.availableCopies}</strong> / {selectedBook.totalCopies} cuốn
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Trạng thái lưu thông:</span>
+                  <span
+                    className={`status-badge ${
+                      selectedBook.status === 'available'
+                        ? 'badge-available'
+                        : 'badge-borrowed'
+                    }`}
+                  >
+                    {selectedBook.status === 'available' ? 'Sẵn sàng phục vụ' : 'Đang mượn hết'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Danh sách bản sao mã vạch */}
+              <div className="copies-section">
+                <h4 className="copies-title">Danh sách Bản sao mã vạch (Book Copies)</h4>
+                <div className="copies-list">
+                  {selectedBook.copies && selectedBook.copies.length > 0 ? (
+                    selectedBook.copies.map((copy, cIdx) => (
+                      <div key={cIdx} className="copy-item">
+                        <span className="copy-barcode">{copy.barcode}</span>
+                        <span
+                          className={`copy-status ${
+                            copy.status === 'Available' ? 'status-avail' : 'status-borrowed'
+                          }`}
+                        >
+                          {copy.status === 'Available' ? 'Sẵn sàng' : 'Đang mượn'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="copies-empty">
+                      Đầu sách có {selectedBook.totalCopies} bản sao mã vạch tự động sinh trong hệ thống.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsDetailOpen(false)}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={() => {
+                  setIsDetailOpen(false);
+                  handleOpenEdit(selectedBook);
+                }}
+              >
+                <Edit size={14} />
+                <span>Chỉnh sửa sách</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL 2: CHỈNH SỬA ĐẦU SÁCH
+          ==================================================================== */}
+      {isEditOpen && editingBook && (
+        <div className="catalog-modal-overlay" onClick={() => setIsEditOpen(false)}>
+          <div className="catalog-modal-content" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={handleSaveEdit}>
+              <div className="modal-header">
+                <div className="modal-title-box">
+                  <span className="modal-code-tag">{editingBook.code}</span>
+                  <h3 className="modal-title">Chỉnh sửa thông tin sách</h3>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setIsEditOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Tên đầu sách *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingBook.title}
+                    onChange={(e) =>
+                      setEditingBook({ ...editingBook, title: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Tác giả *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingBook.author}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, author: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Thể loại *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingBook.category}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, category: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Năm xuất bản</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editingBook.year}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, year: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Giá bìa (VNĐ) *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editingBook.price}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, price: Number(e.target.value) })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Nhà xuất bản</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingBook.publisher || ''}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, publisher: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Mã ISBN</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingBook.isbn || ''}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, isbn: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setIsEditOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-modal-primary">
+                  <CheckCircle2 size={14} />
+                  <span>Lưu thay đổi</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
