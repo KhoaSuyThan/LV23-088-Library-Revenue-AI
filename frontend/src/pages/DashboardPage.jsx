@@ -36,9 +36,10 @@ export default function DashboardPage({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Xác định activeTab chuẩn xác từ đường dẫn URL (ví dụ: /catalog -> catalog)
-  const pathTab = location.pathname.replace(/^\//, '');
-  const activeTab = pathTab || propActiveTab || 'dashboard';
+  // Xác định activeTab chuẩn xác từ đường dẫn URL (ví dụ: /settings/general -> activeTab là 'settings')
+  const pathParts = location.pathname.replace(/^\//, '').split('/');
+  const activeTab = pathParts[0] || propActiveTab || 'dashboard';
+  const subTab = pathParts[1] || '';
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -573,7 +574,7 @@ export default function DashboardPage({
             /* ----------------------------------------------------------------
                 PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
                 ---------------------------------------------------------------- */
-            <LibrarySettings user={user} />
+            <LibrarySettings user={user} subTab={subTab} />
           ) : (
             /* ----------------------------------------------------------------
                 KHUNG MÀN HÌNH TRỐNG SẴN SÀNG CHO THÀNH VIÊN KHÁC LÀM GIAO DIỆN
