@@ -25,29 +25,35 @@
 
 .dashboard-container {
   display: flex;
-  min-height: 100vh;
-  width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
   background-color: var(--main-bg);
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   color: var(--text-main);
 }
 
 /* --------------------------------------------------------------------------
-   1. SIDEBAR (DARK NAVY)
+   1. SIDEBAR (DARK NAVY) - CỐ ĐỊNH 100VH KHÔNG CUỘN
    -------------------------------------------------------------------------- */
 .dashboard-sidebar {
-  width: 270px;
-  min-width: 270px;
+  width: 230px;
+  min-width: 230px;
+  max-width: 230px;
   background-color: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  position: sticky;
-  top: 0;
   height: 100vh;
+  max-height: 100vh;
   z-index: 50;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-top {
@@ -59,15 +65,15 @@
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 24px 22px 28px;
+  gap: 10px;
+  padding: 18px 16px 20px;
 }
 
 .brand-icon-box {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   background-color: #2563eb;
-  border-radius: 9px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +82,7 @@
 }
 
 .brand-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.3px;
@@ -86,19 +92,19 @@
 .sidebar-menu {
   list-style: none;
   margin: 0;
-  padding: 0 12px;
+  padding: 0 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 14px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--sidebar-text);
   cursor: pointer;
@@ -126,11 +132,11 @@
 
 /* Sidebar Footer */
 .sidebar-footer {
-  padding: 20px 20px 24px;
+  padding: 14px 14px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .system-status {
@@ -172,32 +178,34 @@
 }
 
 /* --------------------------------------------------------------------------
-   2. MAIN CONTENT WRAPPER
+   2. MAIN CONTENT WRAPPER - KHÔNG CUỘN
    -------------------------------------------------------------------------- */
 .dashboard-main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
   min-width: 0; /* Tránh tràn layout */
-  scrollbar-gutter: stable;
+  overflow: hidden;
 }
 
 /* --------------------------------------------------------------------------
-   3. TOP HEADER BAR (STICKY HEADER)
+   3. TOP HEADER BAR (CỐ ĐỊNH TRÊN CÙNG - KHÔNG BỊ KÉO MẤT KHI CUỘN)
    -------------------------------------------------------------------------- */
 .dashboard-header {
-  height: 72px;
+  height: 60px;
+  min-height: 60px;
   background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
-  padding: 0 32px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  position: sticky;
-  top: 0;
+  gap: 16px;
+  flex-shrink: 0;
   z-index: 40;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 /* Search bar */
@@ -311,13 +319,21 @@
 }
 
 /* --------------------------------------------------------------------------
-   4. CONTENT BODY
+   4. CONTENT BODY - CHỈ RIÊNG VÙNG NÀY ĐƯỢC CUỘN KHI LĂN CHUỘT
    -------------------------------------------------------------------------- */
 .dashboard-content {
-  padding: 28px 32px 40px;
+  flex: 1;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
 }
 
 /* --------------------------------------------------------------------------
@@ -777,4 +793,69 @@
   border-radius: 20px;
   border: 1px solid #e2e8f0;
 }
+
+/* --------------------------------------------------------------------------
+   HEADER BREADCRUMB & READER PROFILE TOPBAR ENHANCEMENTS (FIGMA STYLE)
+   -------------------------------------------------------------------------- */
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.breadcrumb-root {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.breadcrumb-sep {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.breadcrumb-current {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.header-search-readers {
+  width: 260px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+}
+
+.header-bell-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-bell-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 

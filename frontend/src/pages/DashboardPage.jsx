@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { authApi } from '../api/authApi';
 import LibrarySettings from './LibrarySettings';
+import ReaderProfiles from './ReaderProfiles';
 import './DashboardPage.css';
 
 /**
@@ -176,16 +177,6 @@ export default function DashboardPage({
             </li>
 
             <li
-              className={`menu-item ${activeTab === 'catalog' ? 'active' : ''}`}
-              onClick={() => handleTabClick('catalog')}
-            >
-              <div className="menu-icon">
-                <BookMarked size={18} />
-              </div>
-              <span>Quản lý Sách (Catalog)</span>
-            </li>
-
-            <li
               className={`menu-item ${activeTab === 'circulation' ? 'active' : ''}`}
               onClick={() => handleTabClick('circulation')}
             >
@@ -196,13 +187,23 @@ export default function DashboardPage({
             </li>
 
             <li
+              className={`menu-item ${activeTab === 'catalog' ? 'active' : ''}`}
+              onClick={() => handleTabClick('catalog')}
+            >
+              <div className="menu-icon">
+                <BookOpen size={18} />
+              </div>
+              <span>Quản lý Sách (Book Catalog)</span>
+            </li>
+
+            <li
               className={`menu-item ${activeTab === 'revenue' ? 'active' : ''}`}
               onClick={() => handleTabClick('revenue')}
             >
               <div className="menu-icon">
                 <CircleDollarSign size={18} />
               </div>
-              <span>Báo cáo Thu phạt (Revenue & Fines)</span>
+              <span>Báo cáo Thu phạt (Fine Revenue)</span>
             </li>
 
             <li
@@ -250,30 +251,58 @@ export default function DashboardPage({
       <main className="dashboard-main">
         {/* Thanh Header Topbar (Ghim cố định Sticky) */}
         <header className="dashboard-header">
-          {/* Ô tìm kiếm thông minh */}
-          <div className="header-search-box">
-            <Search size={18} />
-            <input
-              type="text"
-              className="header-search-input"
-              placeholder="Tìm kiếm sách, độc giả, phiếu mượn..."
-              readOnly
-            />
-          </div>
+          {activeTab === 'readers' ? (
+            /* Breadcrumbs cho phân hệ Hồ sơ Độc giả khớp 100% ảnh Figma */
+            <div className="header-breadcrumb">
+              <span className="breadcrumb-root">Trang chủ</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">Hồ sơ Độc giả</span>
+            </div>
+          ) : (
+            /* Ô tìm kiếm thông minh cho Dashboard */
+            <div className="header-search-box">
+              <Search size={18} />
+              <input
+                type="text"
+                className="header-search-input"
+                placeholder="Tìm kiếm sách, độc giả, phiếu mượn..."
+                readOnly
+              />
+            </div>
+          )}
 
           {/* Cụm hành động bên phải */}
           <div className="header-right">
-            {/* Bộ chọn tháng */}
-            <div className="date-badge">
-              <Calendar size={16} />
-              <span>Tháng 09/2026</span>
-            </div>
+            {activeTab === 'readers' ? (
+              <>
+                <div className="header-search-readers">
+                  <Search size={16} />
+                  <input
+                    type="text"
+                    className="header-search-input"
+                    placeholder="Tìm kiếm..."
+                  />
+                </div>
 
-            {/* Nút xuất báo cáo Excel (Giao diện hiển thị) */}
-            <button className="btn-excel" type="button">
-              <FileSpreadsheet size={16} />
-              <span>Xuất báo cáo Excel</span>
-            </button>
+                <button className="header-bell-btn" type="button" title="Thông báo">
+                  <Bell size={18} />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Bộ chọn tháng */}
+                <div className="date-badge">
+                  <Calendar size={16} />
+                  <span>Tháng 09/2026</span>
+                </div>
+
+                {/* Nút xuất báo cáo Excel (Giao diện hiển thị) */}
+                <button className="btn-excel" type="button">
+                  <FileSpreadsheet size={16} />
+                  <span>Xuất báo cáo Excel</span>
+                </button>
+              </>
+            )}
 
             {/* Thông tin người dùng đăng nhập */}
             <div className="user-profile">
@@ -284,7 +313,14 @@ export default function DashboardPage({
                 <span className="user-dept">Ban Quản Lý Thư Viện</span>
               </div>
               <div className="user-avatar" title={user?.role || 'Admin'}>
-                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'A'}
+                <img
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
+                  alt="Admin"
+                  className="user-avatar-img"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -575,6 +611,11 @@ export default function DashboardPage({
                 PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
                 ---------------------------------------------------------------- */
             <LibrarySettings user={user} subTab={subTab} />
+          ) : activeTab === 'readers' ? (
+            /* ----------------------------------------------------------------
+                PHÂN HỆ HỒ SƠ ĐỘC GIẢ (READERS) KHỚP 100% ẢNH FIGMA
+                ---------------------------------------------------------------- */
+            <ReaderProfiles user={user} />
           ) : (
             /* ----------------------------------------------------------------
                 KHUNG MÀN HÌNH TRỐNG SẴN SÀNG CHO THÀNH VIÊN KHÁC LÀM GIAO DIỆN
