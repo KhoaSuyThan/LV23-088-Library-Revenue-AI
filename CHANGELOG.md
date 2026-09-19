@@ -5,17 +5,18 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-09-19] - Triển khai Giao diện Cài đặt quy định & Cấu hình AI theo mẫu Figma (US-03 / LOLRA-11)
+## [2026-09-19] - Triển khai Giao diện Cài đặt quy định, Định tuyến Subtabs & Fix giật UI thanh cuộn (US-03 / LOLRA-11)
 
 ### Đã thêm & Cải thiện (Added & Improved):
 - **Giao diện Cài đặt quy định (`/settings`)**:
   - Tái hiện chuẩn xác mẫu thiết kế Figma `smartlib-ai-settings` với dải thông báo đầu trang và bố cục 2 cột trực quan.
   - **Quy định lưu thông & Mức phạt**: Cấu hình thời hạn mượn (Sinh viên, Giảng viên, Số sách tối đa), khung tính phí phạt vi phạm và tự động khóa mượn khi nợ phạt > 50.000 VNĐ.
   - **Cấu hình mô hình AI Early Warning**: Thanh trượt Slider chỉnh ngưỡng rủi ro cao (80%), tự động gửi email nhắc nhở và khối theo dõi mô hình Random Forest Classifier (hỗ trợ nút Retrain Model realtime).
-  - **Thanh 4 Tabs chuyên sâu**: Mở rộng các tab Hạn mượn chi tiết, Chiết khấu điểm tín nhiệm AI 90/100, Danh mục lý do miễn giảm thủ công và Nhật ký kiểm toán (Audit Trail).
+  - **Định tuyến 4 Subtabs chuyên sâu**: Phân tách URL riêng biệt (`/settings/general`, `/settings/borrow`, `/settings/fines`, `/settings/audit`), đồng bộ trạng thái khi F5 hoặc chia sẻ link.
+  - **Khắc phục triệt để lỗi giật giao diện (Layout Shift)**: Tối ưu `scrollbar-gutter: stable` và `overflow-y: scroll` trên `html`, `body` và `.dashboard-main`, giữ không gian thanh cuộn ổn định tuyệt đối khi cuộn tab AI.
 - **Mã nguồn & Tích hợp**:
   - Tạo mới component [LibrarySettings.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), bộ style [LibrarySettings.css](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.css) (Vanilla CSS) và service [rulesApi.js](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js) (kèm Mock Data dự phòng).
-  - Tích hợp trực tiếp vào [DashboardPage.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx) khi người dùng truy cập tab `/settings`.
+  - Tích hợp trực tiếp vào [DashboardPage.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx) và định tuyến trong [App.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/App.jsx).
 
 
 ## [2026-09-18] - Xác thực, Phân quyền RBAC & Điều hướng URL Tab (US-01 / LOLRA-9)

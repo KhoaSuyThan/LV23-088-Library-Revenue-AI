@@ -5,6 +5,12 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Cố định không gian cho thanh cuộn, chống layout shift giật giao diện khi nội dung dài */
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
 body {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   background-color: #eaf0fb;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar,
   CircleDollarSign,
@@ -22,11 +23,37 @@ import './LibrarySettings.css';
 
 /**
  * Component Cài đặt quy định thư viện & Cấu hình AI SmartLib AI (US-03 - LOLRA-11)
- * Thiết kế giao diện khớp 100% mẫu Figma của hệ thống
+ * Thiết kế giao diện khớp 100% mẫu Figma của hệ thống, đồng bộ URL sub-routes
  */
-export default function LibrarySettings({ user }) {
-  // Tab điều hướng: 'figma_overview' (mặc định khớp ảnh), 'borrow_detail', 'fine_waiver', 'audit'
-  const [activeTab, setActiveTab] = useState('figma_overview');
+export default function LibrarySettings({ user, subTab: propSubTab }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Mapping giữa đường dẫn URL và key giao diện
+  // /settings/general -> 'figma_overview'
+  // /settings/borrow  -> 'borrow_detail'
+  // /settings/fines   -> 'fine_waiver'
+  // /settings/audit   -> 'audit'
+  const getActiveTabFromUrl = () => {
+    const parts = location.pathname.replace(/^\//, '').split('/');
+    const sub = propSubTab || parts[1] || 'general';
+    if (sub === 'borrow') return 'borrow_detail';
+    if (sub === 'fines') return 'fine_waiver';
+    if (sub === 'audit') return 'audit';
+    return 'figma_overview';
+  };
+
+  const activeTab = getActiveTabFromUrl();
+
+  // Chuyển tab và cập nhật URL trình duyệt tương ứng
+  const handleTabNavigate = (tabKey) => {
+    let targetPath = '/settings/general';
+    if (tabKey === 'borrow_detail') targetPath = '/settings/borrow';
+    if (tabKey === 'fine_waiver') targetPath = '/settings/fines';
+    if (tabKey === 'audit') targetPath = '/settings/audit';
+
+    navigate(targetPath);
+  };
 
   // State lưu trữ dữ liệu cấu hình
   const [formData, setFormData] = useState({
@@ -235,7 +262,7 @@ export default function LibrarySettings({ user }) {
           <button
             type="button"
             className={`subtab-btn ${activeTab === 'figma_overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('figma_overview')}
+            onClick={() => handleTabNavigate('figma_overview')}
           >
             <Sliders size={15} />
             <span>Cấu hình chung & AI (Figma)</span>
@@ -244,7 +271,7 @@ export default function LibrarySettings({ user }) {
           <button
             type="button"
             className={`subtab-btn ${activeTab === 'borrow_detail' ? 'active' : ''}`}
-            onClick={() => setActiveTab('borrow_detail')}
+            onClick={() => handleTabNavigate('borrow_detail')}
           >
             <GraduationCap size={15} />
             <span>Hạn mượn & Gia hạn</span>
@@ -253,7 +280,7 @@ export default function LibrarySettings({ user }) {
           <button
             type="button"
             className={`subtab-btn ${activeTab === 'fine_waiver' ? 'active' : ''}`}
-            onClick={() => setActiveTab('fine_waiver')}
+            onClick={() => handleTabNavigate('fine_waiver')}
           >
             <Sparkles size={15} />
             <span>Chiết khấu AI & Miễn giảm</span>
@@ -262,7 +289,7 @@ export default function LibrarySettings({ user }) {
           <button
             type="button"
             className={`subtab-btn ${activeTab === 'audit' ? 'active' : ''}`}
-            onClick={() => setActiveTab('audit')}
+            onClick={() => handleTabNavigate('audit')}
           >
             <History size={15} />
             <span>Nhật ký kiểm toán</span>
