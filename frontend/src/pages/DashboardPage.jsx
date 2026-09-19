@@ -43,8 +43,9 @@ export default function DashboardPage({
   const activeTab = pathParts[0] || propActiveTab || 'dashboard';
   const subTab = pathParts[1] || '';
 
-  // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách (đồng bộ thanh Header)
+  // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách & Hồ sơ Độc giả (đồng bộ thanh Header)
   const [catalogSearch, setCatalogSearch] = React.useState('');
+  const [readerSearch, setReaderSearch] = React.useState('');
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -127,27 +128,27 @@ export default function DashboardPage({
   // Thông tin metadata cho các tab đang chờ thành viên khác phát triển
   const tabMetadata = {
     catalog: {
-      title: 'Quản lý Danh mục Sách (Catalog)',
+      title: 'Quản lý Sách',
       desc: 'Phân hệ quản lý danh mục đầu sách, tra cứu ISBN, lọc thể loại và nghiệp vụ xóa mềm (US-04).',
       icon: <BookMarked size={32} />
     },
     circulation: {
-      title: 'Mượn - Trả sách (Circulation)',
+      title: 'Mượn - Trả sách',
       desc: 'Phân hệ nghiệp vụ lập phiếu mượn, quét mã vạch Barcode và ghi nhận hoàn trả sách thư viện.',
       icon: <ArrowLeftRight size={32} />
     },
     revenue: {
-      title: 'Báo cáo Thu phạt (Revenue & Fines)',
+      title: 'Báo cáo Thu phạt',
       desc: 'Phân hệ quản lý biên lai tài chính, dòng tiền thu phạt và báo cáo xuất file Excel.',
       icon: <CircleDollarSign size={32} />
     },
     readers: {
-      title: 'Hồ sơ Độc giả (Readers)',
+      title: 'Hồ sơ Độc giả',
       desc: 'Phân hệ quản lý thông tin bạn đọc, cấp thẻ thư viện và theo dõi điểm tín nhiệm (US-02).',
       icon: <Users size={32} />
     },
     settings: {
-      title: 'Cài đặt quy định (Settings)',
+      title: 'Cài đặt',
       desc: 'Phân hệ thiết lập hạn mức mượn, mức phạt trễ hạn và chính sách giảm trừ rèn luyện dành riêng cho Admin (US-03).',
       icon: <Settings size={32} />
     }
@@ -177,7 +178,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <LayoutGrid size={18} />
               </div>
-              <span>Tổng quan (Dashboard)</span>
+              <span>Tổng quan</span>
             </li>
 
             <li
@@ -187,7 +188,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <ArrowLeftRight size={18} />
               </div>
-              <span>Mượn - Trả sách (Circulation)</span>
+              <span>Mượn - Trả sách</span>
             </li>
 
             <li
@@ -197,7 +198,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <BookOpen size={18} />
               </div>
-              <span>Quản lý Sách (Book Catalog)</span>
+              <span>Quản lý Sách</span>
             </li>
 
             <li
@@ -207,7 +208,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <CircleDollarSign size={18} />
               </div>
-              <span>Báo cáo Thu phạt (Fine Revenue)</span>
+              <span>Báo cáo Thu phạt</span>
             </li>
 
             <li
@@ -217,10 +218,10 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <Users size={18} />
               </div>
-              <span>Hồ sơ Độc giả (Readers)</span>
+              <span>Hồ sơ Độc giả</span>
             </li>
 
-            {/* Phân quyền: Cài đặt quy định chỉ hiển thị cho Admin */}
+            {/* Phân quyền: Cài đặt chỉ hiển thị cho Admin */}
             {isAdmin && (
               <li
                 className={`menu-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -229,7 +230,7 @@ export default function DashboardPage({
                 <div className="menu-icon">
                   <Settings size={18} />
                 </div>
-                <span>Cài đặt quy định (Settings)</span>
+                <span>Cài đặt</span>
               </li>
             )}
           </ul>
@@ -291,11 +292,17 @@ export default function DashboardPage({
                   <input
                     type="text"
                     className="header-search-input"
-                    placeholder="Tìm kiếm..."
-                    value={activeTab === 'catalog' ? catalogSearch : ''}
+                    placeholder={
+                      activeTab === 'readers'
+                        ? 'Tìm kiếm độc giả (Tên, MSSV, Email)...'
+                        : 'Tìm kiếm sách (Tên, Mã sách, ISBN)...'
+                    }
+                    value={activeTab === 'catalog' ? catalogSearch : activeTab === 'readers' ? readerSearch : ''}
                     onChange={(e) => {
                       if (activeTab === 'catalog') {
                         setCatalogSearch(e.target.value);
+                      } else if (activeTab === 'readers') {
+                        setReaderSearch(e.target.value);
                       }
                     }}
                   />
@@ -632,7 +639,7 @@ export default function DashboardPage({
             /* ----------------------------------------------------------------
                 PHÂN HỆ HỒ SƠ ĐỘC GIẢ (READERS) KHỚP 100% ẢNH FIGMA
                 ---------------------------------------------------------------- */
-            <ReaderProfiles user={user} />
+            <ReaderProfiles user={user} externalSearch={readerSearch} />
           ) : activeTab === 'catalog' ? (
             /* ----------------------------------------------------------------
                 PHÂN HỆ QUẢN LÝ SÁCH (BOOK CATALOG) KHỚP 100% ẢNH THIẾT KẾ

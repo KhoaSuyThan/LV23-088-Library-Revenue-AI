@@ -6,12 +6,11 @@
 .book-catalog-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 24px 28px;
-  height: 100%;
-  overflow-y: auto;
-  background-color: #f4f6fb;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  animation: fadeIn 0.25s ease-out;
   color: #0f172a;
 }
 
