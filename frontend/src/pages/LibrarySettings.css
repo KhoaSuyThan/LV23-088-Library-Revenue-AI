@@ -1,0 +1,598 @@
+/* ==========================================================================
+   SMARTLIB AI - LIBRARY SETTINGS STYLING (FIGMA MATCHING)
+   Tông màu: Dark Navy, Blue #2563eb, Slate #64748b, White #ffffff
+   ========================================================================== */
+
+.settings-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   1. BANNER THÔNG BÁO XANH NHẠT (ĐÚNG CHUẨN MẪU FIGMA)
+   -------------------------------------------------------------------------- */
+.settings-info-banner {
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1d4ed8;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.settings-info-banner-icon {
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
+/* --------------------------------------------------------------------------
+   2. THANH SUB-TABS & NÚT LƯU THAO TÁC
+   -------------------------------------------------------------------------- */
+.settings-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-subtabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 5px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.subtab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.subtab-btn:hover {
+  color: #0f172a;
+  background-color: #f1f5f9;
+}
+
+.subtab-btn.active {
+  background-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.subtab-btn.active .subtab-counter {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.subtab-counter {
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.settings-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-ghost-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #475569;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost-reset:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.btn-primary-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
+}
+
+.btn-primary-save:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-primary-save:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.spinner-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------------------------------------
+   3. BỐ CỤC 2 CỘT CHUẨN FIGMA (TAB 1)
+   -------------------------------------------------------------------------- */
+.figma-two-columns-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .figma-two-columns-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.figma-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.column-group-title {
+  margin: 0 0 -6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   4. THẺ CARD TRẮNG CHUẨN THIẾT KẾ
+   -------------------------------------------------------------------------- */
+.figma-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.figma-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.figma-card-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.figma-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* --------------------------------------------------------------------------
+   5. CÁC HÀNG & Ô NHẬP LIỆU (INPUT FIELDS)
+   -------------------------------------------------------------------------- */
+.input-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.figma-form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.figma-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.figma-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.figma-input-control {
+  width: 100%;
+  padding: 10px 14px;
+  padding-right: 65px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.figma-input-control:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.figma-input-control.has-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2;
+}
+
+.figma-input-tag {
+  position: absolute;
+  right: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.figma-error-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ef4444;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   6. HÀNG TOGGLE SWITCH (BẬT / TẮT)
+   -------------------------------------------------------------------------- */
+.toggle-switch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 14px;
+}
+
+.toggle-switch-card-transparent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  gap: 14px;
+}
+
+.toggle-switch-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+/* Switch styling */
+.custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.custom-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider-knob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  border-radius: 24px;
+  transition: 0.25s;
+}
+
+.slider-knob:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.25s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.custom-switch input:checked + .slider-knob {
+  background-color: #2563eb;
+}
+
+.custom-switch input:checked + .slider-knob:before {
+  transform: translateX(20px);
+}
+
+/* --------------------------------------------------------------------------
+   7. THANH TRƯỢT RANGE SLIDER NGƯỠNG AI (HIGH RISK THRESHOLD)
+   -------------------------------------------------------------------------- */
+.ai-slider-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-slider-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.ai-slider-value-badge {
+  font-size: 15px;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.ai-range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: #2563eb;
+  outline: none;
+  cursor: pointer;
+}
+
+.ai-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.ai-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.ai-slider-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-top: -4px;
+}
+
+/* --------------------------------------------------------------------------
+   8. KHỐI THẺ MÔ HÌNH AI (RANDOM FOREST CLASSIFIER)
+   -------------------------------------------------------------------------- */
+.ai-model-status-card {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-model-top-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+
+.ai-model-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ai-model-status-active {
+  color: #10b981;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ai-model-name-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ai-model-detail-row {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.ai-model-date-row {
+  margin: 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.btn-retrain-outline {
+  margin-top: 6px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border: 1.5px solid #2563eb;
+  color: #2563eb;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-retrain-outline:hover:not(:disabled) {
+  background-color: #eff6ff;
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+}
+
+.btn-retrain-outline:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   9. HỘP CẢNH BÁO VIỀN VÀNG PHÍ PHẠT CAO
+   -------------------------------------------------------------------------- */
+.fine-warning-box {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------------------------
+   10. STYLE CHO CÁC SUB-TABS PHỤ (TABS 2, 3, 4)
+   -------------------------------------------------------------------------- */
+.subtab-detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.subtab-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* Toast Notification */
+.figma-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 14px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.figma-toast.toast-success {
+  border-left: 4px solid #10b981;
+}
+
+.figma-toast.toast-error {
+  border-left: 4px solid #ef4444;
+}
+
+.figma-toast.toast-info {
+  border-left: 4px solid #3b82f6;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
