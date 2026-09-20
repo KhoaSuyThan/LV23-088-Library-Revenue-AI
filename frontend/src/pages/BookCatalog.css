@@ -336,6 +336,14 @@
   text-decoration: underline;
 }
 
+.btn-action-link.danger-link {
+  color: #ef4444;
+}
+
+.btn-action-link.danger-link:hover {
+  color: #dc2626;
+}
+
 .action-divider {
   color: #cbd5e1;
   font-size: 12px;
@@ -660,6 +668,125 @@
 
 .btn-modal-primary:hover {
   background-color: #1d4ed8;
+}
+
+/* Modal Xóa mềm & Chặn xóa */
+.delete-modal-dialog {
+  max-width: 520px;
+}
+
+.modal-code-tag.tag-danger {
+  background-color: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+}
+
+.modal-code-tag.tag-warning {
+  background-color: #fef3c7;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+.delete-modal-body {
+  padding: 20px 24px;
+}
+
+.delete-alert-wrapper {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.delete-alert-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.delete-alert-icon.icon-blocked {
+  background-color: #fffbeb;
+  color: #f59e0b;
+  border: 1px solid #fef3c7;
+}
+
+.delete-alert-icon.icon-confirm {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+
+.delete-alert-text {
+  flex: 1;
+}
+
+.delete-alert-heading {
+  margin: 0 0 8px 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.delete-desc {
+  margin: 0 0 14px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.delete-desc strong {
+  color: #0f172a;
+}
+
+.delete-desc .text-red {
+  color: #ef4444;
+}
+
+.delete-rule-box {
+  background-color: #fff7ed;
+  border-left: 3px solid #f97316;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #7c2d12;
+}
+
+.delete-rule-box.success-rule {
+  background-color: #f0fdf4;
+  border-left-color: #16a34a;
+  color: #166534;
+}
+
+.delete-rule-box strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.delete-rule-box p {
+  margin: 0;
+}
+
+.btn-modal-danger {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.btn-modal-danger:hover {
+  background-color: #dc2626;
 }
 
 /* ==========================================================================

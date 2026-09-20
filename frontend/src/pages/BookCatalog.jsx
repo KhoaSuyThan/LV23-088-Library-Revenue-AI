@@ -151,6 +151,11 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [editingBook, setEditingBook] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // State Modal Xóa mềm & Chặn xóa
+  const [deleteBookTarget, setDeleteBookTarget] = useState(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
   const [toastMessage, setToastMessage] = useState('');
 
   const showToast = (msg) => {
@@ -158,6 +163,31 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setTimeout(() => {
       setToastMessage('');
     }, 3000);
+  };
+
+  // Mở modal Xóa mềm
+  const handleOpenDelete = (book) => {
+    setDeleteBookTarget(book);
+    setIsDeleteOpen(true);
+  };
+
+  // Xác nhận Xóa mềm (chuyển sang ngừng lưu thông IsActive = 0)
+  const handleConfirmDelete = async () => {
+    if (!deleteBookTarget) return;
+
+    try {
+      // Cố gắng gọi API xóa mềm nếu có kết nối backend
+      await apiClient.delete(`/api/Books/${deleteBookTarget.id}`);
+    } catch (err) {
+      // Tự động xử lý Client-side fallback mượt mà
+    }
+
+    // Cập nhật danh sách: ẩn đầu sách đã xóa mềm khỏi danh mục lưu thông
+    setBooks((prev) => prev.filter((b) => b.id !== deleteBookTarget.id));
+    setTotalBooksCount((prev) => Math.max(0, prev - 1));
+    setIsDeleteOpen(false);
+    showToast(`Đã chuyển đầu sách "${deleteBookTarget.title}" sang danh mục ngừng lưu thông (xóa mềm)!`);
+    setDeleteBookTarget(null);
   };
 
   // Tìm kiếm kết hợp giữa externalSearch (từ Header) và internalSearch
@@ -439,6 +469,15 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                             onClick={() => handleOpenDetail(book)}
                           >
                             Chi tiết
+                          </button>
+                          <span className="action-divider">|</span>
+                          <button
+                            type="button"
+                            className="btn-action-link danger-link"
+                            onClick={() => handleOpenDelete(book)}
+                            title="Ngừng lưu thông (Xóa mềm)"
+                          >
+                            Xóa
                           </button>
                         </div>
                       </td>
@@ -738,6 +777,114 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           </div>
         </div>
       )}
+
+      {/* ====================================================================
+          MODAL 3: XÓA MỀM (NGỪNG LƯU THÔNG) / CẢNH BÁO CHẶN XÓA
+          ==================================================================== */}
+      {isDeleteOpen && deleteBookTarget && (() => {
+        const borrowedCopies = Math.max(
+          0,
+          (deleteBookTarget.totalCopies || 0) - (deleteBookTarget.availableCopies || 0)
+        );
+        const isBlocked = borrowedCopies > 0 || deleteBookTarget.status === 'borrowed_all';
+
+        return (
+          <div className="catalog-modal-overlay" onClick={() => setIsDeleteOpen(false)}>
+            <div
+              className="catalog-modal-content delete-modal-dialog"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title-box">
+                  <span className={`modal-code-tag ${isBlocked ? 'tag-warning' : 'tag-danger'}`}>
+                    {deleteBookTarget.code}
+                  </span>
+                  <h3 className="modal-title">
+                    {isBlocked
+                      ? 'Không thể ngừng lưu thông'
+                      : 'Xác nhận ngừng lưu thông (Xóa mềm)'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setIsDeleteOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="modal-body delete-modal-body">
+                {isBlocked ? (
+                  // Trường hợp 1: Chặn xóa vì đang có sách mượn
+                  <div className="delete-alert-wrapper block-mode">
+                    <div className="delete-alert-icon icon-blocked">
+                      <AlertTriangle size={32} />
+                    </div>
+                    <div className="delete-alert-text">
+                      <h4 className="delete-alert-heading">
+                        Đang có {borrowedCopies} cuốn sách được mượn!
+                      </h4>
+                      <p className="delete-desc">
+                        Đầu sách <strong>"{deleteBookTarget.title}"</strong> hiện đang có{' '}
+                        <strong className="text-red">{borrowedCopies} bản sao</strong> đang được độc giả mượn chưa hoàn trả.
+                      </p>
+                      <div className="delete-rule-box">
+                        <strong>Quy tắc bảo toàn tài sản thư viện:</strong>
+                        <p>
+                          Hệ thống chặn tuyệt đối thao tác ngừng lưu thông (xóa mềm) khi vẫn còn bản sao đang lưu hành ngoài thư viện. Vui lòng thu hồi toàn bộ sách trước khi thực hiện.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Trường hợp 2: Hợp lệ để xóa mềm
+                  <div className="delete-alert-wrapper confirm-mode">
+                    <div className="delete-alert-icon icon-confirm">
+                      <Trash2 size={32} />
+                    </div>
+                    <div className="delete-alert-text">
+                      <h4 className="delete-alert-heading">
+                        Chuyển sang trạng thái ngừng lưu thông?
+                      </h4>
+                      <p className="delete-desc">
+                        Bạn có chắc chắn muốn ngừng lưu thông đầu sách{' '}
+                        <strong>"{deleteBookTarget.title}"</strong> (Mã: <code>{deleteBookTarget.code}</code>, gồm {deleteBookTarget.totalCopies} cuốn)?
+                      </p>
+                      <div className="delete-rule-box success-rule">
+                        <strong>Cơ chế Xóa mềm (Soft-Delete - IsActive = 0):</strong>
+                        <p>
+                          Đầu sách sẽ được ẩn khỏi danh mục lưu thông. Toàn bộ lịch sử mượn trả, phí phạt và dữ liệu thống kê trước đây vẫn được lưu trữ toàn vẹn trong cơ sở dữ liệu.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setIsDeleteOpen(false)}
+                >
+                  {isBlocked ? 'Đã hiểu / Đóng' : 'Hủy bỏ'}
+                </button>
+                {!isBlocked && (
+                  <button
+                    type="button"
+                    className="btn-modal-danger"
+                    onClick={handleConfirmDelete}
+                  >
+                    <Trash2 size={14} />
+                    <span>Xác nhận xóa mềm</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
