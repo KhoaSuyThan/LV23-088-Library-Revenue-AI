@@ -5,6 +5,16 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-09-20] - Bổ sung Nút Xóa Mềm & Cơ chế Chặn Xóa khi sách đang mượn (US-04 / LOLRA-12)
+
+### Đã thêm & Cải thiện (Added & Improved):
+- **Cột Thao tác Quản lý sách (`BookCatalog.jsx`, `BookCatalog.css`)**:
+  - Bổ sung nút **Xóa** (`.btn-action-link.danger-link`) màu đỏ kế bên các nút *Sửa* và *Chi tiết*.
+  - **Cơ chế Chặn xóa (Block Mode)**: Kiểm tra số lượng bản sao đang được mượn (`totalCopies - availableCopies > 0` hoặc trạng thái `borrowed_all`). Khi phát hiện sách đang được bạn đọc mượn, hiển thị Modal cảnh báo màu cam/vàng với icon `AlertTriangle`, giải thích chi tiết lý do và chặn tuyệt đối hành vi xóa để bảo toàn tài sản thư viện.
+  - **Cơ chế Xóa mềm (Soft-Delete Mode)**: Nếu toàn bộ bản sao đều sẵn sàng (`availableCopies == totalCopies`), hiển thị Modal xác nhận màu đỏ với icon `Trash2`, giải thích rõ việc chuyển `IsActive = 0` (ngừng lưu thông nhưng bảo lưu lịch sử giao dịch).
+  - Tự động cập nhật Client state: Loại bỏ sách khỏi danh sách lưu thông, giảm chỉ số KPI *Tổng đầu sách*, gửi yêu cầu HTTP DELETE tới backend (nếu có kết nối) và kích hoạt Toast thông báo thành công.
+- **Kiểm thử biên dịch**: Frontend (`npm run build`) hoàn thành xuất sắc với 0 lỗi.
+
 ## [2026-09-19] - Triển khai Giao diện Cài đặt quy định, Định tuyến Subtabs & Fix giật UI thanh cuộn (US-03 / LOLRA-11)
 
 ### Đã thêm & Cải thiện (Added & Improved):
