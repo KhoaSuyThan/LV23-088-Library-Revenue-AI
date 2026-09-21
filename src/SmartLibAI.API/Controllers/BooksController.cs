@@ -85,4 +85,14 @@ public class BooksController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách trong thư viện ra tệp CSV (UTF-8 BOM).
+    /// </summary>
+    [HttpGet("export-csv")]
+    public async Task<IActionResult> ExportBooksCsv()
+    {
+        var csvBytes = await _bookService.ExportBooksToCsvAsync();
+        return File(csvBytes, "text/csv; charset=utf-8", "smartlib_books_catalog.csv");
+    }
 }

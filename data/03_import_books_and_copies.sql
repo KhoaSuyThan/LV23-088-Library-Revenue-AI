@@ -1,7 +1,7 @@
 -- ==========================================================
 -- File: 03_import_books_and_copies.sql
 -- Database: SmartLibAI
--- Description: Nạp dữ liệu sách sạch từ cleaned_books.csv và cleaned_book_copies.csv
+-- Description: Nạp dữ liệu sách sạch từ book_data_clean.csv và cleaned_book_copies.csv
 -- Hướng dẫn: Mở SSMS, kết nối Database SmartLibAI và nhấn Execute (F5).
 -- ==========================================================
 
@@ -15,21 +15,24 @@ PRINT N'=== BẮT ĐẦU QUÁ TRÌNH NẠP DỮ LIỆU SÁCH KAGGLE ===';
 -- 1. Bật IDENTITY_INSERT cho bảng Books để chèn đúng BookID
 PRINT N'[1/4] Đang nạp dữ liệu vào bảng Books...';
 
--- Tạo bảng tạm để đọc file CSV sạch
+-- Tạo bảng tạm để đọc file CSV sạch (khớp 10 cột của book_data_clean.csv)
 IF OBJECT_ID('tempdb..#TempBooks') IS NOT NULL DROP TABLE #TempBooks;
 
 CREATE TABLE #TempBooks (
     BookID INT,
     CategoryID INT,
+    CategoryName NVARCHAR(100),
     ISBN VARCHAR(20),
     Title NVARCHAR(350),
     Author NVARCHAR(800),
     Publisher NVARCHAR(200),
-    BasePrice DECIMAL(18,2)
+    BasePrice DECIMAL(18,2),
+    TotalCopies INT,
+    AvailableCopies INT
 );
 
 BULK INSERT #TempBooks
-FROM 'C:\Users\aaa\Pictures\SaveCode\LV23-088-Library-Revenue-AI\data\cleaned_books.csv'
+FROM 'C:\Users\aaa\Pictures\SaveCode\LV23-088-Library-Revenue-AI\data\book_data_clean.csv'
 WITH (
     FORMAT = 'CSV',
     FIELDQUOTE = '"',

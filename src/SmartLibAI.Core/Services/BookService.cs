@@ -274,4 +274,49 @@ public class BookService : IBookService
         fields.Add(sb.ToString().Trim());
         return fields;
     }
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM).
+    /// </summary>
+    public async Task<byte[]> ExportBooksToCsvAsync()
+    {
+        var books = await _bookRepository.GetAllBooksWithCopiesAsync();
+
+        var sb = new System.Text.StringBuilder();
+
+        // Ghi UTF-8 BOM để Excel và các ứng dụng bảng tính mở không bị lỗi font tiếng Việt
+        sb.Append('\uFEFF');
+
+        // Dòng tiêu đề các cột chuẩn hóa
+        sb.AppendLine("BookID,CategoryID,CategoryName,ISBN,Title,Author,Publisher,BasePrice,TotalCopies,AvailableCopies");
+
+        foreach (var b in books)
+        {
+            sb.Append(b.BookID).Append(',');
+            sb.Append(b.CategoryID).Append(',');
+            sb.Append(EscapeCsv(b.CategoryName)).Append(',');
+            sb.Append(EscapeCsv(b.ISBN ?? string.Empty)).Append(',');
+            sb.Append(EscapeCsv(b.Title)).Append(',');
+            sb.Append(EscapeCsv(b.Author)).Append(',');
+            sb.Append(EscapeCsv(b.Publisher ?? string.Empty)).Append(',');
+            sb.Append(b.BasePrice.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(b.TotalCopies).Append(',');
+            sb.Append(b.AvailableCopies).AppendLine();
+        }
+
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    /// <summary>
+    /// Xử lý thoát ký tự nháy kép và bao quanh dấu phẩy chuẩn RFC 4180.
+    /// </summary>
+    private static string EscapeCsv(string val)
+    {
+        if (string.IsNullOrEmpty(val)) return string.Empty;
+        if (val.Contains('"') || val.Contains(',') || val.Contains('\n') || val.Contains('\r'))
+        {
+            return "\"" + val.Replace("\"", "\"\"") + "\"";
+        }
+        return val;
+    }
 }
