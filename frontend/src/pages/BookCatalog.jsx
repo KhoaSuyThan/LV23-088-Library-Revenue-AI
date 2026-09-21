@@ -13,7 +13,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
-  Filter
+  Filter,
+  UploadCloud,
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { apiClient } from '../api/authApi';
 import './BookCatalog.css';
@@ -156,6 +161,16 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [deleteBookTarget, setDeleteBookTarget] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
+  // State Import CSV (US-06 / LOLRA-14)
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedCsvFile, setSelectedCsvFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [toastMessage, setToastMessage] = useState('');
 
   const showToast = (msg) => {
@@ -163,6 +178,81 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setTimeout(() => {
       setToastMessage('');
     }, 3000);
+  };
+
+  // Kéo thả file CSV
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        setSelectedCsvFile(file);
+        setUploadError('');
+      } else {
+        setUploadError('Vui lòng chọn tệp bảng tính có đuôi định dạng .csv!');
+      }
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        setSelectedCsvFile(file);
+        setUploadError('');
+      } else {
+        setUploadError('Vui lòng chọn tệp bảng tính có đuôi định dạng .csv!');
+      }
+    }
+  };
+
+  // Kích hoạt nạp dữ liệu lên Backend
+  const handleStartImport = async () => {
+    if (!selectedCsvFile) {
+      setUploadError('Vui lòng chọn hoặc kéo thả tệp .csv trước khi nạp!');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedCsvFile);
+
+      const response = await apiClient.post('/api/books/import-csv', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data && response.data.success) {
+        setImportResult(response.data.data);
+        setIsImportModalOpen(false);
+        setIsResultModalOpen(true);
+        setSelectedCsvFile(null);
+        // Tự động làm mới danh mục sách
+        setRefreshKey((prev) => prev + 1);
+        showToast(`Đã nạp thành công ${response.data.data.successCount} đầu sách vào hệ thống!`);
+      } else {
+        setUploadError(response.data?.message || 'Có lỗi xảy ra khi nạp tệp CSV.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Lỗi kết nối máy chủ khi nạp tệp CSV.';
+      setUploadError(msg);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Mở modal Xóa mềm
@@ -205,9 +295,14 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             keyword: searchKeyword || undefined
           }
         });
-        if (isMounted && response.data && response.data.items && response.data.items.length > 0) {
+
+        // Hỗ trợ cả bọc ApiResponse chuẩn: response.data.data.items lẫn response.data.items
+        const pagedData = response.data?.data || response.data;
+        const bookItems = pagedData?.items;
+
+        if (isMounted && bookItems && bookItems.length > 0) {
           const colors = ['#3b82f6', '#f59e0b', '#38bdf8', '#34d399', '#a855f7', '#f472b6'];
-          const mapped = response.data.items.map((b, idx) => ({
+          const mapped = bookItems.map((b, idx) => ({
             id: b.bookID,
             code: `BK-${String(b.bookID).padStart(4, '0')}`,
             title: b.title,
@@ -215,18 +310,17 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             category: b.categoryName || 'Chung',
             year: 2020 + (b.bookID % 5),
             price: b.basePrice || 85000,
-            availableCopies: b.availableCopies !== undefined ? b.availableCopies : (b.bookID % 3 === 0 ? 0 : 5),
-            totalCopies: b.totalCopies || 10,
-            status: (b.availableCopies === 0 || (b.availableCopies === undefined && b.bookID % 3 === 0)) ? 'borrowed_all' : 'available',
+            availableCopies: b.availableCopies !== undefined ? b.availableCopies : (b.totalCopies || 1),
+            totalCopies: b.totalCopies || 1,
+            status: (b.availableCopies === 0) ? 'borrowed_all' : 'available',
             coverColor: colors[idx % colors.length],
             isbn: b.isbn || 'Đang cập nhật',
             publisher: b.publisher || 'NXB Đại Học Quốc Gia',
             copies: []
           }));
           setBooks(mapped);
-          if (response.data.totalCount) {
-            setTotalBooksCount(response.data.totalCount);
-          }
+          const total = pagedData.totalRecords ?? pagedData.totalCount ?? 11123;
+          setTotalBooksCount(total);
         }
       } catch (err) {
         // Nếu backend chưa sẵn sàng hoặc lỗi, dùng dữ liệu mẫu chuẩn khớp Figma
@@ -237,7 +331,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     return () => {
       isMounted = false;
     };
-  }, [currentPage, pageSize, searchKeyword]);
+  }, [currentPage, pageSize, searchKeyword, refreshKey]);
 
   // Lọc dữ liệu hiển thị theo từ khóa tìm kiếm
   const filteredBooks = useMemo(() => {
@@ -346,6 +440,21 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       <div className="catalog-table-card">
         <div className="catalog-table-header">
           <h2 className="catalog-table-title">Danh sách sách đang quản lý</h2>
+          <div className="catalog-header-actions">
+            <button
+              type="button"
+              className="btn-import-csv"
+              onClick={() => {
+                setUploadError('');
+                setSelectedCsvFile(null);
+                setIsImportModalOpen(true);
+              }}
+              title="Nạp danh mục sách hàng loạt từ file CSV"
+            >
+              <UploadCloud size={16} />
+              <span>Nhập từ CSV</span>
+            </button>
+          </div>
         </div>
 
         <div className="catalog-table-wrapper">
@@ -492,37 +601,45 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         {/* ====================================================================
             3. THANH PHÂN TRANG (PAGINATION FOOTER)
             ==================================================================== */}
-        <div className="catalog-pagination">
-          <div className="pagination-info">
-            Hiển thị 1-{filteredBooks.length} / {totalBooksCount.toLocaleString('vi-VN')} đầu sách
-          </div>
+        {(() => {
+          const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+          const startIdx = (currentPage - 1) * pageSize + 1;
+          const endIdx = Math.min(currentPage * pageSize, totalBooksCount);
 
-          <div className="pagination-controls">
-            <button
-              type="button"
-              className="pagination-btn"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              title="Trang trước"
-            >
-              <ChevronLeft size={16} />
-            </button>
+          return (
+            <div className="catalog-pagination">
+              <div className="pagination-info">
+                Hiển thị {startIdx}-{endIdx} / {totalBooksCount.toLocaleString('vi-VN')} đầu sách
+              </div>
 
-            <span className="pagination-page-indicator">
-              Trang {currentPage}/125
-            </span>
+              <div className="pagination-controls">
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  title="Trang trước"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-            <button
-              type="button"
-              className="pagination-btn"
-              disabled={currentPage >= 125}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              title="Trang tiếp"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+                <span className="pagination-page-indicator">
+                  Trang {currentPage}/{totalPages.toLocaleString('vi-VN')}
+                </span>
+
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  title="Trang tiếp"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ====================================================================
@@ -885,6 +1002,284 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           </div>
         );
       })()}
+
+      {/* ====================================================================
+          MODAL 4: NẠP DỮ LIỆU SÁCH TỪ FILE CSV (US-06 / LOLRA-14)
+          ==================================================================== */}
+      {isImportModalOpen && (
+        <div
+          className="catalog-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isUploading) {
+              setIsImportModalOpen(false);
+              setSelectedCsvFile(null);
+              setUploadError('');
+            }
+          }}
+        >
+          <div className="catalog-modal-content modal-import-csv">
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <span className="modal-code-tag" style={{ backgroundColor: '#e0e7ff', color: '#4338ca' }}>US-06</span>
+                <h3 className="modal-title">Nạp danh mục sách hàng loạt từ file CSV</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                disabled={isUploading}
+                onClick={() => {
+                  if (!isUploading) {
+                    setIsImportModalOpen(false);
+                    setSelectedCsvFile(null);
+                    setUploadError('');
+                  }
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body import-modal-body">
+              {/* Hộp hướng dẫn */}
+              <div className="import-guide-box">
+                <div className="guide-icon">
+                  <FileSpreadsheet size={22} />
+                </div>
+                <div className="guide-content">
+                  <h4>Quy chuẩn tệp nạp sách hệ thống SmartLib AI</h4>
+                  <p>
+                    Hỗ trợ tệp <strong>cleaned_books.csv</strong> (11.123 cuốn Kaggle) hoặc <strong>books.csv</strong>. Cột tự động nhận diện: <code>Title</code>, <code>Author</code>, <code>ISBN</code>, <code>CategoryID</code>, <code>Publisher</code>, <code>BasePrice</code>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Khung kéo thả file (Dropzone) */}
+              {!isUploading ? (
+                <div
+                  className={`csv-dropzone ${isDragging ? 'dropzone-active' : ''} ${selectedCsvFile ? 'dropzone-has-file' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('csv-file-input').click()}
+                >
+                  <input
+                    id="csv-file-input"
+                    type="file"
+                    accept=".csv"
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                  />
+
+                  {selectedCsvFile ? (
+                    <div className="dropzone-file-selected">
+                      <div className="selected-file-icon">
+                        <FileText size={36} />
+                      </div>
+                      <div className="selected-file-meta">
+                        <span className="selected-file-name">{selectedCsvFile.name}</span>
+                        <span className="selected-file-size">
+                          Dung lượng: {(selectedCsvFile.size / 1024).toFixed(1)} KB ({(selectedCsvFile.size / (1024 * 1024)).toFixed(2)} MB)
+                        </span>
+                        <span className="selected-file-hint text-green">
+                          ✓ Tệp đã sẵn sàng để nạp vào CSDL
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-remove-selected-file"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCsvFile(null);
+                          setUploadError('');
+                        }}
+                        title="Hủy chọn tệp"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="dropzone-empty-content">
+                      <div className="dropzone-icon-circle">
+                        <UploadCloud size={32} />
+                      </div>
+                      <p className="dropzone-main-text">
+                        Kéo và thả tệp <strong>.csv</strong> vào đây, hoặc <span className="text-primary-link">duyệt từ máy tính</span>
+                      </p>
+                      <span className="dropzone-sub-text">
+                        Dung lượng tối đa 15MB • Tự động loại trừ trùng lặp ISBN và lọc dòng lỗi
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Hiệu ứng Loading & Progress Bar */
+                <div className="import-progress-card">
+                  <div className="progress-spinner-wrap">
+                    <Loader2 size={42} className="spinner-rotate" />
+                  </div>
+                  <h4 className="progress-title">Đang nạp dữ liệu vào cơ sở dữ liệu...</h4>
+                  <p className="progress-desc">
+                    Hệ thống đang đọc Stream, kiểm tra trùng lặp ISBN và lưu mẻ 1.000 cuốn vào bảng Books kèm sinh bản sao BookCopies.
+                  </p>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-animated-stripes"></div>
+                  </div>
+                  <span className="progress-warning-text">
+                    ⚠️ Vui lòng không đóng trình duyệt hoặc làm mới trang trong lúc đang nạp dữ liệu.
+                  </span>
+                </div>
+              )}
+
+              {/* Thông báo lỗi nếu có */}
+              {uploadError && (
+                <div className="import-error-banner">
+                  <AlertCircle size={18} />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                disabled={isUploading}
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setSelectedCsvFile(null);
+                  setUploadError('');
+                }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                disabled={!selectedCsvFile || isUploading}
+                onClick={handleStartImport}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 size={16} className="spinner-rotate" />
+                    <span>Đang xử lý dữ liệu...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud size={16} />
+                    <span>Bắt đầu nạp sách</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL 5: BÁO CÁO KẾT QUẢ NẠP SÁCH HÀNG LOẠT (US-06)
+          ==================================================================== */}
+      {isResultModalOpen && importResult && (
+        <div
+          className="catalog-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsResultModalOpen(false);
+          }}
+        >
+          <div className="catalog-modal-content modal-import-result">
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <span className="modal-code-tag" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>Thành công</span>
+                <h3 className="modal-title">Báo cáo kết quả nạp sách hàng loạt (US-06)</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsResultModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Lưới 4 thẻ thống kê kết quả */}
+              <div className="result-kpi-grid">
+                <div className="result-kpi-card total-card">
+                  <span className="res-kpi-label">Tổng dòng đọc</span>
+                  <span className="res-kpi-value">{importResult.totalProcessed.toLocaleString('vi-VN')}</span>
+                </div>
+                <div className="result-kpi-card success-card">
+                  <span className="res-kpi-label">Nạp thành công</span>
+                  <span className="res-kpi-value">{importResult.successCount.toLocaleString('vi-VN')}</span>
+                </div>
+                <div className="result-kpi-card skipped-card">
+                  <span className="res-kpi-label">Bỏ qua (Trùng ISBN)</span>
+                  <span className="res-kpi-value">{importResult.skippedCount.toLocaleString('vi-VN')}</span>
+                </div>
+                <div className="result-kpi-card failed-card">
+                  <span className="res-kpi-label">Dòng lỗi vi phạm</span>
+                  <span className="res-kpi-value">{importResult.failedCount.toLocaleString('vi-VN')}</span>
+                </div>
+              </div>
+
+              {/* Danh sách các dòng lỗi (nếu có) */}
+              {importResult.errors && importResult.errors.length > 0 ? (
+                <div className="result-error-section">
+                  <h4 className="error-section-title">
+                    <AlertTriangle size={16} />
+                    <span>Chi tiết {importResult.errors.length} dòng lỗi vi phạm quy tắc dữ liệu:</span>
+                  </h4>
+                  <div className="result-error-table-wrapper">
+                    <table className="result-error-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '70px', textAlign: 'center' }}>Dòng</th>
+                          <th>Tên sách</th>
+                          <th style={{ width: '140px' }}>Mã ISBN</th>
+                          <th>Lý do từ chối</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResult.errors.map((err, idx) => (
+                          <tr key={idx}>
+                            <td className="font-mono text-center">#{err.rowNumber}</td>
+                            <td>{err.title || 'N/A'}</td>
+                            <td className="font-mono">{err.isbn || '-'}</td>
+                            <td className="text-red">{err.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="result-success-banner">
+                  <CheckCircle2 size={28} />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px', color: '#065f46' }}>Dữ liệu tệp hoàn toàn sạch và hợp lệ!</h4>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#047857' }}>
+                      Toàn bộ các đầu sách đã được lưu trữ thành công vào bảng Books và tự động sinh bản sao mã vạch trong kho lưu trữ.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={() => {
+                  setIsResultModalOpen(false);
+                }}
+              >
+                <CheckCircle2 size={16} />
+                <span>Đóng và cập nhật danh sách sách</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

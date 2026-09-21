@@ -5,6 +5,24 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-09-21] - Hoàn thành Nạp dữ liệu sách hàng loạt từ file CSV qua Web & API (US-06 / LOLRA-14)
+
+### Đã thêm & Cải thiện (Added & Improved):
+- **Backend .NET 10 (`SmartLibAI.API`, `SmartLibAI.Core`, `SmartLibAI.Infrastructure`)**:
+  - `BooksController.cs`: Cung cấp API `POST /api/books/import-csv` nhận file multipart/form-data dung lượng tối đa 15MB.
+  - `BookService.cs`: Đọc tệp dạng Stream tối ưu RAM, tự động nhận diện ánh xạ các cột tiêu chuẩn (`Title`, `Author`, `ISBN`, `CategoryID`, `Publisher`, `BasePrice`).
+  - Thẩm định dữ liệu chuẩn đặc tả Sprint 3 (Quy tắc 06.2 & 06.3): Bỏ qua nếu trùng mã ISBN trong file hoặc đã có trong CSDL; loại bỏ dòng lỗi (thiếu tên sách, thiếu tác giả, giá <= 0); tự động gán giá mặc định 50.000 VNĐ nếu bỏ trống giá bìa.
+  - `BookRepository.cs`: Triển khai nạp theo lô `BatchInsertBooksWithCopiesAsync` chia mẻ 1.000 dòng kết hợp tự động sinh bản sao vật lý kèm mã vạch `BC{BookID:D6}-01` vào bảng `BookCopies` theo chuẩn US-05.
+  - `BookImportResultDto.cs`: Trả về JSON kết quả gồm `totalProcessed`, `successCount`, `skippedCount`, `failedCount` và danh sách chi tiết dòng lỗi.
+- **Frontend React Vite (`BookCatalog.jsx`, `BookCatalog.css`)**:
+  - Bổ sung nút **"Nhập từ CSV"** (`.btn-import-csv`) với icon `UploadCloud` và gradient tím/xanh hiện đại trên thanh tiêu đề bảng sách.
+  - Khung kéo thả tệp (`.csv-dropzone`) hỗ trợ cả tương tác kéo thả lẫn duyệt tệp từ máy tính, hiển thị thông tin tệp (tên, dung lượng KB/MB, trạng thái sẵn sàng).
+  - Trạng thái chờ xử lý (Loading & Progress): Hiệu ứng spinner xoay vòng kết hợp thanh tiến trình sọc động (`.progress-bar-animated-stripes`) và cảnh báo không đóng trình duyệt khi nạp mẻ lớn 11.123 cuốn.
+  - Modal báo cáo kết quả (`.modal-import-result`): 4 thẻ thống kê trực quan (Tổng xử lý, Thành công, Bỏ qua, Lỗi) cùng bảng cuộn chi tiết từng dòng lỗi vi phạm để đối soát. Tự động kích hoạt làm mới bảng sách sau khi đóng.
+- **Kiểm thử biên dịch**:
+  - Backend: `dotnet build src/SmartLibAI.sln` hoàn tất với 0 cảnh báo, 0 lỗi.
+  - Frontend: `npm run build` tạo gói phân phối thành công trong 2.10 giây với 0 lỗi.
+
 ## [2026-09-20] - Bổ sung Nút Xóa Mềm & Cơ chế Chặn Xóa khi sách đang mượn (US-04 / LOLRA-12)
 
 ### Đã thêm & Cải thiện (Added & Improved):

@@ -110,4 +110,77 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             })
             .FirstOrDefaultAsync();
     }
+
+    /// <summary>
+    /// Lấy tập hợp tất cả các mã ISBN hiện có trong CSDL để kiểm tra trùng lặp nhanh O(1).
+    /// </summary>
+    public async Task<HashSet<string>> GetExistingIsbnsAsync()
+    {
+        var isbns = await _dbSet.AsNoTracking()
+            .Where(b => !string.IsNullOrEmpty(b.ISBN))
+            .Select(b => b.ISBN!)
+            .ToListAsync();
+        return new HashSet<string>(isbns, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Lấy tập hợp danh sách CategoryID hợp lệ trong CSDL.
+    /// </summary>
+    public async Task<HashSet<int>> GetValidCategoryIdsAsync()
+    {
+        var catIds = await _context.Categories.AsNoTracking()
+            .Select(c => c.CategoryID)
+            .ToListAsync();
+        return new HashSet<int>(catIds);
+    }
+
+    /// <summary>
+    /// Nạp một mẻ sách và tự động sinh bản sao vật lý trong một giao dịch cơ sở dữ liệu.
+    /// </summary>
+    public async Task<int> BatchInsertBooksWithCopiesAsync(List<Book> books, int copiesPerBook = 1)
+    {
+        if (books == null || books.Count == 0) return 0;
+
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Thêm mẻ Books vào DbContext
+                await _context.Books.AddRangeAsync(books);
+                await _context.SaveChangesAsync();
+
+                // 2. Sau khi lưu Books, BookID được SQL Server sinh tự tăng.
+                // Tự động sinh bản sao vật lý kèm mã vạch chuẩn hóa (US-05)
+                var copies = new List<BookCopy>();
+                foreach (var book in books)
+                {
+                    for (int i = 1; i <= copiesPerBook; i++)
+                    {
+                        copies.Add(new BookCopy
+                        {
+                            BookID = book.BookID,
+                            Barcode = $"BC{book.BookID:D6}-{i:D2}",
+                            Status = "Available"
+                        });
+                    }
+                }
+
+                if (copies.Count > 0)
+                {
+                    await _context.BookCopies.AddRangeAsync(copies);
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+                return books.Count;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
 }
