@@ -23,4 +23,19 @@ public interface IBookRepository : IGenericRepository<Book>
     /// Lấy chi tiết sách theo BookID kèm số lượng bản sao.
     /// </summary>
     Task<BookDto?> GetBookDetailByIdAsync(int id);
+
+    /// <summary>
+    /// Lấy tập hợp tất cả các mã ISBN hiện có trong CSDL để kiểm tra trùng lặp nhanh O(1).
+    /// </summary>
+    Task<HashSet<string>> GetExistingIsbnsAsync();
+
+    /// <summary>
+    /// Lấy tập hợp danh sách CategoryID hợp lệ trong CSDL.
+    /// </summary>
+    Task<HashSet<int>> GetValidCategoryIdsAsync();
+
+    /// <summary>
+    /// Nạp một mẻ sách và tự động sinh bản sao vật lý trong một giao dịch cơ sở dữ liệu.
+    /// </summary>
+    Task<int> BatchInsertBooksWithCopiesAsync(List<Book> books, int copiesPerBook = 1);
 }

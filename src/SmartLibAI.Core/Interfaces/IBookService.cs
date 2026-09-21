@@ -13,4 +13,9 @@ public interface IBookService
     Task<ApiResponse<PagedResult<BookDto>>> GetPagedBooksAsync(BookFilterDto filter);
 
     Task<ApiResponse<BookDto>> GetBookByIdAsync(int id);
+
+    /// <summary>
+    /// Nạp danh sách sách hàng loạt từ file Stream CSV với Batch Insert và lọc ngoại lệ.
+    /// </summary>
+    Task<ApiResponse<BookImportResultDto>> ImportBooksFromCsvAsync(Stream fileStream);
 }

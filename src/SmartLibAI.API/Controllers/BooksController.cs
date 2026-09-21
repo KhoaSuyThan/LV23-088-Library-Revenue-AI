@@ -54,4 +54,35 @@ public class BooksController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Nạp danh mục sách hàng loạt từ file CSV vào hệ thống (US-06 / LOLRA-14).
+    /// </summary>
+    /// <param name="file">Tệp bảng tính .csv (tối đa 15MB)</param>
+    [HttpPost("import-csv")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportBooksFromCsv([FromForm] IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<BookImportResultDto>.ErrorResult("Vui lòng chọn tệp CSV để nạp vào hệ thống."));
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (extension != ".csv")
+        {
+            return BadRequest(ApiResponse<BookImportResultDto>.ErrorResult("Hệ thống chỉ chấp nhận tệp định dạng .csv."));
+        }
+
+        // Giới hạn 15MB (khoảng 30.000 dòng dữ liệu)
+        if (file.Length > 15 * 1024 * 1024)
+        {
+            return BadRequest(ApiResponse<BookImportResultDto>.ErrorResult("Dung lượng tệp vượt quá giới hạn 15MB."));
+        }
+
+        using var stream = file.OpenReadStream();
+        var result = await _bookService.ImportBooksFromCsvAsync(stream);
+
+        return Ok(result);
+    }
 }
