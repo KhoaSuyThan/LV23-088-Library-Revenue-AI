@@ -40,4 +40,19 @@ public class BookFilterDto
     /// Lọc theo mã danh mục CategoryID (nếu có).
     /// </summary>
     public int? CategoryID { get; set; }
+
+    /// <summary>
+    /// Giá tối thiểu (Min Price).
+    /// </summary>
+    public decimal? MinPrice { get; set; }
+
+    /// <summary>
+    /// Giá tối đa (Max Price).
+    /// </summary>
+    public decimal? MaxPrice { get; set; }
+
+    /// <summary>
+    /// Trạng thái sách: 'available' (sẵn sàng/còn sách) hoặc 'out_of_stock' (hết sách/đang mượn hết).
+    /// </summary>
+    public string? Status { get; set; }
 }

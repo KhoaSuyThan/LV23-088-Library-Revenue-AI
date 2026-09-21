@@ -23,14 +23,25 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     {
         var query = _dbSet.AsNoTracking();
 
-        // 1. Lọc theo từ khóa (Title, Author, ISBN)
+        // 1. Lọc theo từ khóa (Mã sách, Tiêu đề, Tác giả, ISBN)
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
             var keyword = filter.Keyword.Trim();
+            int? searchBookId = null;
+            if (keyword.StartsWith("BK-", StringComparison.OrdinalIgnoreCase) && int.TryParse(keyword.Substring(3), out var parsedId))
+            {
+                searchBookId = parsedId;
+            }
+            else if (int.TryParse(keyword, out var directId))
+            {
+                searchBookId = directId;
+            }
+
             query = query.Where(b =>
                 b.Title.Contains(keyword) ||
                 b.Author.Contains(keyword) ||
-                (b.ISBN != null && b.ISBN.Contains(keyword)));
+                (b.ISBN != null && b.ISBN.Contains(keyword)) ||
+                (searchBookId.HasValue && b.BookID == searchBookId.Value));
         }
 
         // 2. Lọc theo CategoryID
@@ -39,7 +50,32 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             query = query.Where(b => b.CategoryID == filter.CategoryID.Value);
         }
 
-        // 3. Đếm tổng số bản ghi thỏa mãn điều kiện
+        // 3. Lọc theo khoảng giá (MinPrice, MaxPrice)
+        if (filter.MinPrice.HasValue && filter.MinPrice.Value >= 0)
+        {
+            query = query.Where(b => b.BasePrice >= filter.MinPrice.Value);
+        }
+        if (filter.MaxPrice.HasValue && filter.MaxPrice.Value > 0)
+        {
+            query = query.Where(b => b.BasePrice <= filter.MaxPrice.Value);
+        }
+
+        // 4. Lọc theo trạng thái tồn kho (available, out_of_stock / borrowed_all)
+        if (!string.IsNullOrWhiteSpace(filter.Status) && !filter.Status.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (filter.Status.Equals("available", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(b => b.BookCopies.Any(c => c.Status == "Available"));
+            }
+            else if (filter.Status.Equals("out_of_stock", StringComparison.OrdinalIgnoreCase) ||
+                     filter.Status.Equals("borrowed_all", StringComparison.OrdinalIgnoreCase) ||
+                     filter.Status.Equals("borrowed", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(b => !b.BookCopies.Any(c => c.Status == "Available"));
+            }
+        }
+
+        // 5. Đếm tổng số bản ghi thỏa mãn điều kiện
         var totalRecords = await query.CountAsync();
 
         // 4. Phân trang Server-side bằng Skip().Take()

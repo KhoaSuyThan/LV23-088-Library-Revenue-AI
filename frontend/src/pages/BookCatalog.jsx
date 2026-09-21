@@ -145,6 +145,22 @@ const INITIAL_BOOKS = [
   }
 ];
 
+/**
+ * Danh sách 10 thể loại sách chuẩn dùng làm dữ liệu dự phòng (fallback)
+ */
+const DEFAULT_CATEGORIES = [
+  { categoryID: 1, categoryName: 'Công nghệ thông tin' },
+  { categoryID: 2, categoryName: 'Khoa học dữ liệu & AI' },
+  { categoryID: 3, categoryName: 'Khoa học tự nhiên & Kỹ thuật' },
+  { categoryID: 4, categoryName: 'Kinh tế & Quản trị' },
+  { categoryID: 5, categoryName: 'Lịch sử & Địa lý' },
+  { categoryID: 6, categoryName: 'Ngoại ngữ & Từ điển' },
+  { categoryID: 7, categoryName: 'Tâm lý & Kỹ năng sống' },
+  { categoryID: 8, categoryName: 'Triết học & Khoa học xã hội' },
+  { categoryID: 9, categoryName: 'Văn học & Nghệ thuật' },
+  { categoryID: 10, categoryName: 'Y học & Sức khỏe' },
+];
+
 export default function BookCatalog({ user, externalSearch = '' }) {
   const [books, setBooks] = useState(INITIAL_BOOKS);
   const [currentPage, setCurrentPage] = useState(1);
@@ -152,6 +168,49 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
   const [internalSearch, setInternalSearch] = useState('');
+
+  // Các state phục vụ thanh lọc đa tiêu chí
+  const [filterKeyword, setFilterKeyword] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterMinPrice, setFilterMinPrice] = useState('');
+  const [filterMaxPrice, setFilterMaxPrice] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'available', 'out_of_stock'
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+
+  // Tải danh mục thể loại từ API /api/Categories
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await apiClient.get('/api/Categories');
+        const data = res.data?.data || res.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        }
+      } catch (err) {
+        // Giữ nguyên DEFAULT_CATEGORIES nếu lỗi kết nối
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Đồng bộ khi header ngoài truyền externalSearch
+  useEffect(() => {
+    if (externalSearch !== undefined && externalSearch !== '') {
+      setFilterKeyword(externalSearch);
+      setCurrentPage(1);
+    }
+  }, [externalSearch]);
+
+  // Đặt lại toàn bộ bộ lọc về trạng thái ban đầu
+  const handleResetFilters = () => {
+    setFilterKeyword('');
+    setFilterCategory('');
+    setFilterMinPrice('');
+    setFilterMaxPrice('');
+    setFilterStatus('all');
+    setCurrentPage(1);
+    showToast('Đã đặt lại toàn bộ bộ lọc về mặc định!');
+  };
 
   // Tự động đồng bộ số trang hiển thị trong ô nhập khi chuyển trang
   useEffect(() => {
@@ -333,10 +392,10 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setDeleteBookTarget(null);
   };
 
-  // Tìm kiếm kết hợp giữa externalSearch (từ Header) và internalSearch
-  const searchKeyword = externalSearch || internalSearch;
+  // Từ khóa tìm kiếm hợp nhất từ Header hoặc ô tìm kiếm tại bảng
+  const activeKeyword = (filterKeyword || externalSearch || '').trim();
 
-  // Cố gắng gọi API lấy dữ liệu thực nếu có backend, nếu không fallback về INITIAL_BOOKS
+  // Cố gắng gọi API lấy dữ liệu thực với đầy đủ các tiêu chí lọc
   useEffect(() => {
     let isMounted = true;
     const fetchApiBooks = async () => {
@@ -345,7 +404,11 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           params: {
             pageNumber: currentPage,
             pageSize: pageSize,
-            keyword: searchKeyword || undefined
+            keyword: activeKeyword || undefined,
+            categoryID: filterCategory ? Number(filterCategory) : undefined,
+            minPrice: filterMinPrice ? Number(filterMinPrice) * 1000 : undefined,
+            maxPrice: filterMaxPrice ? Number(filterMaxPrice) * 1000 : undefined,
+            status: filterStatus !== 'all' ? filterStatus : undefined
           }
         });
 
@@ -353,7 +416,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         const pagedData = response.data?.data || response.data;
         const bookItems = pagedData?.items;
 
-        if (isMounted && bookItems && bookItems.length > 0) {
+        if (isMounted && Array.isArray(bookItems)) {
           const colors = ['#3b82f6', '#f59e0b', '#38bdf8', '#34d399', '#a855f7', '#f472b6'];
           const mapped = bookItems.map((b, idx) => ({
             id: b.bookID,
@@ -372,7 +435,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             copies: []
           }));
           setBooks(mapped);
-          const total = pagedData.totalRecords ?? pagedData.totalCount ?? 11123;
+          const total = pagedData.totalRecords ?? pagedData.totalCount ?? mapped.length;
           setTotalBooksCount(total);
         }
       } catch (err) {
@@ -384,20 +447,49 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     return () => {
       isMounted = false;
     };
-  }, [currentPage, pageSize, searchKeyword, refreshKey]);
+  }, [currentPage, pageSize, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, refreshKey]);
 
-  // Lọc dữ liệu hiển thị theo từ khóa tìm kiếm
+  // Lọc dữ liệu hiển thị (hỗ trợ Client-side fallback mượt mà)
   const filteredBooks = useMemo(() => {
-    if (!searchKeyword) return books;
-    const kw = searchKeyword.toLowerCase().trim();
-    return books.filter(
-      (b) =>
-        b.code.toLowerCase().includes(kw) ||
-        b.title.toLowerCase().includes(kw) ||
-        b.author.toLowerCase().includes(kw) ||
-        b.category.toLowerCase().includes(kw)
-    );
-  }, [books, searchKeyword]);
+    let list = books;
+    const kw = activeKeyword.toLowerCase();
+    if (kw) {
+      list = list.filter(
+        (b) =>
+          b.code.toLowerCase().includes(kw) ||
+          b.title.toLowerCase().includes(kw) ||
+          b.author.toLowerCase().includes(kw) ||
+          (b.isbn && b.isbn.toLowerCase().includes(kw)) ||
+          b.category.toLowerCase().includes(kw)
+      );
+    }
+    if (filterCategory) {
+      const catObj = categories.find((c) => String(c.categoryID) === String(filterCategory));
+      if (catObj) {
+        list = list.filter((b) => b.category.toLowerCase() === catObj.categoryName.toLowerCase());
+      }
+    }
+    if (filterMinPrice) {
+      const min = Number(filterMinPrice) * 1000;
+      if (!isNaN(min) && min >= 0) {
+        list = list.filter((b) => b.price >= min);
+      }
+    }
+    if (filterMaxPrice) {
+      const max = Number(filterMaxPrice) * 1000;
+      if (!isNaN(max) && max > 0) {
+        list = list.filter((b) => b.price <= max);
+      }
+    }
+    if (filterStatus && filterStatus !== 'all') {
+      if (filterStatus === 'available') {
+        list = list.filter((b) => b.status === 'available' || b.availableCopies > 0);
+      } else if (filterStatus === 'out_of_stock') {
+        list = list.filter((b) => b.status === 'borrowed_all' || b.availableCopies === 0);
+      }
+    }
+    return list;
+  }, [books, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, categories]);
 
   // Xử lý mở modal Chi tiết
   const handleOpenDetail = (book) => {
@@ -525,6 +617,122 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           </div>
         </div>
 
+        {/* ====================================================================
+            THANH LỌC ĐA TIÊU CHÍ (MULTI-CRITERIA FILTER BAR)
+            ==================================================================== */}
+        <div className="catalog-filter-bar">
+          {/* Ô 1: Tìm kiếm theo mã sách, tên sách, tác giả */}
+          <div className="filter-item search-filter-item">
+            <Search size={15} className="filter-icon" />
+            <input
+              type="text"
+              className="filter-input-text"
+              placeholder="Tìm mã sách, tên sách, tác giả..."
+              value={filterKeyword}
+              onChange={(e) => {
+                setFilterKeyword(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            {filterKeyword && (
+              <button
+                type="button"
+                className="filter-clear-icon-btn"
+                onClick={() => {
+                  setFilterKeyword('');
+                  setCurrentPage(1);
+                }}
+                title="Xóa từ khóa"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Ô 2: Lọc theo thể loại */}
+          <div className="filter-item select-filter-item">
+            <Filter size={14} className="filter-icon" />
+            <select
+              className="filter-select-box"
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              title="Lọc theo thể loại"
+            >
+              <option value="">Tất cả thể loại</option>
+              {categories.map((c) => (
+                <option key={c.categoryID} value={c.categoryID}>
+                  {c.categoryName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ô 3: Khoảng giá (Từ ... đến ...) - Đơn vị nghìn VNĐ (k) */}
+          <div className="filter-item price-filter-item">
+            <span className="filter-text-label">Giá:</span>
+            <input
+              type="number"
+              className="filter-price-input"
+              placeholder="Từ (k)"
+              value={filterMinPrice}
+              onChange={(e) => {
+                setFilterMinPrice(e.target.value);
+                setCurrentPage(1);
+              }}
+              min="0"
+              step="5"
+              title="Giá bìa tối thiểu (nghìn VNĐ, ví dụ: 10 = 10.000đ)"
+            />
+            <span className="filter-separator">-</span>
+            <input
+              type="number"
+              className="filter-price-input"
+              placeholder="Đến (k)"
+              value={filterMaxPrice}
+              onChange={(e) => {
+                setFilterMaxPrice(e.target.value);
+                setCurrentPage(1);
+              }}
+              min="0"
+              step="5"
+              title="Giá bìa tối đa (nghìn VNĐ, ví dụ: 100 = 100.000đ)"
+            />
+          </div>
+
+          {/* Ô 4: Lọc theo trạng thái */}
+          <div className="filter-item select-filter-item status-filter-item">
+            <select
+              className="filter-select-box"
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              title="Lọc theo trạng thái sách"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="available">Sẵn sàng (Còn sách)</option>
+              <option value="out_of_stock">Hết sách (Đang mượn hết)</option>
+            </select>
+          </div>
+
+          {/* Nút Đặt lại bộ lọc */}
+          {(filterKeyword || filterCategory || filterMinPrice || filterMaxPrice || filterStatus !== 'all') && (
+            <button
+              type="button"
+              className="btn-filter-reset"
+              onClick={handleResetFilters}
+              title="Xóa toàn bộ bộ lọc và quay về mặc định"
+            >
+              <RefreshCw size={13} />
+              <span>Đặt lại</span>
+            </button>
+          )}
+        </div>
+
         <div className="catalog-table-wrapper">
           <table className="catalog-table">
             <thead>
@@ -544,7 +752,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               {filteredBooks.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="empty-table-cell">
-                    Không tìm thấy đầu sách nào phù hợp với từ khóa "{searchKeyword}".
+                    Không tìm thấy đầu sách nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
@@ -671,7 +879,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             ==================================================================== */}
         {(() => {
           const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
-          const startIdx = (currentPage - 1) * pageSize + 1;
+          const startIdx = totalBooksCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
           const endIdx = Math.min(currentPage * pageSize, totalBooksCount);
 
           return (

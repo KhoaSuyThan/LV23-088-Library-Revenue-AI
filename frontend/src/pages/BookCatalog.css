@@ -152,6 +152,155 @@
   letter-spacing: -0.2px;
 }
 
+/* ==========================================================================
+   THANH LỌC ĐA TIÊU CHÍ (MULTI-CRITERIA FILTER BAR)
+   ========================================================================== */
+.catalog-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  height: 35px;
+  padding: 0 10px;
+  transition: all 0.15s ease;
+}
+
+.filter-item:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.filter-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-right: 7px;
+}
+
+/* Ô 1: Tìm kiếm theo mã sách, tên sách, tác giả */
+.search-filter-item {
+  flex: 1 1 220px;
+  min-width: 190px;
+}
+
+.filter-input-text {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #0f172a;
+  width: 100%;
+}
+
+.filter-input-text::placeholder {
+  color: #94a3b8;
+}
+
+.filter-clear-icon-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.filter-clear-icon-btn:hover {
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
+/* Ô 2 & 4: Dropdowns */
+.select-filter-item {
+  padding-left: 8px;
+}
+
+.filter-select-box {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 500;
+  padding-right: 4px;
+}
+
+/* Ô 3: Khoảng giá */
+.price-filter-item {
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.filter-text-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.filter-price-input {
+  width: 78px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #0f172a;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.filter-price-input::-webkit-outer-spin-button,
+.filter-price-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.filter-separator {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Nút Đặt lại */
+.btn-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 35px;
+  padding: 0 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-filter-reset:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
 .catalog-table-wrapper {
   overflow-x: auto;
   border-radius: 8px;

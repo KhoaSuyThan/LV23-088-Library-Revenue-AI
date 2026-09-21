@@ -5,23 +5,20 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-09-21] - Hoàn thiện Nhập/Xuất CSV và Tối ưu hóa UI/UX Quản lý sách (US-06 / LOLRA-14)
+## [2026-09-21] - Hoàn thiện Nhập/Xuất CSV, Phân trang & Bộ lọc đa tiêu chí (US-06 / LOLRA-14)
 
-### 1. Nhập & Xuất dữ liệu sách qua CSV:
-- **Backend .NET 10 (`SmartLibAI.API`, `SmartLibAI.Core`, `SmartLibAI.Infrastructure`)**:
-  - `POST /api/books/import-csv`: Đọc Stream tối ưu RAM, kiểm duyệt hợp lệ (trùng ISBN, thiếu tên/tác giả, giá $\le 0$) và ghi theo lô 1.000 cuốn kèm tự động sinh bản sao mã vạch `BookCopies`.
-  - `GET /api/books/export-csv`: Trích xuất toàn bộ 11.123 đầu sách kèm tồn kho ra tệp CSV nhúng UTF-8 BOM (`\uFEFF`), hỗ trợ mở trực tiếp trên Excel không lỗi font tiếng Việt.
-  - Đồng bộ script SQL [03_import_books_and_copies.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/03_import_books_and_copies.sql) theo bảng tạm 10 cột của [book_data_clean.csv](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/book_data_clean.csv).
-- **Frontend React (`BookCatalog.jsx`, `BookCatalog.css`)**:
-  - Bổ sung nút **"Nhập từ CSV"** kèm khung kéo thả Dropzone, hiệu ứng thanh tiến trình động và modal đối soát chi tiết kết quả.
-  - Bổ sung nút **"Xuất CSV"** tải tệp danh mục sách tức thì với 1 cú click.
+### 1. Nhập & Xuất CSV (`SmartLibAI.API`, `BookCatalog.jsx`):
+- Thêm tính năng Nhập CSV hàng loạt (Stream tối ưu RAM, tự sinh bản sao `BookCopies`) và Xuất CSV chuẩn UTF-8 BOM.
+- Đồng bộ script SQL `03_import_books_and_copies.sql` theo dữ liệu thực tế.
 
-### 2. Tinh chỉnh UI/UX & Nâng cấp Phân trang:
-- **Cố định bố cục bảng (`table-layout: fixed`)**: Khóa cứng tỉ lệ cột, loại bỏ hoàn toàn hiện tượng co giật và xô lệch cấu trúc khi chuyển trang.
-- **Cân đối độ rộng cột**: Thu gọn *Mã sách* (85px), *Năm XB* (75px), *Giá bìa* (105px), *Tồn kho* (105px), *Tác giả* (135px - kèm ellipsis); mở rộng cột *Thể loại* lên 165px; rút gọn nhãn thành "Hết sách" (100px); giữ hàng nút *Thao tác* luôn nằm trên 1 dòng (125px).
-- **Nâng cấp phân trang**:
-  - Nâng số lượng sách hiển thị lên **10 cuốn / trang** (giảm còn 1.113 trang).
-  - Tích hợp ô nhập số trang trực tiếp vào cụm `Trang [ 1 ] / 1.113`: Cho phép gõ số trang bất kỳ và chuyển tức thì khi nhấn **Enter** hoặc **click ra ngoài (onBlur)**, tự động đồng bộ hai chiều.
+### 2. Tối ưu UI/UX & Phân trang:
+- Cố định bố cục bảng (`table-layout: fixed`), cân đối kích thước các cột tránh giật khung hình khi đổi trang.
+- Nâng lên 10 cuốn/trang; tích hợp ô nhập số trang trực tiếp (chuyển nhanh khi Enter hoặc click ra ngoài).
+
+### 3. Thanh lọc đa tiêu chí & Sửa lỗi sập trang:
+- Thêm bộ lọc: Tìm kiếm theo Mã/Tên/Tác giả/ISBN, dropdown Thể loại, khoảng giá đơn vị (k) (10 = 10.000đ), trạng thái Sẵn sàng/Hết sách và nút Đặt lại.
+- Backend C#: Bổ sung lọc `MinPrice`, `MaxPrice`, `Status` trong `BookRepository.cs`.
+- Sửa lỗi crash trắng màn hình khi bộ lọc trả về 0 kết quả.
 
 ## [2026-09-20] - Bổ sung Nút Xóa Mềm & Cơ chế Chặn Xóa khi sách đang mượn (US-04 / LOLRA-12)
 
