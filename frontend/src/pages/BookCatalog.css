@@ -159,6 +159,7 @@
 
 .catalog-table {
   width: 100%;
+  table-layout: fixed; /* Cố định độ rộng cột, loại bỏ tình trạng co giật khi chuyển trang */
   border-collapse: collapse;
   text-align: left;
 }
@@ -167,10 +168,12 @@
   font-size: 12.5px;
   font-weight: 600;
   color: #64748b;
-  padding: 12px 14px;
+  padding: 12px 10px;
   border-bottom: 1px solid #e2e8f0;
   background-color: #ffffff;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .catalog-table tbody tr {
@@ -182,7 +185,7 @@
 }
 
 .catalog-table tbody td {
-  padding: 13px 14px;
+  padding: 12px 10px;
   font-size: 13px;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
@@ -194,18 +197,20 @@
   background-color: #eff6ff;
   color: #2563eb;
   font-weight: 600;
-  font-size: 12.5px;
-  padding: 4px 9px;
+  font-size: 12px;
+  padding: 4px 7px;
   border-radius: 6px;
   display: inline-block;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 /* Cột 2: Ảnh bìa & Tên sách */
 .book-title-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .book-cover-thumb {
@@ -229,7 +234,8 @@
 .book-title-text {
   font-weight: 600;
   color: #0f172a;
-  max-width: 240px;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -239,29 +245,40 @@
 .book-author-text {
   color: #334155;
   font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .book-category-text {
-  color: #64748b;
+  color: #475569;
   font-size: 12.5px;
+  display: block;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .book-year-text {
   color: #334155;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .book-price-text {
   color: #0f172a;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Cột 7: Tồn kho (Còn/Tổng) kèm thanh tiến trình */
 .stock-cell {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  width: 85px;
+  gap: 4px;
+  width: 75px;
 }
 
 .stock-fraction {
@@ -318,6 +335,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .btn-action-link {
@@ -405,9 +423,47 @@
 }
 
 .pagination-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
+  color: #334155;
+  user-select: none;
+}
+
+.pagination-page-input {
+  width: 50px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: #2563eb;
+  background-color: #f8fafc;
+  outline: none;
+  transition: all 0.15s ease;
+  -moz-appearance: textfield;
+}
+
+.pagination-page-input::-webkit-outer-spin-button,
+.pagination-page-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pagination-page-input:hover {
+  border-color: #94a3b8;
+  background-color: #ffffff;
+}
+
+.pagination-page-input:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
   color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 /* ==========================================================================
@@ -812,6 +868,35 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.btn-export-csv {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-export-csv:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-export-csv:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-import-csv {

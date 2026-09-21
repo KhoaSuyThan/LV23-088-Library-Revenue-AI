@@ -18,7 +18,8 @@ import {
   FileSpreadsheet,
   Loader2,
   RefreshCw,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { apiClient } from '../api/authApi';
 import './BookCatalog.css';
@@ -147,9 +148,32 @@ const INITIAL_BOOKS = [
 export default function BookCatalog({ user, externalSearch = '' }) {
   const [books, setBooks] = useState(INITIAL_BOOKS);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(6);
+  const [pageSize] = useState(10); // Nâng số lượng hiển thị lên 10 cuốn / trang
+  const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
   const [internalSearch, setInternalSearch] = useState('');
+
+  // Tự động đồng bộ số trang hiển thị trong ô nhập khi chuyển trang
+  useEffect(() => {
+    setJumpPage(currentPage);
+  }, [currentPage]);
+
+  // Xử lý khi người dùng nhấn Enter hoặc click ra ngoài ô nhập (onBlur)
+  const handleCommitPage = () => {
+    const totalPages = Math.max(1, Math.ceil(totalBooksCount / pageSize));
+    const pageNum = parseInt(jumpPage, 10);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      if (pageNum !== currentPage) {
+        setCurrentPage(pageNum);
+      }
+    } else {
+      // Revert lại trang hiện tại nếu nhập không hợp lệ
+      setJumpPage(currentPage);
+      if (jumpPage !== '' && Number(jumpPage) !== currentPage) {
+        showToast(`Vui lòng nhập số trang hợp lệ từ 1 đến ${totalPages.toLocaleString('vi-VN')}!`);
+      }
+    }
+  };
 
   // Modal State
   const [selectedBook, setSelectedBook] = useState(null);
@@ -252,6 +276,35 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       setUploadError(msg);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // State & Hàm Xuất toàn bộ sách ra file CSV
+  const [isExporting, setIsExporting] = useState(false);
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      showToast('Đang trích xuất dữ liệu sách ra tệp CSV...');
+      const response = await apiClient.get('/api/Books/export-csv', {
+        responseType: 'blob'
+      });
+
+      // Tạo Blob và URL tải file trên trình duyệt
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `smartlib_books_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showToast('Đã xuất thành công toàn bộ danh mục sách ra file CSV!');
+    } catch (err) {
+      showToast('Có lỗi xảy ra khi xuất file CSV.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -443,6 +496,21 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           <div className="catalog-header-actions">
             <button
               type="button"
+              className="btn-export-csv"
+              onClick={handleExportCsv}
+              disabled={isExporting}
+              title="Xuất toàn bộ danh sách sách ra file CSV để sao lưu hoặc gửi cho bạn bè"
+            >
+              {isExporting ? (
+                <Loader2 size={16} className="spinner-rotate" />
+              ) : (
+                <Download size={16} />
+              )}
+              <span>{isExporting ? 'Đang xuất...' : 'Xuất CSV'}</span>
+            </button>
+
+            <button
+              type="button"
               className="btn-import-csv"
               onClick={() => {
                 setUploadError('');
@@ -461,15 +529,15 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           <table className="catalog-table">
             <thead>
               <tr>
-                <th style={{ width: '100px' }}>Mã sách</th>
-                <th style={{ minWidth: '220px' }}>Ảnh bìa & Tên sách</th>
-                <th style={{ minWidth: '150px' }}>Tác giả</th>
-                <th style={{ width: '110px' }}>Thể loại</th>
-                <th style={{ width: '90px' }}>Năm XB</th>
-                <th style={{ width: '120px' }}>Giá bìa (VNĐ)</th>
-                <th style={{ width: '130px' }}>Tồn kho (Còn/Tổng)</th>
-                <th style={{ width: '130px' }}>Trạng thái</th>
-                <th style={{ width: '110px', textAlign: 'center' }}>Thao tác</th>
+                <th style={{ width: '85px' }}>Mã sách</th>
+                <th style={{ width: '235px' }}>Ảnh bìa & Tên sách</th>
+                <th style={{ width: '135px' }}>Tác giả</th>
+                <th style={{ width: '165px' }}>Thể loại</th>
+                <th style={{ width: '75px' }}>Năm XB</th>
+                <th style={{ width: '105px' }}>Giá bìa (VNĐ)</th>
+                <th style={{ width: '105px' }}>Tồn kho (Còn/Tổng)</th>
+                <th style={{ width: '100px' }}>Trạng thái</th>
+                <th style={{ width: '125px', textAlign: 'center' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -513,12 +581,12 @@ export default function BookCatalog({ user, externalSearch = '' }) {
 
                       {/* Cột 3: Tác giả */}
                       <td>
-                        <span className="book-author-text">{book.author}</span>
+                        <span className="book-author-text" title={book.author}>{book.author}</span>
                       </td>
 
                       {/* Cột 4: Thể loại */}
                       <td>
-                        <span className="book-category-text">{book.category}</span>
+                        <span className="book-category-text" title={book.category}>{book.category}</span>
                       </td>
 
                       {/* Cột 5: Năm XB */}
@@ -556,7 +624,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                           </span>
                         ) : (
                           <span className="status-badge badge-borrowed">
-                            Đang mượn hết
+                            Hết sách
                           </span>
                         )}
                       </td>
@@ -623,9 +691,24 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                   <ChevronLeft size={16} />
                 </button>
 
-                <span className="pagination-page-indicator">
-                  Trang {currentPage}/{totalPages.toLocaleString('vi-VN')}
-                </span>
+                <div className="pagination-page-indicator">
+                  <span>Trang</span>
+                  <input
+                    type="text"
+                    className="pagination-page-input"
+                    value={jumpPage}
+                    onChange={(e) => setJumpPage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCommitPage();
+                        e.target.blur();
+                      }
+                    }}
+                    onBlur={handleCommitPage}
+                    title={`Nhấp để nhập trang từ 1 đến ${totalPages.toLocaleString('vi-VN')}`}
+                  />
+                  <span>/ {totalPages.toLocaleString('vi-VN')}</span>
+                </div>
 
                 <button
                   type="button"
@@ -1048,7 +1131,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <div className="guide-content">
                   <h4>Quy chuẩn tệp nạp sách hệ thống SmartLib AI</h4>
                   <p>
-                    Hỗ trợ tệp <strong>cleaned_books.csv</strong> (11.123 cuốn Kaggle) hoặc <strong>books.csv</strong>. Cột tự động nhận diện: <code>Title</code>, <code>Author</code>, <code>ISBN</code>, <code>CategoryID</code>, <code>Publisher</code>, <code>BasePrice</code>.
+                    Hỗ trợ tệp <strong>book_data_clean.csv</strong> (11.123 cuốn) hoặc <strong>books.csv</strong>. Cột tự động nhận diện: <code>Title</code>, <code>Author</code>, <code>ISBN</code>, <code>CategoryID</code>, <code>Publisher</code>, <code>BasePrice</code>.
                   </p>
                 </div>
               </div>

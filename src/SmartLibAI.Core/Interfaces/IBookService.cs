@@ -18,4 +18,9 @@ public interface IBookService
     /// Nạp danh sách sách hàng loạt từ file Stream CSV với Batch Insert và lọc ngoại lệ.
     /// </summary>
     Task<ApiResponse<BookImportResultDto>> ImportBooksFromCsvAsync(Stream fileStream);
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM).
+    /// </summary>
+    Task<byte[]> ExportBooksToCsvAsync();
 }
