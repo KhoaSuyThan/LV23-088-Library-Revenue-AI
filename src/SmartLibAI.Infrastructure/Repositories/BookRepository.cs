@@ -293,5 +293,35 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
 
         return (true, $"Đã chuyển đầu sách \"{book.Title}\" sang danh mục ngừng lưu thông thành công.");
     }
+
+    /// <summary>
+    /// Lấy thống kê tổng hợp số liệu 4 thẻ KPI cho phân hệ Quản lý Sách từ CSDL thực tế.
+    /// </summary>
+    public async Task<BookCatalogSummaryDto> GetCatalogSummaryAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        // 1. Tổng số đầu sách đang lưu hành
+        var totalBooks = await _dbSet.AsNoTracking().CountAsync(b => b.IsActive);
+
+        // 2. Tổng số bản sao đang mượn
+        var borrowedBooks = await _context.BookCopies.AsNoTracking().CountAsync(c => c.Status == "Borrowed");
+
+        // 3. Tổng số sách mượn đã quá hạn chưa trả
+        var overdueBooks = await _context.BorrowingDetails.AsNoTracking()
+            .CountAsync(d => d.ReturnDate == null && d.Borrowing.DueDate < now);
+
+        // 4. Tổng số sách hỏng cần thanh lý
+        var damagedBooks = await _context.BookCopies.AsNoTracking().CountAsync(c => c.Status == "Damaged");
+
+        return new BookCatalogSummaryDto
+        {
+            TotalBooks = totalBooks,
+            BorrowedBooks = borrowedBooks,
+            OverdueBooks = overdueBooks,
+            DamagedBooks = damagedBooks
+        };
+    }
 }
+
 

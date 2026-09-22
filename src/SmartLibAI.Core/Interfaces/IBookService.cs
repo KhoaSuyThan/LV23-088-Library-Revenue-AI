@@ -38,4 +38,9 @@ public interface IBookService
     /// Thực hiện xóa mềm đầu sách (ngừng lưu thông).
     /// </summary>
     Task<ApiResponse<bool>> SoftDeleteBookAsync(int id);
+
+    /// <summary>
+    /// Lấy thống kê tổng hợp 4 chỉ số KPI cho phân hệ Quản lý Sách.
+    /// </summary>
+    Task<ApiResponse<BookCatalogSummaryDto>> GetCatalogSummaryAsync();
 }

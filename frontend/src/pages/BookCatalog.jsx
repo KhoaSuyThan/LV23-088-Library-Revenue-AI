@@ -168,7 +168,16 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [pageSize] = useState(10); // Nâng số lượng hiển thị lên 10 cuốn / trang
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
+  const [refreshKey, setRefreshKey] = useState(0); // Khóa làm mới danh sách và thống kê
   const [internalSearch, setInternalSearch] = useState('');
+
+  // State 4 thẻ chỉ số thống kê KPI Cards từ CSDL
+  const [catalogSummary, setCatalogSummary] = useState({
+    totalBooks: 12500,
+    borrowedBooks: 1420,
+    overdueBooks: 47,
+    damagedBooks: 12
+  });
 
   // Các state phục vụ thanh lọc đa tiêu chí
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -193,6 +202,34 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     };
     loadCategories();
   }, []);
+
+  // Tải dữ liệu 4 thẻ thống kê KPI Cards thời gian thực từ /api/Books/summary
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalogSummary = async () => {
+      try {
+        const res = await apiClient.get('/api/Books/summary');
+        const data = res.data?.data || res.data;
+        if (isMounted && data) {
+          setCatalogSummary({
+            totalBooks: data.totalBooks ?? 0,
+            borrowedBooks: data.borrowedBooks ?? 0,
+            overdueBooks: data.overdueBooks ?? 0,
+            damagedBooks: data.damagedBooks ?? 0
+          });
+          if (data.totalBooks !== undefined && data.totalBooks > 0) {
+            setTotalBooksCount(data.totalBooks);
+          }
+        }
+      } catch (err) {
+        // Giữ fallback mặc định nếu mất kết nối
+      }
+    };
+    fetchCatalogSummary();
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]);
 
   // Đồng bộ khi header ngoài truyền externalSearch
   useEffect(() => {
@@ -265,7 +302,6 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   // State Import CSV (US-06 / LOLRA-14)
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedCsvFile, setSelectedCsvFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -688,7 +724,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Tổng đầu sách</span>
-            <span className="kpi-number">{totalBooksCount.toLocaleString('vi-VN')}</span>
+            <span className="kpi-number">
+              {(catalogSummary.totalBooks || totalBooksCount).toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-blue">
             <Copy size={20} />
@@ -699,7 +737,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách đang cho mượn</span>
-            <span className="kpi-number">1.420</span>
+            <span className="kpi-number">
+              {catalogSummary.borrowedBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-green">
             <BookOpen size={20} />
@@ -710,7 +750,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách quá hạn</span>
-            <span className="kpi-number text-red">47</span>
+            <span className="kpi-number text-red">
+              {catalogSummary.overdueBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-red">
             <AlertTriangle size={20} />
@@ -721,7 +763,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách hỏng cần thanh lý</span>
-            <span className="kpi-number">12</span>
+            <span className="kpi-number">
+              {catalogSummary.damagedBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-gray">
             <Trash2 size={20} />
