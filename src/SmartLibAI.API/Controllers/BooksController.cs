@@ -41,6 +41,16 @@ public class BooksController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy dữ liệu thống kê tổng hợp cho 4 thẻ KPI của phân hệ Quản lý Sách.
+    /// </summary>
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetCatalogSummary()
+    {
+        var result = await _bookService.GetCatalogSummaryAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Lấy chi tiết thông tin một đầu sách dựa theo BookID.
     /// </summary>
     [HttpGet("{id:int}")]

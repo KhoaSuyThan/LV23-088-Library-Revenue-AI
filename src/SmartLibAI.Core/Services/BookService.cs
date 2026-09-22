@@ -432,6 +432,15 @@ public class BookService : IBookService
     }
 
     /// <summary>
+    /// Lấy thống kê tổng hợp 4 chỉ số KPI cho phân hệ Quản lý Sách.
+    /// </summary>
+    public async Task<ApiResponse<BookCatalogSummaryDto>> GetCatalogSummaryAsync()
+    {
+        var summary = await _bookRepository.GetCatalogSummaryAsync();
+        return ApiResponse<BookCatalogSummaryDto>.SuccessResult(summary, "Lấy thống kê chỉ số danh mục sách thành công");
+    }
+
+    /// <summary>
     /// Xử lý thoát ký tự nháy kép và bao quanh dấu phẩy chuẩn RFC 4180.
     /// </summary>
     private static string EscapeCsv(string val)

@@ -5,21 +5,13 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-09-22] - Hoàn thiện Quản lý Sách cốt lõi, Thêm thể loại & CRUD Database thật (Phần 1)
+## [2026-09-22] - Quản lý Sách cốt lõi, Thêm thể loại & Động hóa KPI Cards từ CSDL
 
-### 1. Thêm đầu sách mới & Tự động sinh bản sao mã vạch:
-- Thêm nút và Modal **"+ Thêm sách"** trên thanh tiêu đề bảng với giao diện hiện đại, trực quan.
-- Tự động sinh $N$ bản sao vật lý trong bảng `BookCopies` tương ứng với mã vạch `BC{BookID:D4}-{Index:D2}` và trạng thái `Available`.
-- Backend: Endpoint `POST /api/Books` nhận `CreateBookDto` xử lý Transaction lưu toàn vẹn dữ liệu.
-
-### 2. Thêm thể loại sách mới (Category Creation):
-- Backend: Endpoint `POST /api/Categories` nhận `CreateCategoryDto` với cơ chế kiểm tra chống trùng lặp tên thể loại.
-- Frontend: Nút **"+ Thêm thể loại"** dạng pop-up nhanh ngay tại Modal Thêm & Sửa sách, tự động chọn thể loại vừa tạo vào form.
-
-### 3. Đồng bộ CRUD Sửa (PUT) & Xóa mềm (DELETE) xuống SQL Server:
-- **Sửa sách:** Kết nối `PUT /api/Books/{id}` cập nhật thông tin tên sách, tác giả, thể loại, NXB, ISBN, giá bìa vĩnh viễn vào CSDL.
-- **Xóa mềm (Soft Delete):** Kết nối `DELETE /api/Books/{id}`, kiểm tra điều kiện bảo toàn tài sản: Chặn xóa nếu còn bản sao ở trạng thái `Borrowed`. Nếu hợp lệ chuyển `IsActive = 0`.
-- Truy vấn phân trang `GetPagedBooksAsync` và `GetAllBooksWithCopiesAsync` tự động lọc `b.IsActive == true` để ẩn sách đã ngừng lưu thông.
+- **Thêm sách & Bản sao:** Bổ sung nút/modal "+ Thêm sách", tự động sinh $N$ bản sao mã vạch `BookCopies`, kết nối API `POST /api/Books`.
+- **Thêm thể loại:** Bổ sung endpoint `POST /api/Categories` và nút tạo nhanh thể loại ngay trên modal sách.
+- **Đồng bộ CRUD vào CSDL:** Hoàn thiện API `PUT /api/Books/{id}` (sửa sách) và `DELETE /api/Books/{id}` (xóa mềm `IsActive = 0`, chặn xóa khi sách đang mượn).
+- **Động hóa 4 thẻ KPI:** Bổ sung API `GET /api/Books/summary`, hiển thị số liệu thực tế thời gian thực (Tổng sách, Đang mượn, Quá hạn, Sách hỏng).
+- **Sửa lỗi:** Khắc phục lỗi `ReferenceError` khởi tạo Hook `refreshKey` trên `BookCatalog.jsx`.
 
 ## [2026-09-21] - Hoàn thiện Nhập/Xuất CSV, Phân trang & Bộ lọc đa tiêu chí (US-06 / LOLRA-14)
 
