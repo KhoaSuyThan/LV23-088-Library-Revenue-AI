@@ -38,4 +38,14 @@ public interface IBookRepository : IGenericRepository<Book>
     /// Nạp một mẻ sách và tự động sinh bản sao vật lý trong một giao dịch cơ sở dữ liệu.
     /// </summary>
     Task<int> BatchInsertBooksWithCopiesAsync(List<Book> books, int copiesPerBook = 1);
+
+    /// <summary>
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu.
+    /// </summary>
+    Task<Book> AddBookWithCopiesAsync(Book book, int initialCopies);
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (chặn nếu đang có sách cho mượn).
+    /// </summary>
+    Task<(bool Success, string Message)> SoftDeleteBookAsync(int id);
 }
