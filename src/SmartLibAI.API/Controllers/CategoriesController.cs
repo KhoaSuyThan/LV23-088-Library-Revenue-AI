@@ -26,4 +26,20 @@ public class CategoriesController : ControllerBase
         var result = await _categoryService.GetCategoriesAsync();
         return Ok(result);
     }
+
+    /// <summary>
+    /// Tạo mới một thể loại sách trong thư viện.
+    /// </summary>
+    /// <param name="dto">Dữ liệu thể loại gồm CategoryName</param>
+    [HttpPost]
+    public async Task<IActionResult> CreateCategory([FromBody] SmartLibAI.Core.DTOs.Categories.CreateCategoryDto dto)
+    {
+        var result = await _categoryService.CreateCategoryAsync(dto);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
 }

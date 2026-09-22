@@ -12,4 +12,9 @@ public interface ICategoryService
     /// Lấy toàn bộ danh sách 10 thể loại sách kèm tổng số lượng đầu sách tương ứng.
     /// </summary>
     Task<ApiResponse<IReadOnlyList<CategoryDto>>> GetCategoriesAsync();
+
+    /// <summary>
+    /// Tạo mới một thể loại sách vào cơ sở dữ liệu.
+    /// </summary>
+    Task<ApiResponse<CategoryDto>> CreateCategoryAsync(CreateCategoryDto dto);
 }

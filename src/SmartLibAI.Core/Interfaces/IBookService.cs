@@ -23,4 +23,19 @@ public interface IBookService
     /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM).
     /// </summary>
     Task<byte[]> ExportBooksToCsvAsync();
+
+    /// <summary>
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu.
+    /// </summary>
+    Task<ApiResponse<BookDto>> CreateBookAsync(CreateBookDto dto);
+
+    /// <summary>
+    /// Cập nhật thông tin đầu sách hiện có.
+    /// </summary>
+    Task<ApiResponse<BookDto>> UpdateBookAsync(int id, UpdateBookDto dto);
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (ngừng lưu thông).
+    /// </summary>
+    Task<ApiResponse<bool>> SoftDeleteBookAsync(int id);
 }

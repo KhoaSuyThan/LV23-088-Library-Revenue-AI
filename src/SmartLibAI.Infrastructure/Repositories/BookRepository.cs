@@ -21,7 +21,8 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     /// </summary>
     public async Task<PagedResult<BookDto>> GetPagedBooksAsync(BookFilterDto filter)
     {
-        var query = _dbSet.AsNoTracking();
+        // Chỉ lấy các đầu sách đang lưu hành (IsActive = true)
+        var query = _dbSet.AsNoTracking().Where(b => b.IsActive);
 
         // 1. Lọc theo từ khóa (Mã sách, Tiêu đề, Tác giả, ISBN)
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
@@ -106,7 +107,9 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     /// </summary>
     public async Task<IReadOnlyList<BookDto>> GetAllBooksWithCopiesAsync()
     {
+        // Chỉ lấy các đầu sách đang lưu hành (IsActive = true)
         return await _dbSet.AsNoTracking()
+            .Where(b => b.IsActive)
             .OrderBy(b => b.BookID)
             .Select(b => new BookDto
             {
@@ -219,4 +222,76 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             }
         });
     }
+
+    /// <summary>
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu trong một transaction.
+    /// </summary>
+    public async Task<Book> AddBookWithCopiesAsync(Book book, int initialCopies)
+    {
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Thêm đầu sách mới
+                book.IsActive = true;
+                await _dbSet.AddAsync(book);
+                await _context.SaveChangesAsync();
+
+                // 2. Tự động sinh initialCopies bản sao vật lý
+                var copies = new List<BookCopy>();
+                int copiesToCreate = Math.Max(1, initialCopies);
+                for (int i = 1; i <= copiesToCreate; i++)
+                {
+                    copies.Add(new BookCopy
+                    {
+                        BookID = book.BookID,
+                        Barcode = $"BC{book.BookID:D4}-{i:D2}",
+                        Status = "Available"
+                    });
+                }
+
+                await _context.BookCopies.AddRangeAsync(copies);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                return book;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (kiểm tra chặn xóa nếu đang có sách cho mượn).
+    /// </summary>
+    public async Task<(bool Success, string Message)> SoftDeleteBookAsync(int id)
+    {
+        var book = await _context.Books
+            .Include(b => b.BookCopies)
+            .FirstOrDefaultAsync(b => b.BookID == id);
+
+        if (book == null || !book.IsActive)
+        {
+            return (false, "Không tìm thấy đầu sách hoặc đầu sách đã ngừng lưu thông trước đó.");
+        }
+
+        // Kiểm tra xem có bản sao nào đang được độc giả mượn hay không
+        var borrowedCount = book.BookCopies.Count(c => c.Status == "Borrowed");
+        if (borrowedCount > 0)
+        {
+            return (false, $"Không thể ngừng lưu thông: Đầu sách hiện đang có {borrowedCount} bản sao được mượn chưa hoàn trả.");
+        }
+
+        // Chuyển sang trạng thái ngừng lưu thông (xóa mềm)
+        book.IsActive = false;
+        await _context.SaveChangesAsync();
+
+        return (true, $"Đã chuyển đầu sách \"{book.Title}\" sang danh mục ngừng lưu thông thành công.");
+    }
 }
+
