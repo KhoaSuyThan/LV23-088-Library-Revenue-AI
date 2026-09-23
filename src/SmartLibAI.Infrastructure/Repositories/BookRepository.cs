@@ -273,15 +273,38 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
 
         if (book == null) throw new InvalidOperationException($"Không tìm thấy đầu sách với mã {bookId}");
 
-        int currentCount = book.BookCopies.Count;
+        // 1. Xác định tiền tố mã vạch chuẩn (ưu tiên tiền tố bản sao hiện có, mặc định BC + 6 chữ số BookID)
+        string defaultPrefix = book.BookCopies.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Barcode))?.Barcode.Split('-')[0]
+            ?? $"BC{book.BookID:D6}";
         string prefix = string.IsNullOrWhiteSpace(customPrefix)
-            ? $"BC{book.BookID:D6}"
+            ? defaultPrefix
             : customPrefix.Trim();
+
+        // 2. Tìm số thứ tự lớn nhất hiện tại (xét cả số -001, -008 lẫn chữ cái -A, -B, -C)
+        int maxSeq = book.BookCopies.Count;
+        foreach (var c in book.BookCopies)
+        {
+            if (string.IsNullOrWhiteSpace(c.Barcode)) continue;
+            var parts = c.Barcode.Split('-');
+            if (parts.Length > 1)
+            {
+                var suffix = parts[^1].Trim();
+                if (int.TryParse(suffix, out int num))
+                {
+                    if (num > maxSeq) maxSeq = num;
+                }
+                else if (suffix.Length == 1 && char.IsLetter(suffix[0]))
+                {
+                    int charNum = char.ToUpperInvariant(suffix[0]) - 'A' + 1;
+                    if (charNum > maxSeq) maxSeq = charNum;
+                }
+            }
+        }
 
         var newCopies = new List<BookCopy>(count);
         for (int i = 1; i <= count; i++)
         {
-            int seqNumber = currentCount + i;
+            int seqNumber = maxSeq + i;
             newCopies.Add(new BookCopy
             {
                 BookID = bookId,

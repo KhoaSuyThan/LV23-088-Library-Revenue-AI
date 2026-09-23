@@ -723,7 +723,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         for (let i = 1; i <= count; i++) {
           fallbackCopies.push({
             copyId: Date.now() + i,
-            barcode: `BC${String(book.id).padStart(4, '0')}-${String(i).padStart(3, '0')}`,
+            barcode: `BC${String(book.id).padStart(6, '0')}-${String(i).padStart(3, '0')}`,
             status: i <= (book.availableCopies ?? count) ? 'Available' : 'Borrowed'
           });
         }
@@ -774,17 +774,34 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     } catch (err) {
       // 2. Client-side fallback mượt mà
       const currentCopies = selectedBook.copies || [];
-      const currentMaxSeq = currentCopies.reduce((max, c) => {
-        const match = c.barcode?.match(/-(\d+)$/);
-        return match ? Math.max(max, parseInt(match[1], 10)) : max;
-      }, currentCopies.length);
+      const firstBarcode = currentCopies.find((c) => c.barcode)?.barcode;
+      let prefix = `BC${String(selectedBook.id).padStart(6, '0')}`;
+      if (firstBarcode && firstBarcode.includes('-')) {
+        prefix = firstBarcode.split('-')[0];
+      }
+
+      let maxSeq = currentCopies.length;
+      currentCopies.forEach((c) => {
+        if (!c.barcode) return;
+        const parts = c.barcode.split('-');
+        if (parts.length > 1) {
+          const suffix = parts[parts.length - 1].trim();
+          const num = parseInt(suffix, 10);
+          if (!isNaN(num)) {
+            if (num > maxSeq) maxSeq = num;
+          } else if (suffix.length === 1 && /[a-zA-Z]/.test(suffix)) {
+            const charCode = suffix.toUpperCase().charCodeAt(0) - 65 + 1;
+            if (charCode > maxSeq) maxSeq = charCode;
+          }
+        }
+      });
 
       const generatedCopies = [];
       for (let i = 1; i <= bulkAddCount; i++) {
-        const seq = currentMaxSeq + i;
+        const seq = maxSeq + i;
         generatedCopies.push({
           copyId: Date.now() + i,
-          barcode: `BC${String(selectedBook.id).padStart(4, '0')}-${String(seq).padStart(3, '0')}`,
+          barcode: `${prefix}-${String(seq).padStart(3, '0')}`,
           status: 'Available'
         });
       }
@@ -1976,16 +1993,33 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <div className="preview-badges-list">
                   {(() => {
                     const currentCopies = selectedBook.copies || [];
-                    const currentMaxSeq = currentCopies.reduce((max, c) => {
-                      const match = c.barcode?.match(/-(\d+)$/);
-                      return match ? Math.max(max, parseInt(match[1], 10)) : max;
-                    }, currentCopies.length);
+                    const firstBarcode = currentCopies.find((c) => c.barcode)?.barcode;
+                    let prefix = `BC${String(selectedBook.id).padStart(6, '0')}`;
+                    if (firstBarcode && firstBarcode.includes('-')) {
+                      prefix = firstBarcode.split('-')[0];
+                    }
+
+                    let maxSeq = currentCopies.length;
+                    currentCopies.forEach((c) => {
+                      if (!c.barcode) return;
+                      const parts = c.barcode.split('-');
+                      if (parts.length > 1) {
+                        const suffix = parts[parts.length - 1].trim();
+                        const num = parseInt(suffix, 10);
+                        if (!isNaN(num)) {
+                          if (num > maxSeq) maxSeq = num;
+                        } else if (suffix.length === 1 && /[a-zA-Z]/.test(suffix)) {
+                          const charCode = suffix.toUpperCase().charCodeAt(0) - 65 + 1;
+                          if (charCode > maxSeq) maxSeq = charCode;
+                        }
+                      }
+                    });
 
                     const previewItems = [];
                     const maxDisplay = Math.min(bulkAddCount, 6);
                     for (let i = 1; i <= maxDisplay; i++) {
-                      const seq = currentMaxSeq + i;
-                      previewItems.push(`BC${String(selectedBook.id).padStart(4, '0')}-${String(seq).padStart(3, '0')}`);
+                      const seq = maxSeq + i;
+                      previewItems.push(`${prefix}-${String(seq).padStart(3, '0')}`);
                     }
 
                     return (
