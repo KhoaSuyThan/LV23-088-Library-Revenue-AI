@@ -6,6 +6,16 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-09-23] - Tính năng Tải lên & Quét ảnh Mã vạch / QR Code tự động (Upload, Drag-Drop, Paste & Reset)
+
+- **Bổ sung nút Đặt lại & Xóa ảnh preview:** Khi quét ảnh không thành công hoặc muốn đổi ảnh khác, bổ sung nút **"Đặt lại"** (`.btn-reset-scanner-img`) trên thanh công cụ và nút xóa nhanh `✕` góc trên khung preview (`.btn-clear-scanner-preview`) để dễ dàng làm sạch khung laser và thử lại ảnh mới.
+- **Giải mã mã vạch từ ảnh (Dual-Engine Decoder):** Xây dựng module [barcodeImageDecoder.js](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/utils/barcodeImageDecoder.js) kết hợp Web API chuẩn `BarcodeDetector` (tối ưu phần cứng C++/GPU) và fallback thư viện tiêu chuẩn `@zxing/library`, hỗ trợ nhận diện cả mã vạch 1D (Code 128, Code 39, EAN-13) và mã QR 2D.
+- **3 phương thức nạp ảnh linh hoạt:**
+  - 📂 **Nút "Tải ảnh mã vạch / QR"**: Chọn ảnh trực tiếp từ máy tính.
+  - 🖱️ **Kéo & Thả (Drag & Drop)**: Thả trực tiếp file ảnh vào khung quét laser có hiệu ứng phát sáng viền.
+  - 📋 **Dán từ Clipboard (`Ctrl + V`)**: Bắt sự kiện dán ảnh chụp màn hình từ bộ nhớ tạm (Snipping Tool, Zalo,...) để quét ngay lập tức mà không cần lưu file.
+- **Tự động hóa hoàn toàn luồng nghiệp vụ:** Khi ảnh được nhận diện thành công, hệ thống tự động điền mã, phát âm thanh beep, tự động tra cứu CSDL và mở ngay cuốn sách/bản sao tương ứng.
+
 ## [2026-09-23] - Sửa lỗi Tra cứu Quét mã vạch nhanh & Đồng bộ định dạng CSDL
 
 - **Đồng bộ mã vạch kiểm thử nhanh:** Cập nhật các nút bấm quét nhanh trên modal Barcode Scanner thành `BC000001-A`, `BC000001-B`, `BC000001-C`,... khớp chính xác 100% với dữ liệu thực tế đang lưu trong bảng `BookCopies`.
