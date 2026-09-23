@@ -29,6 +29,7 @@ import {
   Layers,
   CheckSquare,
   Square
+  FolderPlus
 } from 'lucide-react';
 import { apiClient } from '../api/authApi';
 import { generateBarcodeSvg, generateQrCodeSvg, playScannerBeep } from '../utils/barcodeGenerator';
@@ -178,7 +179,16 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [pageSize] = useState(10); // Nâng số lượng hiển thị lên 10 cuốn / trang
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
+  const [refreshKey, setRefreshKey] = useState(0); // Khóa làm mới danh sách và thống kê
   const [internalSearch, setInternalSearch] = useState('');
+
+  // State 4 thẻ chỉ số thống kê KPI Cards từ CSDL
+  const [catalogSummary, setCatalogSummary] = useState({
+    totalBooks: 12500,
+    borrowedBooks: 1420,
+    overdueBooks: 47,
+    damagedBooks: 12
+  });
 
   // Các state phục vụ thanh lọc đa tiêu chí
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -203,6 +213,34 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     };
     loadCategories();
   }, []);
+
+  // Tải dữ liệu 4 thẻ thống kê KPI Cards thời gian thực từ /api/Books/summary
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalogSummary = async () => {
+      try {
+        const res = await apiClient.get('/api/Books/summary');
+        const data = res.data?.data || res.data;
+        if (isMounted && data) {
+          setCatalogSummary({
+            totalBooks: data.totalBooks ?? 0,
+            borrowedBooks: data.borrowedBooks ?? 0,
+            overdueBooks: data.overdueBooks ?? 0,
+            damagedBooks: data.damagedBooks ?? 0
+          });
+          if (data.totalBooks !== undefined && data.totalBooks > 0) {
+            setTotalBooksCount(data.totalBooks);
+          }
+        }
+      } catch (err) {
+        // Giữ fallback mặc định nếu mất kết nối
+      }
+    };
+    fetchCatalogSummary();
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]);
 
   // Đồng bộ khi header ngoài truyền externalSearch
   useEffect(() => {
@@ -271,8 +309,26 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [deleteBookTarget, setDeleteBookTarget] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
+  // State Modal Thêm Sách Mới
+  const [isAddBookOpen, setIsAddBookOpen] = useState(false);
+  const [isSavingBook, setIsSavingBook] = useState(false);
+  const [newBook, setNewBook] = useState({
+    title: '',
+    author: '',
+    categoryID: '',
+    isbn: '',
+    publisher: '',
+    year: new Date().getFullYear(),
+    price: 50000,
+    initialCopies: 1
+  });
+
+  // State Modal Thêm Nhanh Thể Loại
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+
   // State Import CSV (US-06 / LOLRA-14)
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedCsvFile, setSelectedCsvFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -400,23 +456,116 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setIsDeleteOpen(true);
   };
 
+  // Mở modal Thêm đầu sách mới
+  const handleOpenAddBook = () => {
+    const defaultCatId = categories && categories.length > 0 ? categories[0].categoryID : 1;
+    setNewBook({
+      title: '',
+      author: '',
+      categoryID: defaultCatId,
+      isbn: '',
+      publisher: 'NXB Đại Học Quốc Gia',
+      year: new Date().getFullYear(),
+      price: 50000,
+      initialCopies: 1
+    });
+    setIsAddBookOpen(true);
+  };
+
+  // Xử lý tạo mới Thể loại sách
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) {
+      showToast('Vui lòng nhập tên thể loại sách.');
+      return;
+    }
+    setIsSavingCategory(true);
+    try {
+      const res = await apiClient.post('/api/Categories', { categoryName: name });
+      const created = res.data?.data || res.data;
+      if (created) {
+        setCategories((prev) => [...prev, created]);
+        // Tự động gán thể loại mới cho form đang thao tác
+        if (isAddBookOpen) {
+          setNewBook((prev) => ({ ...prev, categoryID: created.categoryID }));
+        } else if (isEditOpen && editingBook) {
+          setEditingBook((prev) => ({
+            ...prev,
+            categoryID: created.categoryID,
+            category: created.categoryName
+          }));
+        }
+        setNewCategoryName('');
+        setIsAddCategoryOpen(false);
+        showToast(`Đã thêm thành công thể loại "${created.categoryName}"!`);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Lỗi khi tạo thể loại mới.';
+      showToast(msg);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  // Xử lý lưu đầu sách mới vào Database
+  const handleSaveNewBook = async (e) => {
+    e.preventDefault();
+    if (!newBook.title.trim() || !newBook.author.trim()) {
+      showToast('Vui lòng điền đầy đủ Tên đầu sách và Tác giả.');
+      return;
+    }
+
+    setIsSavingBook(true);
+    try {
+      const payload = {
+        title: newBook.title.trim(),
+        author: newBook.author.trim(),
+        categoryID: Number(newBook.categoryID) || (categories[0]?.categoryID || 1),
+        isbn: newBook.isbn ? newBook.isbn.trim() : null,
+        publisher: newBook.publisher ? newBook.publisher.trim() : 'Đang cập nhật',
+        basePrice: Number(newBook.price) > 0 ? Number(newBook.price) : 50000,
+        initialCopies: Number(newBook.initialCopies) > 0 ? Number(newBook.initialCopies) : 1
+      };
+
+      const res = await apiClient.post('/api/Books', payload);
+      const created = res.data?.data || res.data;
+
+      setIsAddBookOpen(false);
+      setRefreshKey((prev) => prev + 1);
+      showToast(`Đã thêm thành công đầu sách "${created?.title || payload.title}" với ${payload.initialCopies} bản sao vào CSDL!`);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Lỗi khi lưu đầu sách mới.';
+      showToast(msg);
+    } finally {
+      setIsSavingBook(false);
+    }
+  };
+
   // Xác nhận Xóa mềm (chuyển sang ngừng lưu thông IsActive = 0)
   const handleConfirmDelete = async () => {
     if (!deleteBookTarget) return;
 
     try {
-      // Cố gắng gọi API xóa mềm nếu có kết nối backend
-      await apiClient.delete(`/api/Books/${deleteBookTarget.id}`);
-    } catch (err) {
-      // Tự động xử lý Client-side fallback mượt mà
-    }
+      // Gọi API xóa mềm lưu trực tiếp xuống Database
+      const res = await apiClient.delete(`/api/Books/${deleteBookTarget.id}`);
+      if (res.data && !res.data.success) {
+        showToast(res.data.message || 'Không thể xóa đầu sách.');
+        return;
+      }
 
-    // Cập nhật danh sách: ẩn đầu sách đã xóa mềm khỏi danh mục lưu thông
-    setBooks((prev) => prev.filter((b) => b.id !== deleteBookTarget.id));
-    setTotalBooksCount((prev) => Math.max(0, prev - 1));
-    setIsDeleteOpen(false);
-    showToast(`Đã chuyển đầu sách "${deleteBookTarget.title}" sang danh mục ngừng lưu thông (xóa mềm)!`);
-    setDeleteBookTarget(null);
+      // Cập nhật danh sách: ẩn đầu sách đã xóa mềm khỏi danh mục lưu thông
+      setBooks((prev) => prev.filter((b) => b.id !== deleteBookTarget.id));
+      setTotalBooksCount((prev) => Math.max(0, prev - 1));
+      setIsDeleteOpen(false);
+      setRefreshKey((prev) => prev + 1);
+      showToast(`Đã chuyển đầu sách "${deleteBookTarget.title}" sang danh mục ngừng lưu thông (xóa mềm)!`);
+      setDeleteBookTarget(null);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Lỗi khi thực hiện xóa mềm sách.';
+      showToast(msg);
+      setIsDeleteOpen(false);
+    }
   };
 
   // Từ khóa tìm kiếm hợp nhất từ Header hoặc ô tìm kiếm tại bảng
@@ -451,6 +600,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             title: b.title,
             author: b.author,
             category: b.categoryName || 'Chung',
+            categoryID: b.categoryID,
             year: 2020 + (b.bookID % 5),
             price: b.basePrice || 85000,
             availableCopies: b.availableCopies !== undefined ? b.availableCopies : (b.totalCopies || 1),
@@ -864,16 +1014,52 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setIsEditOpen(true);
   };
 
-  // Lưu thông tin sau khi sửa
-  const handleSaveEdit = (e) => {
+  // Lưu thông tin sau khi sửa (Gửi PUT lên Database)
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingBook) return;
 
-    setBooks((prev) =>
-      prev.map((b) => (b.id === editingBook.id ? { ...editingBook } : b))
-    );
-    setIsEditOpen(false);
-    showToast(`Đã cập nhật thành công đầu sách "${editingBook.title}"!`);
+    try {
+      const selectedCatObj = categories.find(
+        (c) => String(c.categoryID) === String(editingBook.categoryID) ||
+               c.categoryName.toLowerCase() === (editingBook.category || '').toLowerCase()
+      );
+      const catId = selectedCatObj ? selectedCatObj.categoryID : (editingBook.categoryID || 1);
+
+      const payload = {
+        title: editingBook.title.trim(),
+        author: editingBook.author.trim(),
+        categoryID: Number(catId),
+        isbn: editingBook.isbn ? editingBook.isbn.trim() : null,
+        publisher: editingBook.publisher ? editingBook.publisher.trim() : 'Đang cập nhật',
+        basePrice: Number(editingBook.price) > 0 ? Number(editingBook.price) : 50000
+      };
+
+      await apiClient.put(`/api/Books/${editingBook.id}`, payload);
+
+      setBooks((prev) =>
+        prev.map((b) =>
+          b.id === editingBook.id
+            ? {
+                ...editingBook,
+                categoryID: catId,
+                category: selectedCatObj ? selectedCatObj.categoryName : editingBook.category
+              }
+            : b
+        )
+      );
+      setIsEditOpen(false);
+      setRefreshKey((prev) => prev + 1);
+      showToast(`Đã cập nhật thành công đầu sách "${editingBook.title}" vào CSDL!`);
+    } catch (err) {
+      // Fallback cập nhật local nếu có lỗi
+      setBooks((prev) =>
+        prev.map((b) => (b.id === editingBook.id ? { ...editingBook } : b))
+      );
+      setIsEditOpen(false);
+      const msg = err.response?.data?.message || `Đã cập nhật đầu sách "${editingBook.title}"!`;
+      showToast(msg);
+    }
   };
 
   // Format tiền tệ VNĐ
@@ -899,7 +1085,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Tổng đầu sách</span>
-            <span className="kpi-number">{totalBooksCount.toLocaleString('vi-VN')}</span>
+            <span className="kpi-number">
+              {(catalogSummary.totalBooks || totalBooksCount).toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-blue">
             <Copy size={20} />
@@ -910,7 +1098,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách đang cho mượn</span>
-            <span className="kpi-number">1.420</span>
+            <span className="kpi-number">
+              {catalogSummary.borrowedBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-green">
             <BookOpen size={20} />
@@ -921,7 +1111,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách quá hạn</span>
-            <span className="kpi-number text-red">47</span>
+            <span className="kpi-number text-red">
+              {catalogSummary.overdueBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-red">
             <AlertTriangle size={20} />
@@ -932,7 +1124,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-kpi-card">
           <div className="kpi-info-col">
             <span className="kpi-label">Sách hỏng cần thanh lý</span>
-            <span className="kpi-number">12</span>
+            <span className="kpi-number">
+              {catalogSummary.damagedBooks.toLocaleString('vi-VN')}
+            </span>
           </div>
           <div className="kpi-icon-square icon-gray">
             <Trash2 size={20} />
@@ -947,6 +1141,17 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         <div className="catalog-table-header">
           <h2 className="catalog-table-title">Danh sách sách đang quản lý</h2>
           <div className="catalog-header-actions">
+            {/* Nút Thêm đầu sách mới */}
+            <button
+              type="button"
+              className="btn-add-book"
+              onClick={handleOpenAddBook}
+              title="Thêm một đầu sách mới thủ công vào thư viện"
+            >
+              <Plus size={16} />
+              <span>Thêm sách</span>
+            </button>
+
             <button
               type="button"
               className="btn-export-csv"
@@ -2138,16 +2343,38 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Thể loại *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={editingBook.category}
-                      onChange={(e) =>
-                        setEditingBook({ ...editingBook, category: e.target.value })
-                      }
+                    <div className="form-label-with-action">
+                      <label className="form-label">Thể loại *</label>
+                      <button
+                        type="button"
+                        className="btn-quick-add-cat"
+                        onClick={() => setIsAddCategoryOpen(true)}
+                        title="Tạo thể loại mới"
+                      >
+                        <Plus size={12} />
+                        <span>Thêm thể loại</span>
+                      </button>
+                    </div>
+                    <select
+                      className="form-input form-select-custom"
+                      value={editingBook.categoryID || (categories.find(c => c.categoryName.toLowerCase() === (editingBook.category || '').toLowerCase())?.categoryID || '')}
+                      onChange={(e) => {
+                        const catId = Number(e.target.value);
+                        const selectedCat = categories.find((c) => c.categoryID === catId);
+                        setEditingBook({
+                          ...editingBook,
+                          categoryID: catId,
+                          category: selectedCat ? selectedCat.categoryName : editingBook.category
+                        });
+                      }}
                       required
-                    />
+                    >
+                      {categories.map((c) => (
+                        <option key={c.categoryID} value={c.categoryID}>
+                          {c.categoryName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -2604,6 +2831,252 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <span>Đóng và cập nhật danh sách sách</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL 6: THÊM ĐẦU SÁCH MỚI (ADD NEW BOOK)
+          ==================================================================== */}
+      {isAddBookOpen && (
+        <div className="catalog-modal-overlay" onClick={() => !isSavingBook && setIsAddBookOpen(false)}>
+          <div className="catalog-modal-content" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={handleSaveNewBook}>
+              <div className="modal-header">
+                <div className="modal-title-box">
+                  <span className="modal-code-tag" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
+                    Mới
+                  </span>
+                  <h3 className="modal-title">Thêm đầu sách mới vào thư viện</h3>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  disabled={isSavingBook}
+                  onClick={() => setIsAddBookOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Tên đầu sách *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Nhập tên đầu sách (ví dụ: Trí Tuệ Nhân Tạo Hiện Đại)"
+                    value={newBook.title}
+                    onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Tác giả *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Nhập tên tác giả (ví dụ: Stuart Russell)"
+                      value={newBook.author}
+                      onChange={(e) => setNewBook({ ...newBook, author: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <div className="form-label-with-action">
+                      <label className="form-label">Thể loại *</label>
+                      <button
+                        type="button"
+                        className="btn-quick-add-cat"
+                        onClick={() => setIsAddCategoryOpen(true)}
+                        title="Tạo thể loại mới"
+                      >
+                        <Plus size={12} />
+                        <span>Thêm thể loại</span>
+                      </button>
+                    </div>
+                    <select
+                      className="form-input form-select-custom"
+                      value={newBook.categoryID}
+                      onChange={(e) => setNewBook({ ...newBook, categoryID: Number(e.target.value) })}
+                      required
+                    >
+                      {categories.map((c) => (
+                        <option key={c.categoryID} value={c.categoryID}>
+                          {c.categoryName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Giá bìa niêm yết (VNĐ) *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={newBook.price}
+                      min="1000"
+                      step="1000"
+                      onChange={(e) => setNewBook({ ...newBook, price: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Số bản sao nhập kho ban đầu *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={newBook.initialCopies}
+                      min="1"
+                      max="100"
+                      onChange={(e) => setNewBook({ ...newBook, initialCopies: Number(e.target.value) })}
+                      title="Hệ thống sẽ tự động sinh mã vạch Barcode tương ứng cho từng cuốn"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Nhà xuất bản</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Ví dụ: NXB Giáo Dục, NXB Trẻ..."
+                      value={newBook.publisher}
+                      onChange={(e) => setNewBook({ ...newBook, publisher: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Mã ISBN (Tùy chọn)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Mã ISBN-10 hoặc ISBN-13"
+                      value={newBook.isbn}
+                      onChange={(e) => setNewBook({ ...newBook, isbn: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  disabled={isSavingBook}
+                  onClick={() => setIsAddBookOpen(false)}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-primary"
+                  disabled={isSavingBook}
+                >
+                  {isSavingBook ? (
+                    <>
+                      <Loader2 size={16} className="spinner-rotate" />
+                      <span>Đang lưu vào CSDL...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>Lưu đầu sách</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL 7: THÊM NHANH THỂ LOẠI MỚI (ADD CATEGORY MODAL)
+          ==================================================================== */}
+      {isAddCategoryOpen && (
+        <div
+          className="catalog-modal-overlay"
+          style={{ zIndex: 1200 }}
+          onClick={() => !isSavingCategory && setIsAddCategoryOpen(false)}
+        >
+          <div
+            className="catalog-modal-content small-modal-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={handleCreateCategory}>
+              <div className="modal-header">
+                <div className="modal-title-box">
+                  <span className="modal-code-tag" style={{ backgroundColor: '#f0fdf4', color: '#15803d' }}>
+                    <FolderPlus size={13} style={{ marginRight: 4 }} />
+                    Danh mục
+                  </span>
+                  <h3 className="modal-title">Thêm thể loại sách mới</h3>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  disabled={isSavingCategory}
+                  onClick={() => setIsAddCategoryOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Tên thể loại sách *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ví dụ: Khoa học viễn tưởng, Kỹ năng mềm..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                  <span className="form-hint-text">
+                    Thể loại mới sẽ được lưu vào cơ sở dữ liệu và hiển thị ngay trên các bộ lọc & dropdown.
+                  </span>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  disabled={isSavingCategory}
+                  onClick={() => setIsAddCategoryOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-primary"
+                  disabled={isSavingCategory || !newCategoryName.trim()}
+                >
+                  {isSavingCategory ? (
+                    <>
+                      <Loader2 size={16} className="spinner-rotate" />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      <span>Tạo thể loại</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

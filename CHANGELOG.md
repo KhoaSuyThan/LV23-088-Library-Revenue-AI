@@ -5,6 +5,14 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-09-22] - Quản lý Sách cốt lõi, Thêm thể loại & Động hóa KPI Cards từ CSDL
+
+- **Thêm sách & Bản sao:** Bổ sung nút/modal "+ Thêm sách", tự động sinh $N$ bản sao mã vạch `BookCopies`, kết nối API `POST /api/Books`.
+- **Thêm thể loại:** Bổ sung endpoint `POST /api/Categories` và nút tạo nhanh thể loại ngay trên modal sách.
+- **Đồng bộ CRUD vào CSDL:** Hoàn thiện API `PUT /api/Books/{id}` (sửa sách) và `DELETE /api/Books/{id}` (xóa mềm `IsActive = 0`, chặn xóa khi sách đang mượn).
+- **Động hóa 4 thẻ KPI:** Bổ sung API `GET /api/Books/summary`, hiển thị số liệu thực tế thời gian thực (Tổng sách, Đang mượn, Quá hạn, Sách hỏng).
+- **Sửa lỗi:** Khắc phục lỗi `ReferenceError` khởi tạo Hook `refreshKey` trên `BookCatalog.jsx`.
+
 ## [2026-09-21] - Hoàn thiện Nhập/Xuất CSV, Phân trang & Bộ lọc đa tiêu chí (US-06 / LOLRA-14)
 
 ### 1. Nhập & Xuất CSV (`SmartLibAI.API`, `BookCatalog.jsx`):

@@ -308,6 +308,139 @@ public class BookService : IBookService
     }
 
     /// <summary>
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu.
+    /// </summary>
+    public async Task<ApiResponse<BookDto>> CreateBookAsync(CreateBookDto dto)
+    {
+        if (dto == null)
+        {
+            return ApiResponse<BookDto>.ErrorResult("Dữ liệu sách không hợp lệ.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Title))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Tên đầu sách không được để trống.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Author))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Tên tác giả không được để trống.");
+        }
+
+        var validCatIds = await _bookRepository.GetValidCategoryIdsAsync();
+        if (!validCatIds.Contains(dto.CategoryID))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Thể loại sách đã chọn không tồn tại trong hệ thống.");
+        }
+
+        // Tự động kiểm tra trùng lặp ISBN nếu có nhập ISBN
+        if (!string.IsNullOrWhiteSpace(dto.ISBN))
+        {
+            var existingIsbns = await _bookRepository.GetExistingIsbnsAsync();
+            if (existingIsbns.Contains(dto.ISBN.Trim()))
+            {
+                return ApiResponse<BookDto>.ErrorResult($"Mã ISBN '{dto.ISBN.Trim()}' đã tồn tại trong thư viện.");
+            }
+        }
+
+        var book = new SmartLibAI.Core.Entities.Book
+        {
+            Title = dto.Title.Trim(),
+            Author = dto.Author.Trim(),
+            CategoryID = dto.CategoryID,
+            ISBN = string.IsNullOrWhiteSpace(dto.ISBN) ? null : dto.ISBN.Trim(),
+            Publisher = string.IsNullOrWhiteSpace(dto.Publisher) ? "Đang cập nhật" : dto.Publisher.Trim(),
+            BasePrice = dto.BasePrice > 0 ? dto.BasePrice : 50000m,
+            IsActive = true
+        };
+
+        int copiesCount = Math.Clamp(dto.InitialCopies, 1, 100);
+        await _bookRepository.AddBookWithCopiesAsync(book, copiesCount);
+
+        var detail = await _bookRepository.GetBookDetailByIdAsync(book.BookID);
+        if (detail == null)
+        {
+            return ApiResponse<BookDto>.ErrorResult("Đã tạo sách nhưng không thể lấy thông tin chi tiết.");
+        }
+
+        return ApiResponse<BookDto>.SuccessResult(detail, "Thêm đầu sách mới thành công");
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin đầu sách hiện có.
+    /// </summary>
+    public async Task<ApiResponse<BookDto>> UpdateBookAsync(int id, UpdateBookDto dto)
+    {
+        if (dto == null)
+        {
+            return ApiResponse<BookDto>.ErrorResult("Dữ liệu cập nhật không hợp lệ.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Title))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Tên đầu sách không được để trống.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Author))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Tên tác giả không được để trống.");
+        }
+
+        var validCatIds = await _bookRepository.GetValidCategoryIdsAsync();
+        if (!validCatIds.Contains(dto.CategoryID))
+        {
+            return ApiResponse<BookDto>.ErrorResult("Thể loại sách đã chọn không tồn tại trong hệ thống.");
+        }
+
+        var book = await _bookRepository.GetByIdAsync(id);
+        if (book == null || !book.IsActive)
+        {
+            return ApiResponse<BookDto>.ErrorResult($"Không tìm thấy đầu sách với mã ID {id}.");
+        }
+
+        // Cập nhật các trường thông tin
+        book.Title = dto.Title.Trim();
+        book.Author = dto.Author.Trim();
+        book.CategoryID = dto.CategoryID;
+        book.ISBN = string.IsNullOrWhiteSpace(dto.ISBN) ? null : dto.ISBN.Trim();
+        book.Publisher = string.IsNullOrWhiteSpace(dto.Publisher) ? "Đang cập nhật" : dto.Publisher.Trim();
+        book.BasePrice = dto.BasePrice > 0 ? dto.BasePrice : 50000m;
+
+        await _bookRepository.UpdateAsync(book);
+
+        var detail = await _bookRepository.GetBookDetailByIdAsync(id);
+        if (detail == null)
+        {
+            return ApiResponse<BookDto>.ErrorResult("Cập nhật sách thành công nhưng không thể lấy lại thông tin.");
+        }
+
+        return ApiResponse<BookDto>.SuccessResult(detail, "Cập nhật thông tin đầu sách thành công");
+    }
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (chuyển sang ngừng lưu thông IsActive = false).
+    /// </summary>
+    public async Task<ApiResponse<bool>> SoftDeleteBookAsync(int id)
+    {
+        var (success, message) = await _bookRepository.SoftDeleteBookAsync(id);
+        if (!success)
+        {
+            return ApiResponse<bool>.ErrorResult(message);
+        }
+
+        return ApiResponse<bool>.SuccessResult(true, message);
+    }
+
+    /// <summary>
+    /// Lấy thống kê tổng hợp 4 chỉ số KPI cho phân hệ Quản lý Sách.
+    /// </summary>
+    public async Task<ApiResponse<BookCatalogSummaryDto>> GetCatalogSummaryAsync()
+    {
+        var summary = await _bookRepository.GetCatalogSummaryAsync();
+        return ApiResponse<BookCatalogSummaryDto>.SuccessResult(summary, "Lấy thống kê chỉ số danh mục sách thành công");
+    }
+
+    /// <summary>
     /// Xử lý thoát ký tự nháy kép và bao quanh dấu phẩy chuẩn RFC 4180.
     /// </summary>
     private static string EscapeCsv(string val)
@@ -432,3 +565,4 @@ public class BookService : IBookService
         return ApiResponse<bool>.SuccessResult(true, "Xóa bản sao thành công.");
     }
 }
+

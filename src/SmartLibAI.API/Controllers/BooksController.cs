@@ -41,6 +41,16 @@ public class BooksController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy dữ liệu thống kê tổng hợp cho 4 thẻ KPI của phân hệ Quản lý Sách.
+    /// </summary>
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetCatalogSummary()
+    {
+        var result = await _bookService.GetCatalogSummaryAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Lấy chi tiết thông tin một đầu sách dựa theo BookID.
     /// </summary>
     [HttpGet("{id:int}")]
@@ -94,5 +104,50 @@ public class BooksController : ControllerBase
     {
         var csvBytes = await _bookService.ExportBooksToCsvAsync();
         return File(csvBytes, "text/csv; charset=utf-8", "smartlib_books_catalog.csv");
+    }
+
+    /// <summary>
+    /// Thêm mới một đầu sách vào thư viện (kèm tự động sinh bản sao vật lý ban đầu).
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> CreateBook([FromBody] CreateBookDto dto)
+    {
+        var result = await _bookService.CreateBookAsync(dto);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return CreatedAtAction(nameof(GetBookById), new { id = result.Data!.BookID }, result);
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin chi tiết một đầu sách hiện có.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateBook(int id, [FromBody] UpdateBookDto dto)
+    {
+        var result = await _bookService.UpdateBookAsync(id, dto);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Ngừng lưu thông đầu sách (xóa mềm - IsActive = 0, chặn nếu đang có sách cho mượn).
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> SoftDeleteBook(int id)
+    {
+        var result = await _bookService.SoftDeleteBookAsync(id);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 }

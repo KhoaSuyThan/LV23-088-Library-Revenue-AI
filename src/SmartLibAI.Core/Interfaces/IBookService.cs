@@ -48,4 +48,22 @@ public interface IBookService
     /// Xóa một bản sao nếu không trong trạng thái cho mượn.
     /// </summary>
     Task<ApiResponse<bool>> DeleteCopyAsync(int copyId);
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu.
+    /// </summary>
+    Task<ApiResponse<BookDto>> CreateBookAsync(CreateBookDto dto);
+
+    /// <summary>
+    /// Cập nhật thông tin đầu sách hiện có.
+    /// </summary>
+    Task<ApiResponse<BookDto>> UpdateBookAsync(int id, UpdateBookDto dto);
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (ngừng lưu thông).
+    /// </summary>
+    Task<ApiResponse<bool>> SoftDeleteBookAsync(int id);
+
+    /// <summary>
+    /// Lấy thống kê tổng hợp 4 chỉ số KPI cho phân hệ Quản lý Sách.
+    /// </summary>
+    Task<ApiResponse<BookCatalogSummaryDto>> GetCatalogSummaryAsync();
 }

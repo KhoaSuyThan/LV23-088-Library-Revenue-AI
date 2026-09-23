@@ -63,4 +63,17 @@ public interface IBookRepository : IGenericRepository<Book>
     /// Xóa một bản sao (nếu không đang trong trạng thái cho mượn).
     /// </summary>
     Task<bool> DeleteCopyAsync(int copyId);
+    /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu.
+    /// </summary>
+    Task<Book> AddBookWithCopiesAsync(Book book, int initialCopies);
+
+    /// <summary>
+    /// Thực hiện xóa mềm đầu sách (chặn nếu đang có sách cho mượn).
+    /// </summary>
+    Task<(bool Success, string Message)> SoftDeleteBookAsync(int id);
+
+    /// <summary>
+    /// Lấy thống kê tổng hợp số liệu 4 thẻ KPI cho phân hệ Quản lý Sách.
+    /// </summary>
+    Task<BookCatalogSummaryDto> GetCatalogSummaryAsync();
 }
