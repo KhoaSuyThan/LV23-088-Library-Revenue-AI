@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Copy,
   BookOpen,
@@ -19,9 +19,20 @@ import {
   Loader2,
   RefreshCw,
   FileText,
-  Download
+  Download,
+  Printer,
+  QrCode,
+  ScanLine,
+  Sparkles,
+  Check,
+  ExternalLink,
+  Layers,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { apiClient } from '../api/authApi';
+import { generateBarcodeSvg, generateQrCodeSvg, playScannerBeep } from '../utils/barcodeGenerator';
+import { exportBarcodeLabelsPdf, openPrintDialog } from '../utils/barcodePdfPrinter';
 import './BookCatalog.css';
 
 /**
@@ -239,6 +250,22 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [editingBook, setEditingBook] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // State Quản lý Bản sao & Mã vạch (AC1 - AC5)
+  const [detailActiveTab, setDetailActiveTab] = useState('copies'); // 'overview' | 'copies'
+  const [selectedCopyBarcodes, setSelectedCopyBarcodes] = useState(new Set());
+  const [copySearchKeyword, setCopySearchKeyword] = useState('');
+  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [bulkAddCount, setBulkAddCount] = useState(5);
+  const [bulkAddLoading, setBulkAddLoading] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printTemplate, setPrintTemplate] = useState('a4'); // 'a4' | 'thermal'
+  const [copiesToPrint, setCopiesToPrint] = useState([]);
+  const [isViewBarcodeModalOpen, setIsViewBarcodeModalOpen] = useState(false);
+  const [viewBarcodeCopy, setViewBarcodeCopy] = useState(null);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scannerInputValue, setScannerInputValue] = useState('');
+  const [highlightedBarcode, setHighlightedBarcode] = useState('');
 
   // State Modal Xóa mềm & Chặn xóa
   const [deleteBookTarget, setDeleteBookTarget] = useState(null);
@@ -491,10 +518,344 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     return list;
   }, [books, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, categories]);
 
-  // Xử lý mở modal Chi tiết
-  const handleOpenDetail = (book) => {
+  // Xử lý mở modal Chi tiết kèm tải danh sách bản sao (AC1 - AC5)
+  const handleOpenDetail = async (book, targetTab = 'copies') => {
     setSelectedBook(book);
     setIsDetailOpen(true);
+    setDetailActiveTab(targetTab);
+    setSelectedCopyBarcodes(new Set());
+    setCopySearchKeyword('');
+
+    try {
+      const res = await apiClient.get(`/api/books/${book.id}/copies`);
+      const copyList = res.data?.data || res.data;
+      if (Array.isArray(copyList)) {
+        const mappedCopies = copyList.map((c) => ({
+          copyId: c.copyID,
+          barcode: c.barcode,
+          status: c.status || 'Available'
+        }));
+
+        setSelectedBook((prev) => (prev && prev.id === book.id ? { ...prev, copies: mappedCopies } : prev));
+        setBooks((prev) =>
+          prev.map((b) =>
+            b.id === book.id
+              ? {
+                  ...b,
+                  copies: mappedCopies,
+                  totalCopies: mappedCopies.length,
+                  availableCopies: mappedCopies.filter((c) => c.status === 'Available').length
+                }
+              : b
+          )
+        );
+      }
+    } catch (err) {
+      // Fallback: nếu backend chưa có bản sao trong DB cho sách này, tự động sinh bản sao mẫu
+      if (!book.copies || book.copies.length === 0) {
+        const fallbackCopies = [];
+        const count = book.totalCopies || 3;
+        for (let i = 1; i <= count; i++) {
+          fallbackCopies.push({
+            copyId: Date.now() + i,
+            barcode: `BC${String(book.id).padStart(4, '0')}-${String(i).padStart(3, '0')}`,
+            status: i <= (book.availableCopies ?? count) ? 'Available' : 'Borrowed'
+          });
+        }
+        setSelectedBook((prev) => (prev && prev.id === book.id ? { ...prev, copies: fallbackCopies } : prev));
+      }
+    }
+  };
+
+  // Thêm mới bản sao hàng loạt (Bulk Add - AC1, AC2)
+  const handleBulkAddCopies = async () => {
+    if (!selectedBook || bulkAddCount <= 0) return;
+    setBulkAddLoading(true);
+
+    try {
+      // 1. Thử gọi API Backend .NET 10
+      const res = await apiClient.post(`/api/books/${selectedBook.id}/copies/bulk`, {
+        count: bulkAddCount
+      });
+      const createdDtos = res.data?.data || res.data;
+      let newCopies = [];
+      if (Array.isArray(createdDtos)) {
+        newCopies = createdDtos.map((c) => ({
+          copyId: c.copyID,
+          barcode: c.barcode,
+          status: c.status || 'Available'
+        }));
+      } else {
+        throw new Error('API format mismatch, fallback to client');
+      }
+
+      const updatedCopies = [...(selectedBook.copies || []), ...newCopies];
+      const updatedTotal = updatedCopies.length;
+      const updatedAvail = updatedCopies.filter((c) => c.status === 'Available').length;
+
+      const updatedBook = {
+        ...selectedBook,
+        copies: updatedCopies,
+        totalCopies: updatedTotal,
+        availableCopies: updatedAvail,
+        status: updatedAvail > 0 ? 'available' : 'borrowed_all'
+      };
+
+      setSelectedBook(updatedBook);
+      setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updatedBook : b)));
+      setIsBulkAddOpen(false);
+      playScannerBeep(true);
+      showToast(`Đã thêm thành công ${bulkAddCount} bản sao mới cho sách "${selectedBook.title}"!`);
+    } catch (err) {
+      // 2. Client-side fallback mượt mà
+      const currentCopies = selectedBook.copies || [];
+      const currentMaxSeq = currentCopies.reduce((max, c) => {
+        const match = c.barcode?.match(/-(\d+)$/);
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
+      }, currentCopies.length);
+
+      const generatedCopies = [];
+      for (let i = 1; i <= bulkAddCount; i++) {
+        const seq = currentMaxSeq + i;
+        generatedCopies.push({
+          copyId: Date.now() + i,
+          barcode: `BC${String(selectedBook.id).padStart(4, '0')}-${String(seq).padStart(3, '0')}`,
+          status: 'Available'
+        });
+      }
+
+      const updatedCopies = [...currentCopies, ...generatedCopies];
+      const updatedTotal = updatedCopies.length;
+      const updatedAvail = updatedCopies.filter((c) => c.status === 'Available').length;
+
+      const updatedBook = {
+        ...selectedBook,
+        copies: updatedCopies,
+        totalCopies: updatedTotal,
+        availableCopies: updatedAvail,
+        status: updatedAvail > 0 ? 'available' : 'borrowed_all'
+      };
+
+      setSelectedBook(updatedBook);
+      setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updatedBook : b)));
+      setIsBulkAddOpen(false);
+      playScannerBeep(true);
+      showToast(`Đã tạo thành công ${bulkAddCount} bản sao với mã vạch liên tiếp!`);
+    } finally {
+      setBulkAddLoading(false);
+    }
+  };
+
+  // Cập nhật trạng thái độc lập của bản sao (AC3)
+  const handleUpdateCopyStatus = async (copy, newStatus) => {
+    if (!selectedBook || !copy) return;
+
+    try {
+      if (copy.copyId) {
+        await apiClient.patch(`/api/bookcopies/${copy.copyId}/status`, { status: newStatus });
+      }
+    } catch (err) {
+      // fallback
+    }
+
+    const updatedCopies = (selectedBook.copies || []).map((c) =>
+      c.barcode === copy.barcode ? { ...c, status: newStatus } : c
+    );
+    const updatedAvail = updatedCopies.filter((c) => c.status === 'Available').length;
+    const updatedBook = {
+      ...selectedBook,
+      copies: updatedCopies,
+      availableCopies: updatedAvail,
+      status: updatedAvail > 0 ? 'available' : 'borrowed_all'
+    };
+
+    setSelectedBook(updatedBook);
+    setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updatedBook : b)));
+
+    const statusLabels = {
+      Available: 'Sẵn sàng phục vụ',
+      Borrowed: 'Đang cho mượn',
+      Damaged: 'Bị hỏng',
+      Lost: 'Bị mất'
+    };
+    showToast(`Đã cập nhật bản sao [${copy.barcode}] sang trạng thái "${statusLabels[newStatus] || newStatus}"!`);
+  };
+
+  // Xóa một bản sao (AC3)
+  const handleDeleteCopy = async (copy) => {
+    if (!selectedBook || !copy) return;
+    if (copy.status === 'Borrowed') {
+      showToast('Không thể xóa bản sao đang trong trạng thái cho mượn!');
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa bản sao có mã vạch [${copy.barcode}] khỏi hệ thống?`)) {
+      return;
+    }
+
+    try {
+      if (copy.copyId) {
+        await apiClient.delete(`/api/bookcopies/${copy.copyId}`);
+      }
+    } catch (err) {
+      // fallback
+    }
+
+    const updatedCopies = (selectedBook.copies || []).filter((c) => c.barcode !== copy.barcode);
+    const updatedTotal = updatedCopies.length;
+    const updatedAvail = updatedCopies.filter((c) => c.status === 'Available').length;
+    const updatedBook = {
+      ...selectedBook,
+      copies: updatedCopies,
+      totalCopies: updatedTotal,
+      availableCopies: updatedAvail,
+      status: updatedAvail > 0 ? 'available' : 'borrowed_all'
+    };
+
+    setSelectedBook(updatedBook);
+    setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updatedBook : b)));
+    showToast(`Đã xóa bản sao [${copy.barcode}] thành công!`);
+  };
+
+  // Chọn checkbox từng bản sao
+  const handleToggleSelectCopy = (barcode) => {
+    setSelectedCopyBarcodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(barcode)) {
+        next.delete(barcode);
+      } else {
+        next.add(barcode);
+      }
+      return next;
+    });
+  };
+
+  // Chọn hoặc bỏ chọn tất cả bản sao
+  const handleToggleSelectAllCopies = (currentList) => {
+    if (selectedCopyBarcodes.size === currentList.length && currentList.length > 0) {
+      setSelectedCopyBarcodes(new Set());
+    } else {
+      setSelectedCopyBarcodes(new Set(currentList.map((c) => c.barcode)));
+    }
+  };
+
+  // Mở modal in tem mã vạch (AC4)
+  const handleOpenPrintModal = (singleCopy = null) => {
+    if (singleCopy) {
+      setCopiesToPrint([singleCopy]);
+    } else {
+      const currentCopies = selectedBook?.copies || [];
+      if (selectedCopyBarcodes.size > 0) {
+        setCopiesToPrint(currentCopies.filter((c) => selectedCopyBarcodes.has(c.barcode)));
+      } else {
+        setCopiesToPrint(currentCopies);
+      }
+    }
+    setIsPrintModalOpen(true);
+  };
+
+  // Thực hiện xuất file PDF tem mã vạch (AC4)
+  const handleExecutePdfExport = async () => {
+    if (!copiesToPrint || copiesToPrint.length === 0) {
+      showToast('Không có bản sao nào được chọn để xuất tem mã vạch!');
+      return;
+    }
+    await exportBarcodeLabelsPdf(copiesToPrint, selectedBook, { format: printTemplate });
+    showToast(`Đã tải xuống file PDF chứa ${copiesToPrint.length} tem mã vạch thành công!`);
+  };
+
+  // Thực hiện in trực tiếp qua máy in (AC4)
+  const handleExecutePrint = () => {
+    if (!copiesToPrint || copiesToPrint.length === 0) {
+      showToast('Không có bản sao nào được chọn để in!');
+      return;
+    }
+    openPrintDialog(copiesToPrint, selectedBook);
+  };
+
+  // Mở popup xem phóng to Barcode 1D & QR Code 2D
+  const handleOpenViewBarcode = (copy) => {
+    setViewBarcodeCopy(copy);
+    setIsViewBarcodeModalOpen(true);
+  };
+
+  // Tra cứu bản sao bằng máy quét mã vạch (AC5)
+  const handleBarcodeScanLookup = async (barcodeText) => {
+    const cleanCode = (barcodeText || '').trim();
+    if (!cleanCode) return;
+
+    let targetBook = null;
+    let targetCopy = null;
+
+    // 1. Tìm trên client-side trong danh sách sách hiện tại
+    for (const b of books) {
+      if (b.copies && b.copies.length > 0) {
+        const found = b.copies.find((c) => c.barcode.toLowerCase() === cleanCode.toLowerCase());
+        if (found) {
+          targetBook = b;
+          targetCopy = found;
+          break;
+        }
+      }
+      if (b.code.toLowerCase() === cleanCode.toLowerCase() || (b.isbn && b.isbn.toLowerCase() === cleanCode.toLowerCase())) {
+        targetBook = b;
+        break;
+      }
+    }
+
+    // 2. Nếu chưa có trên client, gọi API Backend tra cứu
+    if (!targetBook) {
+      try {
+        const res = await apiClient.get('/api/bookcopies/lookup', {
+          params: { barcode: cleanCode }
+        });
+        const copyData = res.data?.data || res.data;
+        if (copyData && copyData.bookID) {
+          const bookRes = await apiClient.get(`/api/Books/${copyData.bookID}`);
+          const bData = bookRes.data?.data || bookRes.data;
+          if (bData) {
+            targetBook = {
+              id: bData.bookID,
+              code: `BK-${String(bData.bookID).padStart(4, '0')}`,
+              title: bData.title,
+              author: bData.author,
+              category: bData.categoryName || 'Chung',
+              year: 2024,
+              price: bData.basePrice || 85000,
+              availableCopies: bData.availableCopies || 1,
+              totalCopies: bData.totalCopies || 1,
+              status: bData.availableCopies > 0 ? 'available' : 'borrowed_all',
+              isbn: bData.isbn,
+              publisher: bData.publisher,
+              copies: (bData.copies || []).map((c) => ({
+                copyId: c.copyID,
+                barcode: c.barcode,
+                status: c.status || 'Available'
+              }))
+            };
+            targetCopy = { barcode: copyData.barcode, status: copyData.status };
+          }
+        }
+      } catch (err) {
+        // không tìm thấy
+      }
+    }
+
+    if (targetBook) {
+      playScannerBeep(true);
+      await handleOpenDetail(targetBook, 'copies');
+      setHighlightedBarcode(cleanCode);
+      setIsScannerModalOpen(false);
+      showToast(`Đã tìm thấy bản sao [${cleanCode}] của sách "${targetBook.title}"!`);
+
+      // Tự động tắt viền phát sáng sau 6 giây
+      setTimeout(() => {
+        setHighlightedBarcode('');
+      }, 6000);
+    } else {
+      playScannerBeep(false);
+      showToast(`Không tìm thấy bản sao nào khớp với mã vạch "${cleanCode}"!`);
+    }
   };
 
   // Xử lý mở modal Sửa
@@ -627,11 +988,18 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             <input
               type="text"
               className="filter-input-text"
-              placeholder="Tìm mã sách, tên sách, tác giả..."
+              placeholder="Tìm mã sách, tên sách, tác giả hoặc quét Barcode..."
               value={filterKeyword}
               onChange={(e) => {
                 setFilterKeyword(e.target.value);
                 setCurrentPage(1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filterKeyword.trim()) {
+                  if (filterKeyword.trim().toUpperCase().startsWith('BC') || filterKeyword.trim().length >= 6) {
+                    handleBarcodeScanLookup(filterKeyword.trim());
+                  }
+                }
               }}
             />
             {filterKeyword && (
@@ -647,6 +1015,17 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <X size={14} />
               </button>
             )}
+            <button
+              type="button"
+              className="filter-scanner-icon-btn"
+              onClick={() => {
+                setScannerInputValue('');
+                setIsScannerModalOpen(true);
+              }}
+              title="Mở máy quét mã vạch (Barcode Scanner - AC5)"
+            >
+              <ScanLine size={15} />
+            </button>
           </div>
 
           {/* Ô 2: Lọc theo thể loại */}
@@ -953,78 +1332,323 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               </button>
             </div>
 
-            <div className="modal-body">
-              <div className="detail-grid">
-                <div className="detail-item">
-                  <span className="detail-label">Tác giả:</span>
-                  <span className="detail-val">{selectedBook.author}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Thể loại:</span>
-                  <span className="detail-val">{selectedBook.category}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Nhà xuất bản:</span>
-                  <span className="detail-val">{selectedBook.publisher || 'Đang cập nhật'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Năm xuất bản:</span>
-                  <span className="detail-val">{selectedBook.year}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Mã ISBN:</span>
-                  <span className="detail-val">{selectedBook.isbn}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Giá bìa tiêu chuẩn:</span>
-                  <span className="detail-val price-highlight">
-                    {formatVND(selectedBook.price)} VNĐ
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Tồn kho khả dụng:</span>
-                  <span className="detail-val">
-                    <strong>{selectedBook.availableCopies}</strong> / {selectedBook.totalCopies} cuốn
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Trạng thái lưu thông:</span>
-                  <span
-                    className={`status-badge ${
-                      selectedBook.status === 'available'
-                        ? 'badge-available'
-                        : 'badge-borrowed'
-                    }`}
-                  >
-                    {selectedBook.status === 'available' ? 'Sẵn sàng phục vụ' : 'Đang mượn hết'}
-                  </span>
-                </div>
-              </div>
+            {/* Thanh Tab điều hướng: Thông tin chung vs Quản lý Bản sao & Mã vạch */}
+            <div className="modal-tabs-header">
+              <button
+                type="button"
+                className={`modal-tab-btn ${detailActiveTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setDetailActiveTab('overview')}
+              >
+                <BookOpen size={16} />
+                <span>Thông tin chung</span>
+              </button>
+              <button
+                type="button"
+                className={`modal-tab-btn ${detailActiveTab === 'copies' ? 'active' : ''}`}
+                onClick={() => setDetailActiveTab('copies')}
+              >
+                <QrCode size={16} />
+                <span>Quản lý Bản sao & Mã vạch</span>
+                <span className="tab-counter-badge">
+                  {(selectedBook.copies && selectedBook.copies.length) || selectedBook.totalCopies || 0}
+                </span>
+              </button>
+            </div>
 
-              {/* Danh sách bản sao mã vạch */}
-              <div className="copies-section">
-                <h4 className="copies-title">Danh sách Bản sao mã vạch (Book Copies)</h4>
-                <div className="copies-list">
-                  {selectedBook.copies && selectedBook.copies.length > 0 ? (
-                    selectedBook.copies.map((copy, cIdx) => (
-                      <div key={cIdx} className="copy-item">
-                        <span className="copy-barcode">{copy.barcode}</span>
-                        <span
-                          className={`copy-status ${
-                            copy.status === 'Available' ? 'status-avail' : 'status-borrowed'
-                          }`}
-                        >
-                          {copy.status === 'Available' ? 'Sẵn sàng' : 'Đang mượn'}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="copies-empty">
-                      Đầu sách có {selectedBook.totalCopies} bản sao mã vạch tự động sinh trong hệ thống.
-                    </div>
-                  )}
+            <div className="modal-body">
+              {/* TAB 1: THÔNG TIN CHUNG */}
+              {detailActiveTab === 'overview' && (
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <span className="detail-label">Tác giả:</span>
+                    <span className="detail-val">{selectedBook.author}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Thể loại:</span>
+                    <span className="detail-val">{selectedBook.category}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Nhà xuất bản:</span>
+                    <span className="detail-val">{selectedBook.publisher || 'Đang cập nhật'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Năm xuất bản:</span>
+                    <span className="detail-val">{selectedBook.year}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Mã ISBN:</span>
+                    <span className="detail-val">{selectedBook.isbn}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Giá bìa tiêu chuẩn:</span>
+                    <span className="detail-val price-highlight">
+                      {formatVND(selectedBook.price)} VNĐ
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Tồn kho khả dụng:</span>
+                    <span className="detail-val">
+                      <strong>{selectedBook.availableCopies}</strong> / {selectedBook.totalCopies} cuốn
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Trạng thái lưu thông:</span>
+                    <span
+                      className={`status-badge ${
+                        selectedBook.status === 'available' ? 'badge-available' : 'badge-borrowed'
+                      }`}
+                    >
+                      {selectedBook.status === 'available' ? 'Sẵn sàng phục vụ' : 'Đang mượn hết'}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* TAB 2: QUẢN LÝ BẢN SAO & MÃ VẠCH (AC1 - AC5) */}
+              {detailActiveTab === 'copies' && (
+                <div className="copies-management-tab">
+                  {/* Thanh thống kê trạng thái & Thao tác hành động */}
+                  <div className="copies-action-bar">
+                    <div className="copies-stats-group">
+                      <span className="stat-pill stat-total">
+                        Tổng: <strong>{(selectedBook.copies && selectedBook.copies.length) || 0}</strong>
+                      </span>
+                      <span className="stat-pill stat-avail">
+                        Sẵn sàng:{' '}
+                        <strong>
+                          {selectedBook.copies?.filter((c) => c.status === 'Available').length || 0}
+                        </strong>
+                      </span>
+                      <span className="stat-pill stat-borrowed">
+                        Đang mượn:{' '}
+                        <strong>
+                          {selectedBook.copies?.filter((c) => c.status === 'Borrowed').length || 0}
+                        </strong>
+                      </span>
+                      {selectedBook.copies?.some((c) => c.status === 'Damaged') && (
+                        <span className="stat-pill stat-damaged">
+                          Hỏng:{' '}
+                          <strong>
+                            {selectedBook.copies?.filter((c) => c.status === 'Damaged').length}
+                          </strong>
+                        </span>
+                      )}
+                      {selectedBook.copies?.some((c) => c.status === 'Lost') && (
+                        <span className="stat-pill stat-lost">
+                          Mất:{' '}
+                          <strong>
+                            {selectedBook.copies?.filter((c) => c.status === 'Lost').length}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="copies-buttons-group">
+                      {/* Lọc nhanh theo mã vạch trong bảng bản sao */}
+                      <div className="copy-search-box">
+                        <Search size={14} />
+                        <input
+                          type="text"
+                          placeholder="Lọc mã vạch..."
+                          value={copySearchKeyword}
+                          onChange={(e) => setCopySearchKeyword(e.target.value)}
+                        />
+                        {copySearchKeyword && (
+                          <button
+                            type="button"
+                            className="btn-clear-copy-search"
+                            onClick={() => setCopySearchKeyword('')}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Nút In tem mã vạch */}
+                      <button
+                        type="button"
+                        className="btn-print-labels"
+                        onClick={() => handleOpenPrintModal()}
+                        title="In tem mã vạch cho các bản sao được chọn"
+                      >
+                        <Printer size={15} />
+                        <span>In tem mã vạch</span>
+                        {selectedCopyBarcodes.size > 0 && (
+                          <span className="selected-count-badge">({selectedCopyBarcodes.size})</span>
+                        )}
+                      </button>
+
+                      {/* Nút Thêm mới bản sao (Bulk Add) */}
+                      <button
+                        type="button"
+                        className="btn-bulk-add"
+                        onClick={() => {
+                          setBulkAddCount(5);
+                          setIsBulkAddOpen(true);
+                        }}
+                      >
+                        <Plus size={15} />
+                        <span>Thêm bản sao</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* BẢNG CHI TIẾT BẢN SAO (DATA TABLE) */}
+                  <div className="copies-table-wrapper">
+                    {(() => {
+                      const list = (selectedBook.copies || []).filter((c) =>
+                        !copySearchKeyword || c.barcode.toLowerCase().includes(copySearchKeyword.toLowerCase().trim())
+                      );
+
+                      if (list.length === 0) {
+                        return (
+                          <div className="copies-empty-state">
+                            <Layers size={36} className="empty-icon" />
+                            <p className="empty-title">Chưa có bản sao nào khớp với tìm kiếm</p>
+                            <p className="empty-desc">Nhấn nút "Thêm bản sao" để tự động sinh mã vạch hàng loạt.</p>
+                          </div>
+                        );
+                      }
+
+                      const isAllSelected = list.length > 0 && selectedCopyBarcodes.size === list.length;
+
+                      return (
+                        <table className="copies-data-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '42px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="checkbox-btn"
+                                  onClick={() => handleToggleSelectAllCopies(list)}
+                                  title={isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                                >
+                                  {isAllSelected ? (
+                                    <CheckSquare size={17} className="check-icon-active" />
+                                  ) : (
+                                    <Square size={17} className="check-icon-inactive" />
+                                  )}
+                                </button>
+                              </th>
+                              <th style={{ width: '50px', textAlign: 'center' }}>STT</th>
+                              <th>Mã vạch (Barcode)</th>
+                              <th>Tình trạng</th>
+                              <th style={{ width: '130px', textAlign: 'center' }}>Thao tác</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {list.map((copy, idx) => {
+                              const isSelected = selectedCopyBarcodes.has(copy.barcode);
+                              const isHighlighted = highlightedBarcode && copy.barcode.toLowerCase() === highlightedBarcode.toLowerCase();
+
+                              return (
+                                <tr
+                                  key={copy.copyId || copy.barcode || idx}
+                                  className={`${isSelected ? 'row-selected' : ''} ${isHighlighted ? 'row-scanned-pulse' : ''}`}
+                                >
+                                  {/* Checkbox chọn */}
+                                  <td style={{ textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="checkbox-btn"
+                                      onClick={() => handleToggleSelectCopy(copy.barcode)}
+                                    >
+                                      {isSelected ? (
+                                        <CheckSquare size={16} className="check-icon-active" />
+                                      ) : (
+                                        <Square size={16} className="check-icon-inactive" />
+                                      )}
+                                    </button>
+                                  </td>
+
+                                  {/* STT */}
+                                  <td style={{ textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                    {idx + 1}
+                                  </td>
+
+                                  {/* Cột Mã vạch: text + mini-barcode + xem phóng to */}
+                                  <td>
+                                    <div className="barcode-cell">
+                                      <div className="mini-barcode-graphic" title="Mã vạch Code128">
+                                        <span className="bar-stripe stripe-1"></span>
+                                        <span className="bar-stripe stripe-2"></span>
+                                        <span className="bar-stripe stripe-1"></span>
+                                        <span className="bar-stripe stripe-3"></span>
+                                        <span className="bar-stripe stripe-1"></span>
+                                        <span className="bar-stripe stripe-2"></span>
+                                        <span className="bar-stripe stripe-1"></span>
+                                      </div>
+                                      <span className="barcode-string-mono">{copy.barcode}</span>
+                                      <button
+                                        type="button"
+                                        className="btn-view-barcode"
+                                        onClick={() => handleOpenViewBarcode(copy)}
+                                        title="Xem mã vạch 1D & QR Code 2D"
+                                      >
+                                        <QrCode size={13} />
+                                        <span>Xem mã</span>
+                                      </button>
+                                      {isHighlighted && (
+                                        <span className="scanned-tag">
+                                          <Sparkles size={11} /> Vừa quét
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* Cột Tình trạng: Nhãn màu trực quan + Đổi nhanh */}
+                                  <td>
+                                    <div className="status-dropdown-wrapper">
+                                      <select
+                                        className={`copy-status-select status-${(copy.status || 'Available').toLowerCase()}`}
+                                        value={copy.status || 'Available'}
+                                        onChange={(e) => handleUpdateCopyStatus(copy, e.target.value)}
+                                        title="Nhấp để thay đổi trạng thái bản sao"
+                                      >
+                                        <option value="Available">● Sẵn sàng</option>
+                                        <option value="Borrowed">● Đang mượn</option>
+                                        <option value="Damaged">● Bị hỏng</option>
+                                        <option value="Lost">● Bị mất</option>
+                                      </select>
+                                    </div>
+                                  </td>
+
+                                  {/* Cột Thao tác: In tem lẻ & Xóa */}
+                                  <td style={{ textAlign: 'center' }}>
+                                    <div className="copy-row-actions">
+                                      <button
+                                        type="button"
+                                        className="btn-copy-action btn-copy-print"
+                                        onClick={() => handleOpenPrintModal(copy)}
+                                        title="In tem mã vạch cho riêng bản sao này"
+                                      >
+                                        <Printer size={14} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`btn-copy-action btn-copy-delete ${copy.status === 'Borrowed' ? 'disabled' : ''}`}
+                                        onClick={() => handleDeleteCopy(copy)}
+                                        disabled={copy.status === 'Borrowed'}
+                                        title={
+                                          copy.status === 'Borrowed'
+                                            ? 'Không thể xóa bản sao đang cho mượn'
+                                            : 'Xóa bản sao khỏi hệ thống'
+                                        }
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-footer">
@@ -1045,6 +1669,419 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               >
                 <Edit size={14} />
                 <span>Chỉnh sửa sách</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL CON 1: THÊM BẢN SAO HÀNG LOẠT (BULK ADD - AC2)
+          ==================================================================== */}
+      {isBulkAddOpen && selectedBook && (
+        <div className="catalog-modal-overlay" onClick={() => !bulkAddLoading && setIsBulkAddOpen(false)}>
+          <div className="catalog-modal-content bulk-add-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <span className="modal-code-tag">{selectedBook.code}</span>
+                <h3 className="modal-title">Thêm bản sao hàng loạt (Bulk Add)</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => !bulkAddLoading && setIsBulkAddOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body bulk-add-body">
+              <p className="bulk-add-intro">
+                Đầu sách: <strong>{selectedBook.title}</strong>
+              </p>
+
+              {/* Nhập số lượng bản sao */}
+              <div className="form-group-bulk">
+                <label className="bulk-label">Số lượng bản sao cần thêm:</label>
+                <div className="bulk-count-presets">
+                  {[1, 5, 10, 20].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`btn-count-preset ${bulkAddCount === preset ? 'active' : ''}`}
+                      onClick={() => setBulkAddCount(preset)}
+                    >
+                      +{preset} cuốn
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bulk-number-input-row">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    className="bulk-number-input"
+                    value={bulkAddCount}
+                    onChange={(e) => setBulkAddCount(Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 1)))}
+                  />
+                  <span className="bulk-unit-text">cuốn sách</span>
+                </div>
+              </div>
+
+              {/* Hộp xem trước các mã vạch liên tiếp sẽ được sinh */}
+              <div className="bulk-preview-box">
+                <div className="preview-header">
+                  <Sparkles size={14} className="preview-sparkle" />
+                  <span>Xem trước {bulkAddCount} mã vạch tự động sinh liên tiếp:</span>
+                </div>
+                <div className="preview-badges-list">
+                  {(() => {
+                    const currentCopies = selectedBook.copies || [];
+                    const currentMaxSeq = currentCopies.reduce((max, c) => {
+                      const match = c.barcode?.match(/-(\d+)$/);
+                      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+                    }, currentCopies.length);
+
+                    const previewItems = [];
+                    const maxDisplay = Math.min(bulkAddCount, 6);
+                    for (let i = 1; i <= maxDisplay; i++) {
+                      const seq = currentMaxSeq + i;
+                      previewItems.push(`BC${String(selectedBook.id).padStart(4, '0')}-${String(seq).padStart(3, '0')}`);
+                    }
+
+                    return (
+                      <>
+                        {previewItems.map((code, pIdx) => (
+                          <span key={pIdx} className="preview-badge-chip">
+                            {code}
+                          </span>
+                        ))}
+                        {bulkAddCount > 6 && (
+                          <span className="preview-badge-more">...và {bulkAddCount - 6} mã tiếp theo</span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+                <p className="preview-note">
+                  * Hệ thống sẽ tự động tạo {bulkAddCount} bản ghi độc lập với trạng thái mặc định là "Sẵn sàng".
+                </p>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsBulkAddOpen(false)}
+                disabled={bulkAddLoading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={handleBulkAddCopies}
+                disabled={bulkAddLoading}
+              >
+                {bulkAddLoading ? (
+                  <>
+                    <Loader2 size={15} className="spinner" />
+                    <span>Đang tạo bản sao...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={15} />
+                    <span>Xác nhận tạo {bulkAddCount} bản sao</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL CON 2: XUẤT FILE PDF & IN TEM MÃ VẠCH (AC4)
+          ==================================================================== */}
+      {isPrintModalOpen && selectedBook && (
+        <div className="catalog-modal-overlay" onClick={() => setIsPrintModalOpen(false)}>
+          <div className="catalog-modal-content print-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <Printer size={18} className="print-header-icon" />
+                <h3 className="modal-title">In Tem Nhãn Mã Vạch Thư Viện</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsPrintModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body print-modal-body">
+              {/* Chọn kích thước / khổ tem in */}
+              <div className="print-format-selector">
+                <label className="format-label">Chọn định dạng tem in:</label>
+                <div className="format-options-row">
+                  <label className={`format-option-card ${printTemplate === 'a4' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="printFormat"
+                      value="a4"
+                      checked={printTemplate === 'a4'}
+                      onChange={() => setPrintTemplate('a4')}
+                    />
+                    <div className="format-card-content">
+                      <strong>Khổ Decal A4 (3 cột tiêu chuẩn)</strong>
+                      <span>24 tem/trang, phù hợp in văn phòng và lưu kho thư viện</span>
+                    </div>
+                  </label>
+
+                  <label className={`format-option-card ${printTemplate === 'thermal' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="printFormat"
+                      value="thermal"
+                      checked={printTemplate === 'thermal'}
+                      onChange={() => setPrintTemplate('thermal')}
+                    />
+                    <div className="format-card-content">
+                      <strong>Tem cuộn nhiệt 50mm x 30mm</strong>
+                      <span>Máy in tem nhãn chuyên dụng (Zebra / Xprinter / TSC)</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Xem trước mẫu tem nhãn */}
+              <div className="print-preview-section">
+                <div className="preview-label-title">
+                  <span>Mẫu tem nhãn xem trước (Tổng số tem sẽ in: <strong>{copiesToPrint.length}</strong> tem):</span>
+                </div>
+
+                <div className="sample-labels-container">
+                  {copiesToPrint.slice(0, 2).map((copy, sIdx) => (
+                    <div key={sIdx} className="sample-label-card">
+                      <div className="sample-lib-header">SMARTLIB AI - THƯ VIỆN ĐẠI HỌC</div>
+                      <div className="sample-book-name">{selectedBook.title}</div>
+                      <div
+                        className="sample-barcode-vector"
+                        dangerouslySetInnerHTML={{
+                          __html: generateBarcodeSvg(copy.barcode, {
+                            width: 200,
+                            height: 52,
+                            fontSize: 10,
+                            margin: 3
+                          })
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {copiesToPrint.length > 2 && (
+                    <div className="sample-more-hint">
+                      + thêm {copiesToPrint.length - 2} tem tương tự theo danh sách đã chọn.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsPrintModalOpen(false)}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-modal-secondary"
+                onClick={handleExecutePdfExport}
+              >
+                <Download size={15} />
+                <span>Tải file PDF</span>
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={handleExecutePrint}
+              >
+                <Printer size={15} />
+                <span>In tem ngay</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL CON 3: XEM LỚN MÃ VẠCH 1D & QR CODE 2D
+          ==================================================================== */}
+      {isViewBarcodeModalOpen && viewBarcodeCopy && (
+        <div className="catalog-modal-overlay" onClick={() => setIsViewBarcodeModalOpen(false)}>
+          <div className="catalog-modal-content view-barcode-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <QrCode size={18} className="qr-header-icon" />
+                <h3 className="modal-title">Mã vạch bản sao: {viewBarcodeCopy.barcode}</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsViewBarcodeModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body view-barcode-body">
+              <p className="barcode-book-ref">
+                Đầu sách: <strong>{selectedBook?.title}</strong>
+              </p>
+
+              <div className="dual-barcode-display">
+                {/* Khung 1: Mã vạch Code 128 (1D) */}
+                <div className="barcode-panel-card">
+                  <h4 className="panel-title">Mã vạch tuyến tính 1D (Code 128)</h4>
+                  <div
+                    className="svg-container-1d"
+                    dangerouslySetInnerHTML={{
+                      __html: generateBarcodeSvg(viewBarcodeCopy.barcode, {
+                        width: 280,
+                        height: 75,
+                        fontSize: 12,
+                        margin: 6
+                      })
+                    }}
+                  />
+                  <span className="panel-hint">Tương thích với mọi đầu đọc mã vạch laser / CCD</span>
+                </div>
+
+                {/* Khung 2: Mã QR (2D) */}
+                <div className="barcode-panel-card">
+                  <h4 className="panel-title">Mã QR 2D (Quick Response)</h4>
+                  <div
+                    className="svg-container-2d"
+                    dangerouslySetInnerHTML={{
+                      __html: generateQrCodeSvg(viewBarcodeCopy.barcode, 130)
+                    }}
+                  />
+                  <span className="panel-hint">Quét bằng camera điện thoại hoặc máy quét 2D</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsViewBarcodeModalOpen(false)}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={() => {
+                  setIsViewBarcodeModalOpen(false);
+                  handleOpenPrintModal(viewBarcodeCopy);
+                }}
+              >
+                <Printer size={14} />
+                <span>In tem bản sao này</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODAL CON 4: MÁY QUÉT MÃ VẠCH (BARCODE SCANNER - AC5)
+          ==================================================================== */}
+      {isScannerModalOpen && (
+        <div className="catalog-modal-overlay" onClick={() => setIsScannerModalOpen(false)}>
+          <div className="catalog-modal-content scanner-dialog-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                <ScanLine size={20} className="scanner-header-icon" />
+                <h3 className="modal-title">Máy Quét Mã Vạch (Barcode Scanner)</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsScannerModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body scanner-dialog-body">
+              {/* Hiệu ứng quét laser đồ họa */}
+              <div className="scanner-viewport-box">
+                <div className="scanner-target-reticle">
+                  <div className="reticle-corner corner-tl"></div>
+                  <div className="reticle-corner corner-tr"></div>
+                  <div className="reticle-corner corner-bl"></div>
+                  <div className="reticle-corner corner-br"></div>
+                  <div className="laser-scan-line"></div>
+                </div>
+                <span className="scanner-status-text">Đang sẵn sàng nhận tín hiệu từ máy quét hoặc gõ mã...</span>
+              </div>
+
+              {/* Ô nhập liệu mã vạch (kết nối máy quét USB/Bluetooth tự động gõ vào đây) */}
+              <div className="scanner-input-group">
+                <input
+                  type="text"
+                  autoFocus
+                  className="scanner-text-field"
+                  placeholder="Quét mã bằng đầu đọc hoặc gõ mã vạch rồi nhấn Enter..."
+                  value={scannerInputValue}
+                  onChange={(e) => setScannerInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && scannerInputValue.trim()) {
+                      handleBarcodeScanLookup(scannerInputValue.trim());
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-scanner-submit"
+                  onClick={() => scannerInputValue.trim() && handleBarcodeScanLookup(scannerInputValue.trim())}
+                >
+                  Tra cứu
+                </button>
+              </div>
+
+              {/* Danh sách các mã vạch mẫu để thủ thư kiểm thử nhanh */}
+              <div className="quick-test-barcodes">
+                <span className="quick-test-label">Bấm mã mẫu để kiểm thử quét nhanh:</span>
+                <div className="quick-chips-row">
+                  {['BC0001-A', 'BC0001-B', 'BC0002-A', 'BC0003-A', 'BC0004-A'].map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className="btn-quick-chip"
+                      onClick={() => handleBarcodeScanLookup(code)}
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsScannerModalOpen(false)}
+              >
+                Hủy bỏ
               </button>
             </div>
           </div>

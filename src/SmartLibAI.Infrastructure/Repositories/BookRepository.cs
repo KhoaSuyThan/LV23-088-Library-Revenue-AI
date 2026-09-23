@@ -142,7 +142,19 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
                 Publisher = b.Publisher,
                 BasePrice = b.BasePrice,
                 TotalCopies = b.BookCopies.Count,
-                AvailableCopies = b.BookCopies.Count(c => c.Status == "Available")
+                AvailableCopies = b.BookCopies.Count(c => c.Status == "Available"),
+                Copies = b.BookCopies
+                    .OrderBy(c => c.CopyID)
+                    .Select(c => new BookCopyDto
+                    {
+                        CopyID = c.CopyID,
+                        BookID = c.BookID,
+                        Barcode = c.Barcode,
+                        Status = c.Status,
+                        BookTitle = b.Title,
+                        ISBN = b.ISBN
+                    })
+                    .ToList()
             })
             .FirstOrDefaultAsync();
     }
@@ -218,5 +230,100 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
                 throw;
             }
         });
+    }
+
+    /// <summary>
+    /// Lấy danh sách các bản sao của một đầu sách (AC1, AC3).
+    /// </summary>
+    public async Task<IReadOnlyList<BookCopy>> GetCopiesByBookIdAsync(int bookId)
+    {
+        return await _context.BookCopies
+            .AsNoTracking()
+            .Where(c => c.BookID == bookId)
+            .OrderBy(c => c.CopyID)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Tra cứu thông tin bản sao bằng mã vạch kèm thông tin sách (AC5).
+    /// </summary>
+    public async Task<BookCopy?> GetCopyByBarcodeAsync(string barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode)) return null;
+        var cleanBarcode = barcode.Trim();
+
+        return await _context.BookCopies
+            .Include(c => c.Book)
+            .FirstOrDefaultAsync(c => c.Barcode == cleanBarcode);
+    }
+
+    /// <summary>
+    /// Thêm hàng loạt bản sao với mã vạch tự động sinh liên tiếp (AC1, AC2).
+    /// </summary>
+    public async Task<List<BookCopy>> BulkAddCopiesAsync(int bookId, int count, string? customPrefix = null)
+    {
+        if (count <= 0) return new List<BookCopy>();
+
+        var book = await _context.Books
+            .Include(b => b.BookCopies)
+            .FirstOrDefaultAsync(b => b.BookID == bookId);
+
+        if (book == null) throw new InvalidOperationException($"Không tìm thấy đầu sách với mã {bookId}");
+
+        int currentCount = book.BookCopies.Count;
+        string prefix = string.IsNullOrWhiteSpace(customPrefix)
+            ? $"BC{book.BookID:D6}"
+            : customPrefix.Trim();
+
+        var newCopies = new List<BookCopy>(count);
+        for (int i = 1; i <= count; i++)
+        {
+            int seqNumber = currentCount + i;
+            newCopies.Add(new BookCopy
+            {
+                BookID = bookId,
+                Barcode = $"{prefix}-{seqNumber:D3}",
+                Status = "Available"
+            });
+        }
+
+        await _context.BookCopies.AddRangeAsync(newCopies);
+        await _context.SaveChangesAsync();
+
+        return newCopies;
+    }
+
+    /// <summary>
+    /// Cập nhật trạng thái độc lập của bản sao (AC3).
+    /// </summary>
+    public async Task<bool> UpdateCopyStatusAsync(int copyId, string status)
+    {
+        var copy = await _context.BookCopies.FindAsync(copyId);
+        if (copy == null) return false;
+
+        copy.Status = status;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Xóa một bản sao (nếu không đang trong trạng thái cho mượn).
+    /// </summary>
+    public async Task<bool> DeleteCopyAsync(int copyId)
+    {
+        var copy = await _context.BookCopies
+            .Include(c => c.BorrowingDetails)
+            .FirstOrDefaultAsync(c => c.CopyID == copyId);
+
+        if (copy == null) return false;
+
+        if (copy.Status == "Borrowed" || copy.BorrowingDetails.Any())
+        {
+            return false;
+        }
+
+        _context.BookCopies.Remove(copy);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

@@ -24,4 +24,9 @@ public class BookDto
     public int TotalCopies { get; set; }
 
     public int AvailableCopies { get; set; }
+
+    /// <summary>
+    /// Danh sách các bản sao vật lý kèm mã vạch của đầu sách.
+    /// </summary>
+    public List<BookCopyDto> Copies { get; set; } = new();
 }

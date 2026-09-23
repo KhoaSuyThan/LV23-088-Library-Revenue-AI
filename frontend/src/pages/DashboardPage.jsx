@@ -277,8 +277,14 @@ export default function DashboardPage({
               <input
                 type="text"
                 className="header-search-input"
-                placeholder="Tìm kiếm sách, độc giả, phiếu mượn..."
-                readOnly
+                placeholder="Tìm kiếm sách, độc giả, phiếu mượn hoặc quét Barcode..."
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && catalogSearch.trim()) {
+                    navigate('/catalog');
+                  }
+                }}
               />
             </div>
           )}
@@ -295,7 +301,7 @@ export default function DashboardPage({
                     placeholder={
                       activeTab === 'readers'
                         ? 'Tìm kiếm độc giả (Tên, MSSV, Email)...'
-                        : 'Tìm kiếm sách (Tên, Mã sách, ISBN)...'
+                        : 'Tìm kiếm sách, ISBN hoặc quét Barcode...'
                     }
                     value={activeTab === 'catalog' ? catalogSearch : activeTab === 'readers' ? readerSearch : ''}
                     onChange={(e) => {

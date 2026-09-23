@@ -319,4 +319,116 @@ public class BookService : IBookService
         }
         return val;
     }
+
+    /// <summary>
+    /// Lấy danh sách các bản sao của một đầu sách (AC1, AC3).
+    /// </summary>
+    public async Task<ApiResponse<IReadOnlyList<BookCopyDto>>> GetBookCopiesAsync(int bookId)
+    {
+        var book = await _bookRepository.GetByIdAsync(bookId);
+        if (book == null)
+        {
+            return ApiResponse<IReadOnlyList<BookCopyDto>>.ErrorResult($"Không tìm thấy đầu sách với mã ID {bookId}");
+        }
+
+        var copies = await _bookRepository.GetCopiesByBookIdAsync(bookId);
+        var dtos = copies.Select(c => new BookCopyDto
+        {
+            CopyID = c.CopyID,
+            BookID = c.BookID,
+            Barcode = c.Barcode,
+            Status = c.Status,
+            BookTitle = book.Title,
+            ISBN = book.ISBN
+        }).ToList();
+
+        return ApiResponse<IReadOnlyList<BookCopyDto>>.SuccessResult(dtos, $"Lấy thành công {dtos.Count} bản sao.");
+    }
+
+    /// <summary>
+    /// Tra cứu bản sao bằng mã vạch kèm thông tin sách (AC5).
+    /// </summary>
+    public async Task<ApiResponse<BookCopyDto>> GetCopyByBarcodeAsync(string barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+        {
+            return ApiResponse<BookCopyDto>.ErrorResult("Mã vạch tra cứu không được để trống.");
+        }
+
+        var copy = await _bookRepository.GetCopyByBarcodeAsync(barcode.Trim());
+        if (copy == null)
+        {
+            return ApiResponse<BookCopyDto>.ErrorResult($"Không tìm thấy bản sao nào khớp với mã vạch '{barcode}'");
+        }
+
+        var dto = new BookCopyDto
+        {
+            CopyID = copy.CopyID,
+            BookID = copy.BookID,
+            Barcode = copy.Barcode,
+            Status = copy.Status,
+            BookTitle = copy.Book?.Title ?? string.Empty,
+            ISBN = copy.Book?.ISBN
+        };
+
+        return ApiResponse<BookCopyDto>.SuccessResult(dto, "Tìm thấy bản sao thành công.");
+    }
+
+    /// <summary>
+    /// Thêm hàng loạt bản sao với mã vạch tự động sinh liên tiếp (AC1, AC2).
+    /// </summary>
+    public async Task<ApiResponse<IReadOnlyList<BookCopyDto>>> BulkAddCopiesAsync(int bookId, BulkAddCopiesRequestDto request)
+    {
+        var book = await _bookRepository.GetByIdAsync(bookId);
+        if (book == null)
+        {
+            return ApiResponse<IReadOnlyList<BookCopyDto>>.ErrorResult($"Không tìm thấy đầu sách với mã ID {bookId}");
+        }
+
+        if (request.Count <= 0 || request.Count > 100)
+        {
+            return ApiResponse<IReadOnlyList<BookCopyDto>>.ErrorResult("Số lượng bản sao cần thêm phải từ 1 đến 100.");
+        }
+
+        var createdCopies = await _bookRepository.BulkAddCopiesAsync(bookId, request.Count, request.CustomPrefix);
+        var dtos = createdCopies.Select(c => new BookCopyDto
+        {
+            CopyID = c.CopyID,
+            BookID = c.BookID,
+            Barcode = c.Barcode,
+            Status = c.Status,
+            BookTitle = book.Title,
+            ISBN = book.ISBN
+        }).ToList();
+
+        return ApiResponse<IReadOnlyList<BookCopyDto>>.SuccessResult(dtos, $"Đã tạo thành công {dtos.Count} bản sao với mã vạch tự động sinh liên tiếp.");
+    }
+
+    /// <summary>
+    /// Cập nhật trạng thái độc lập của một bản sao (AC3).
+    /// </summary>
+    public async Task<ApiResponse<bool>> UpdateCopyStatusAsync(int copyId, UpdateCopyStatusDto request)
+    {
+        var success = await _bookRepository.UpdateCopyStatusAsync(copyId, request.Status);
+        if (!success)
+        {
+            return ApiResponse<bool>.ErrorResult($"Không tìm thấy bản sao với mã ID {copyId} để cập nhật.");
+        }
+
+        return ApiResponse<bool>.SuccessResult(true, $"Đã cập nhật trạng thái bản sao thành '{request.Status}' thành công.");
+    }
+
+    /// <summary>
+    /// Xóa một bản sao (AC3).
+    /// </summary>
+    public async Task<ApiResponse<bool>> DeleteCopyAsync(int copyId)
+    {
+        var success = await _bookRepository.DeleteCopyAsync(copyId);
+        if (!success)
+        {
+            return ApiResponse<bool>.ErrorResult("Không thể xóa bản sao vì bản sao đang được mượn hoặc có lịch sử lưu hành.");
+        }
+
+        return ApiResponse<bool>.SuccessResult(true, "Xóa bản sao thành công.");
+    }
 }

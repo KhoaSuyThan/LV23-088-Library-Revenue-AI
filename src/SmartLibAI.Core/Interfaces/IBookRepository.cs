@@ -38,4 +38,29 @@ public interface IBookRepository : IGenericRepository<Book>
     /// Nạp một mẻ sách và tự động sinh bản sao vật lý trong một giao dịch cơ sở dữ liệu.
     /// </summary>
     Task<int> BatchInsertBooksWithCopiesAsync(List<Book> books, int copiesPerBook = 1);
+
+    /// <summary>
+    /// Lấy danh sách các bản sao của một đầu sách (AC1, AC3).
+    /// </summary>
+    Task<IReadOnlyList<BookCopy>> GetCopiesByBookIdAsync(int bookId);
+
+    /// <summary>
+    /// Tra cứu thông tin bản sao bằng mã vạch kèm thông tin sách (AC5).
+    /// </summary>
+    Task<BookCopy?> GetCopyByBarcodeAsync(string barcode);
+
+    /// <summary>
+    /// Thêm hàng loạt bản sao với mã vạch tự động sinh liên tiếp (AC1, AC2).
+    /// </summary>
+    Task<List<BookCopy>> BulkAddCopiesAsync(int bookId, int count, string? customPrefix = null);
+
+    /// <summary>
+    /// Cập nhật trạng thái độc lập của bản sao (AC3).
+    /// </summary>
+    Task<bool> UpdateCopyStatusAsync(int copyId, string status);
+
+    /// <summary>
+    /// Xóa một bản sao (nếu không đang trong trạng thái cho mượn).
+    /// </summary>
+    Task<bool> DeleteCopyAsync(int copyId);
 }
