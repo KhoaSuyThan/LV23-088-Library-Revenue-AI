@@ -361,12 +361,14 @@
   font-size: 13px;
   color: #0f172a;
   text-align: center;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
 .filter-price-input::-webkit-outer-spin-button,
 .filter-price-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
@@ -692,12 +694,14 @@
   background-color: #f8fafc;
   outline: none;
   transition: all 0.15s ease;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
 .pagination-page-input::-webkit-outer-spin-button,
 .pagination-page-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
@@ -1560,27 +1564,55 @@
    HỆ THỐNG QUẢN LÝ BẢN SAO & TEM MÃ VẠCH (AC1 - AC5)
    ========================================================================== */
 
-/* Nút quét mã vạch trên thanh lọc chính */
-.filter-scanner-icon-btn {
-  display: flex;
+/* Nút quét mã vạch độc lập bên cạnh ô tìm kiếm (AC5) */
+.filter-standalone-scanner-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background-color: #f1f5f9;
-  color: #3b82f6;
-  border: 1px solid #e2e8f0;
+  gap: 6px;
+  height: 35px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: 4px;
+  white-space: nowrap;
+  user-select: none;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+  flex-shrink: 0;
 }
 
-.filter-scanner-icon-btn:hover {
-  background-color: #dbeafe;
+.filter-standalone-scanner-btn:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border-color: #3b82f6;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.22);
+  transform: translateY(-1px);
+}
+
+.filter-standalone-scanner-btn:active {
+  transform: translateY(0);
+  background: #bfdbfe;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
+}
+
+.standalone-scanner-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.filter-standalone-scanner-btn:hover .standalone-scanner-icon {
+  transform: scale(1.15);
   color: #1d4ed8;
-  border-color: #93c5fd;
-  transform: scale(1.04);
+}
+
+.standalone-scanner-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Thanh Tab chuyển đổi giữa Thông tin chung và Bản sao */

@@ -626,6 +626,21 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     };
   }, [currentPage, pageSize, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, refreshKey]);
 
+  // Lắng nghe phím tắt F2 để mở máy quét mã vạch nhanh chóng bất cứ lúc nào
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setScannerInputValue('');
+        setIsScannerModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
+
   // Lọc dữ liệu hiển thị (hỗ trợ Client-side fallback mượt mà)
   const filteredBooks = useMemo(() => {
     let list = books;
@@ -953,50 +968,65 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       }
     }
 
-    // 2. Nếu chưa có trên client, gọi API Backend tra cứu
+    // 2. Nếu chưa có trên client, gọi API Backend tra cứu (hỗ trợ cả chuẩn 6 số và 4 số)
     if (!targetBook) {
-      try {
-        const res = await apiClient.get('/api/bookcopies/lookup', {
-          params: { barcode: cleanCode }
-        });
-        const copyData = res.data?.data || res.data;
-        if (copyData && copyData.bookID) {
-          const bookRes = await apiClient.get(`/api/Books/${copyData.bookID}`);
-          const bData = bookRes.data?.data || bookRes.data;
-          if (bData) {
-            targetBook = {
-              id: bData.bookID,
-              code: `BK-${String(bData.bookID).padStart(4, '0')}`,
-              title: bData.title,
-              author: bData.author,
-              category: bData.categoryName || 'Chung',
-              year: 2024,
-              price: bData.basePrice || 85000,
-              availableCopies: bData.availableCopies || 1,
-              totalCopies: bData.totalCopies || 1,
-              status: bData.availableCopies > 0 ? 'available' : 'borrowed_all',
-              isbn: bData.isbn,
-              publisher: bData.publisher,
-              copies: (bData.copies || []).map((c) => ({
-                copyId: c.copyID,
-                barcode: c.barcode,
-                status: c.status || 'Available'
-              }))
-            };
-            targetCopy = { barcode: copyData.barcode, status: copyData.status };
+      const candidates = [cleanCode];
+      const matchBC = cleanCode.match(/^BC(\d+)-(.*)$/i);
+      if (matchBC) {
+        const num = parseInt(matchBC[1], 10);
+        const suffix = matchBC[2].toUpperCase();
+        const code6 = `BC${String(num).padStart(6, '0')}-${suffix}`;
+        const code4 = `BC${String(num).padStart(4, '0')}-${suffix}`;
+        if (!candidates.includes(code6)) candidates.push(code6);
+        if (!candidates.includes(code4)) candidates.push(code4);
+      }
+
+      for (const candidate of candidates) {
+        try {
+          const res = await apiClient.get('/api/bookcopies/lookup', {
+            params: { barcode: candidate }
+          });
+          const copyData = res.data?.data || res.data;
+          if (copyData && copyData.bookID) {
+            const bookRes = await apiClient.get(`/api/Books/${copyData.bookID}`);
+            const bData = bookRes.data?.data || bookRes.data;
+            if (bData) {
+              targetBook = {
+                id: bData.bookID,
+                code: `BK-${String(bData.bookID).padStart(4, '0')}`,
+                title: bData.title,
+                author: bData.author,
+                category: bData.categoryName || 'Chung',
+                year: 2024,
+                price: bData.basePrice || 85000,
+                availableCopies: bData.availableCopies || 1,
+                totalCopies: bData.totalCopies || 1,
+                status: bData.availableCopies > 0 ? 'available' : 'borrowed_all',
+                isbn: bData.isbn,
+                publisher: bData.publisher,
+                copies: (bData.copies || []).map((c) => ({
+                  copyId: c.copyID,
+                  barcode: c.barcode,
+                  status: c.status || 'Available'
+                }))
+              };
+              targetCopy = { barcode: copyData.barcode, status: copyData.status };
+              break;
+            }
           }
+        } catch (err) {
+          // Thử tiếp ứng viên biến thể tiếp theo nếu có
         }
-      } catch (err) {
-        // không tìm thấy
       }
     }
 
     if (targetBook) {
       playScannerBeep(true);
-      await handleOpenDetail(targetBook, 'copies');
-      setHighlightedBarcode(cleanCode);
       setIsScannerModalOpen(false);
-      showToast(`Đã tìm thấy bản sao [${cleanCode}] của sách "${targetBook.title}"!`);
+      await handleOpenDetail(targetBook, 'copies');
+      const finalBarcode = targetCopy?.barcode || cleanCode;
+      setHighlightedBarcode(finalBarcode);
+      showToast(`Đã tìm thấy bản sao [${finalBarcode}] của sách "${targetBook.title}"!`);
 
       // Tự động tắt viền phát sáng sau 6 giây
       setTimeout(() => {
@@ -1193,7 +1223,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             <input
               type="text"
               className="filter-input-text"
-              placeholder="Tìm mã sách, tên sách, tác giả hoặc quét Barcode..."
+              placeholder="Tìm mã sách, tên sách, tác giả..."
               value={filterKeyword}
               onChange={(e) => {
                 setFilterKeyword(e.target.value);
@@ -1220,18 +1250,21 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <X size={14} />
               </button>
             )}
-            <button
-              type="button"
-              className="filter-scanner-icon-btn"
-              onClick={() => {
-                setScannerInputValue('');
-                setIsScannerModalOpen(true);
-              }}
-              title="Mở máy quét mã vạch (Barcode Scanner - AC5)"
-            >
-              <ScanLine size={15} />
-            </button>
           </div>
+
+          {/* Nút Độc Lập Bên Cạnh: Quét mã vạch (Barcode Scanner - AC5) */}
+          <button
+            type="button"
+            className="filter-standalone-scanner-btn"
+            onClick={() => {
+              setScannerInputValue('');
+              setIsScannerModalOpen(true);
+            }}
+            title="Mở máy quét mã vạch [F2]"
+          >
+            <ScanLine size={15} className="standalone-scanner-icon" />
+            <span className="standalone-scanner-text">Quét mã</span>
+          </button>
 
           {/* Ô 2: Lọc theo thể loại */}
           <div className="filter-item select-filter-item">
@@ -2266,7 +2299,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               <div className="quick-test-barcodes">
                 <span className="quick-test-label">Bấm mã mẫu để kiểm thử quét nhanh:</span>
                 <div className="quick-chips-row">
-                  {['BC0001-A', 'BC0001-B', 'BC0002-A', 'BC0003-A', 'BC0004-A'].map((code) => (
+                  {['BC000001-A', 'BC000001-B', 'BC000001-C', 'BC000002-A', 'BC000003-A'].map((code) => (
                     <button
                       key={code}
                       type="button"
