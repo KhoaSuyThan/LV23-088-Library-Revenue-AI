@@ -5,6 +5,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+
+## [2026-09-23] - Sửa lỗi Tra cứu Quét mã vạch nhanh & Đồng bộ định dạng CSDL
+
+- **Đồng bộ mã vạch kiểm thử nhanh:** Cập nhật các nút bấm quét nhanh trên modal Barcode Scanner thành `BC000001-A`, `BC000001-B`, `BC000001-C`,... khớp chính xác 100% với dữ liệu thực tế đang lưu trong bảng `BookCopies`.
+- **Cơ chế tra cứu thông minh (Smart Normalization):** Hàm `handleBarcodeScanLookup` tự động thử cả 2 định dạng (chuẩn 6 chữ số `BC000001-A` và chuẩn 4 chữ số `BC0001-A`), đảm bảo dù quét hay gõ bằng tay theo cách nào thì hệ thống đều tìm ra sách ngay lập tức.
+- **Tối ưu trải nghiệm quét:** Tự động đóng modal quét khi tìm thấy, chuyển sang tab Quản lý bản sao và phát sáng nổi bật dòng bản sao vừa quét kèm âm thanh beep báo thành công.
+- **Chuẩn hóa CSS Appearance:** Bổ sung thuộc tính `appearance: textfield` và `appearance: none` loại bỏ hoàn toàn cảnh báo linter.
+- **Tinh chỉnh giao diện nút Quét mã:** Đưa ra ngoài ô tìm kiếm thành nút độc lập cao 35px, rút gọn nhãn và ẩn badge F2 trên nút để giao diện thoáng mắt.
+
 ## [2026-09-22] - Quản lý Sách cốt lõi, Thêm thể loại & Động hóa KPI Cards từ CSDL
 
 - **Thêm sách & Bản sao:** Bổ sung nút/modal "+ Thêm sách", tự động sinh $N$ bản sao mã vạch `BookCopies`, kết nối API `POST /api/Books`.
