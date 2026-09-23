@@ -328,6 +328,9 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
         _context.BookCopies.Remove(copy);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    /// <summary>
     /// Thêm mới một đầu sách kèm số lượng bản sao vật lý ban đầu trong một transaction.
     /// </summary>
     public async Task<Book> AddBookWithCopiesAsync(Book book, int initialCopies)

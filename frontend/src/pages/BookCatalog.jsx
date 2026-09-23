@@ -28,7 +28,7 @@ import {
   ExternalLink,
   Layers,
   CheckSquare,
-  Square
+  Square,
   FolderPlus
 } from 'lucide-react';
 import { apiClient } from '../api/authApi';
