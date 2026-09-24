@@ -403,7 +403,30 @@
 
 .catalog-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 675px; /* Giới hạn đúng bằng kích thước của 10 cuốn sách + Header */
   border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.catalog-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.catalog-table-wrapper::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.catalog-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.catalog-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .catalog-table {
@@ -414,12 +437,16 @@
 }
 
 .catalog-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   font-size: 12.5px;
   font-weight: 600;
   color: #64748b;
   padding: 12px 10px;
   border-bottom: 1px solid #e2e8f0;
   background-color: #ffffff;
+  box-shadow: 0 1px 0 #e2e8f0; /* Giữ đường viền sắc nét khi dính sticky */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -633,11 +660,60 @@
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-left-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .pagination-info {
   font-size: 13px;
   color: #64748b;
+  font-weight: 500;
+}
+
+.pagination-size-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.size-selector-label {
+  font-weight: 500;
+  color: #64748b;
+  user-select: none;
+}
+
+.size-selector-select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.size-selector-select:hover {
+  border-color: #94a3b8;
+  background-color: #ffffff;
+}
+
+.size-selector-select:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .pagination-controls {

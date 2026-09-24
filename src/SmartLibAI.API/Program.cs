@@ -145,6 +145,25 @@ using (var scope = app.Services.CreateScope())
                     DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 10.0,
                     ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0;
             END
+
+            -- Tự động kiểm tra và tạo các chỉ mục Non-Clustered tối ưu hiệu năng phân trang
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_CategoryID' AND object_id = OBJECT_ID('Books'))
+            BEGIN
+                CREATE NONCLUSTERED INDEX IX_Books_CategoryID ON Books(CategoryID);
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_IsActive_CategoryID' AND object_id = OBJECT_ID('Books'))
+            BEGIN
+                CREATE NONCLUSTERED INDEX IX_Books_IsActive_CategoryID 
+                ON Books(IsActive, CategoryID)
+                INCLUDE (Title, Author, Publisher, BasePrice, ISBN);
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BookCopies_BookID_Status' AND object_id = OBJECT_ID('BookCopies'))
+            BEGIN
+                CREATE NONCLUSTERED INDEX IX_BookCopies_BookID_Status 
+                ON BookCopies(BookID, Status);
+            END
         ");
 
         // Tự động nạp vai trò nếu chưa có
