@@ -40,6 +40,29 @@ import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barc
 import './BookCatalog.css';
 
 /**
+ * Hàm loại bỏ dấu tiếng Việt để phục vụ tìm kiếm không phân biệt có dấu / không dấu (AC1)
+ */
+export function removeVietnameseTones(str) {
+  if (!str) return '';
+  let res = String(str);
+  res = res.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+  res = res.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+  res = res.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+  res = res.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+  res = res.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+  res = res.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+  res = res.replace(/đ/g, 'd');
+  res = res.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, 'A');
+  res = res.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, 'E');
+  res = res.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, 'I');
+  res = res.replace(/Ò|Ó|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, 'O');
+  res = res.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, 'U');
+  res = res.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, 'Y');
+  res = res.replace(/Đ/g, 'D');
+  return res.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
  * Danh sách sách mẫu ban đầu khớp 100% theo ảnh thiết kế Figma của người dùng
  */
 const INITIAL_BOOKS = [
@@ -179,11 +202,12 @@ const DEFAULT_CATEGORIES = [
 export default function BookCatalog({ user, externalSearch = '' }) {
   const [books, setBooks] = useState(INITIAL_BOOKS);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10); // Số lượng sách hiển thị trên mỗi trang (10, 20, 50, 100)
+  const [pageSize, setPageSize] = useState(20); // Số lượng sách hiển thị trên mỗi trang (mặc định: 20 theo AC4, hỗ trợ 10, 20, 50, 100)
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
   const [refreshKey, setRefreshKey] = useState(0); // Khóa làm mới danh sách và thống kê
   const [internalSearch, setInternalSearch] = useState('');
+  const [isApiMode, setIsApiMode] = useState(false); // Đánh dấu dữ liệu được phân trang từ Server-side (AC4)
 
   // State 4 thẻ chỉ số thống kê KPI Cards từ CSDL
   const [catalogSummary, setCatalogSummary] = useState({
@@ -578,7 +602,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   // Từ khóa tìm kiếm hợp nhất từ Header hoặc ô tìm kiếm tại bảng
   const activeKeyword = (filterKeyword || externalSearch || '').trim();
 
-  // Cố gắng gọi API lấy dữ liệu thực với đầy đủ các tiêu chí lọc
+  // Cố gắng gọi API lấy dữ liệu thực với đầy đủ các tiêu chí lọc (AC1 - AC5)
   useEffect(() => {
     let isMounted = true;
     const fetchApiBooks = async () => {
@@ -591,7 +615,8 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             categoryID: filterCategory ? Number(filterCategory) : undefined,
             minPrice: filterMinPrice ? Number(filterMinPrice) * 1000 : undefined,
             maxPrice: filterMaxPrice ? Number(filterMaxPrice) * 1000 : undefined,
-            status: filterStatus !== 'all' ? filterStatus : undefined
+            status: filterStatus !== 'all' ? filterStatus : undefined,
+            onlyAvailable: filterStatus === 'available' ? true : undefined
           }
         });
 
@@ -621,9 +646,13 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           setBooks(mapped);
           const total = pagedData.totalRecords ?? pagedData.totalCount ?? mapped.length;
           setTotalBooksCount(total);
+          setIsApiMode(true);
         }
       } catch (err) {
-        // Nếu backend chưa sẵn sàng hoặc lỗi, dùng dữ liệu mẫu chuẩn khớp Figma
+        // Nếu backend chưa sẵn sàng hoặc lỗi, chuyển sang fallback dữ liệu mẫu
+        if (isMounted) {
+          setIsApiMode(false);
+        }
       }
     };
 
@@ -648,19 +677,23 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     };
   }, []);
 
-  // Lọc dữ liệu hiển thị (hỗ trợ Client-side fallback mượt mà)
+  // Lọc dữ liệu hiển thị (AC1 - AC4):
+  // Khi ở chế độ API (Server-side): máy chủ đã xử lý toàn bộ tìm kiếm, bộ lọc và phân trang Skip/Take
+  // Khi ở chế độ Fallback: hỗ trợ tìm kiếm không dấu, không phân biệt hoa thường và các bộ lọc
   const filteredBooks = useMemo(() => {
+    if (isApiMode) {
+      return books;
+    }
     let list = books;
-    const kw = activeKeyword.toLowerCase();
+    const kw = removeVietnameseTones(activeKeyword.toLowerCase().trim());
     if (kw) {
-      list = list.filter(
-        (b) =>
-          b.code.toLowerCase().includes(kw) ||
-          b.title.toLowerCase().includes(kw) ||
-          b.author.toLowerCase().includes(kw) ||
-          (b.isbn && b.isbn.toLowerCase().includes(kw)) ||
-          b.category.toLowerCase().includes(kw)
-      );
+      list = list.filter((b) => {
+        const title = removeVietnameseTones((b.title || '').toLowerCase());
+        const author = removeVietnameseTones((b.author || '').toLowerCase());
+        const isbn = removeVietnameseTones((b.isbn || '').toLowerCase());
+        const code = removeVietnameseTones((b.code || '').toLowerCase());
+        return title.includes(kw) || author.includes(kw) || isbn.includes(kw) || code.includes(kw);
+      });
     }
     if (filterCategory) {
       const catObj = categories.find((c) => String(c.categoryID) === String(filterCategory));
@@ -688,7 +721,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       }
     }
     return list;
-  }, [books, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, categories]);
+  }, [books, isApiMode, activeKeyword, filterCategory, filterMinPrice, filterMaxPrice, filterStatus, categories]);
 
   // Xử lý mở modal Chi tiết kèm tải danh sách bản sao (AC1 - AC5)
   const handleOpenDetail = async (book, targetTab = 'copies') => {
@@ -1416,13 +1449,30 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 setFilterStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              title="Lọc theo trạng thái sách"
+              title="Lọc theo trạng thái sách (AC2)"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="available">Sẵn sàng (Còn sách)</option>
+              <option value="available">Sẵn sàng (Còn bản sao &gt; 0)</option>
               <option value="out_of_stock">Hết sách (Đang mượn hết)</option>
             </select>
           </div>
+
+          {/* AC2: Tùy chọn chỉ hiển thị những sách đang có sẵn trong kho */}
+          <label
+            className="filter-item filter-checkbox-item"
+            title="Chỉ hiển thị những sách đang có sẵn trong kho (số bản sao sẵn sàng cho mượn > 0) (AC2)"
+          >
+            <input
+              type="checkbox"
+              className="filter-checkbox-input"
+              checked={filterStatus === 'available'}
+              onChange={(e) => {
+                setFilterStatus(e.target.checked ? 'available' : 'all');
+                setCurrentPage(1);
+              }}
+            />
+            <span className="filter-checkbox-text">Chỉ sách có sẵn (&gt; 0)</span>
+          </label>
 
           {/* Nút Đặt lại bộ lọc */}
           {(filterKeyword || filterCategory || filterMinPrice || filterMaxPrice || filterStatus !== 'all') && (
@@ -1448,7 +1498,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                 <th style={{ width: '165px' }}>Thể loại</th>
                 <th style={{ width: '75px' }}>Năm XB</th>
                 <th style={{ width: '105px' }}>Giá bìa (VNĐ)</th>
-                <th style={{ width: '105px' }}>Tồn kho (Còn/Tổng)</th>
+                <th style={{ width: '125px' }} title="Tổng số bản sao thư viện sở hữu và Số bản sao sẵn sàng cho mượn (AC3)">Tồn kho (Còn/Tổng)</th>
                 <th style={{ width: '100px' }}>Trạng thái</th>
                 <th style={{ width: '125px', textAlign: 'center' }}>Thao tác</th>
               </tr>
@@ -1512,11 +1562,21 @@ export default function BookCatalog({ user, externalSearch = '' }) {
                         <span className="book-price-text">{formatVND(book.price)}</span>
                       </td>
 
-                      {/* Cột 7: Tồn kho (Còn/Tổng) kèm thanh tiến trình */}
+                      {/* Cột 7: Tồn kho (Còn/Tổng) - Thể hiện rõ: Tổng sở hữu và Sẵn sàng cho mượn (AC3) */}
                       <td>
-                        <div className="stock-cell">
+                        <div
+                          className="stock-cell"
+                          title={`Tổng bản sao sở hữu: ${book.totalCopies} cuốn | Sẵn sàng cho mượn: ${book.availableCopies} cuốn (AC3)`}
+                        >
                           <span className="stock-fraction">
-                            {book.availableCopies}/{book.totalCopies}
+                            <span className="stock-avail-count" title="Số bản sao sẵn sàng cho mượn">
+                              {book.availableCopies}
+                            </span>
+                            <span className="stock-divider"> / </span>
+                            <span className="stock-total-count" title="Tổng số bản sao sở hữu">
+                              {book.totalCopies}
+                            </span>
+                            <span className="stock-unit"> cuốn</span>
                           </span>
                           <div className="stock-progress-bg">
                             <div
