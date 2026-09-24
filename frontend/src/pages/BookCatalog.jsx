@@ -179,7 +179,7 @@ const DEFAULT_CATEGORIES = [
 export default function BookCatalog({ user, externalSearch = '' }) {
   const [books, setBooks] = useState(INITIAL_BOOKS);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10); // Nâng số lượng hiển thị lên 10 cuốn / trang
+  const [pageSize, setPageSize] = useState(10); // Số lượng sách hiển thị trên mỗi trang (10, 20, 50, 100)
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
   const [totalBooksCount, setTotalBooksCount] = useState(12500);
   const [refreshKey, setRefreshKey] = useState(0); // Khóa làm mới danh sách và thống kê
@@ -1589,8 +1589,31 @@ export default function BookCatalog({ user, externalSearch = '' }) {
 
           return (
             <div className="catalog-pagination">
-              <div className="pagination-info">
-                Hiển thị {startIdx}-{endIdx} / {totalBooksCount.toLocaleString('vi-VN')} đầu sách
+              <div className="pagination-left-group">
+                <div className="pagination-info">
+                  Hiển thị {startIdx}-{endIdx} / {totalBooksCount.toLocaleString('vi-VN')} đầu sách
+                </div>
+
+                {/* Bộ chọn số lượng dòng hiển thị trên mỗi trang */}
+                <div className="pagination-size-selector">
+                  <label htmlFor="pageSizeSelect" className="size-selector-label">Hiển thị:</label>
+                  <select
+                    id="pageSizeSelect"
+                    className="size-selector-select"
+                    value={pageSize}
+                    onChange={(e) => {
+                      const newSize = Number(e.target.value);
+                      setPageSize(newSize);
+                      setCurrentPage(1);
+                    }}
+                    title="Chọn số lượng đầu sách hiển thị trên mỗi trang"
+                  >
+                    <option value={10}>10 / trang</option>
+                    <option value={20}>20 / trang</option>
+                    <option value={50}>50 / trang</option>
+                    <option value={100}>100 / trang</option>
+                  </select>
+                </div>
               </div>
 
               <div className="pagination-controls">

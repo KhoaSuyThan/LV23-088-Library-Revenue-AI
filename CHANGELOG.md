@@ -6,6 +6,19 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-09-24] - Tối ưu hóa Chỉ mục SQL Server (Indexing) & Hoàn thiện Phân trang Danh mục Sách
+
+- **Bổ sung Non-Clustered Indexes tối ưu CSDL SQL Server:**
+  - `IX_Books_CategoryID` & `IX_Books_IsActive_CategoryID`: Đánh chỉ mục kết hợp trên bảng `Books` cho các điều kiện lọc `IsActive = 1`, `CategoryID` và `INCLUDE` các cột thông tin hiển thị (`Title`, `Author`, `Publisher`, `BasePrice`, `ISBN`), hỗ trợ kỹ thuật Covering Index để SQL Server tìm kiếm trực tiếp (Index Seek) mà không cần quét toàn bộ bảng.
+  - `IX_BookCopies_BookID_Status`: Đánh chỉ mục kết hợp trên bảng `BookCopies` theo `BookID` và `Status`, tăng tốc gấp nhiều lần các truy vấn con đếm số lượng bản sao khả dụng (`AvailableCopies`) và tổng số bản sao (`TotalCopies`) khi phân trang.
+- **Đồng bộ mã nguồn CSDL & Tự động di trú an toàn (Idempotent Migration):**
+  - Cập nhật định nghĩa chỉ mục chuẩn trong file [01_schema_smartlib_ai.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
+  - Cấu hình Fluent API `HasIndex()` trong [SmartLibDbContext.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs).
+  - Bổ sung lệnh DDL kiểm tra và tự động khởi tạo chỉ mục trong hàm khởi động tại [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+- **Hoàn thiện Phân trang giao diện Quản lý Sách (Page Size Selector):**
+  - Cập nhật [BookCatalog.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) và [BookCatalog.css](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.css): Bổ sung bộ chọn số dòng hiển thị trên mỗi trang (`10`, `20`, `50`, `100` đầu sách / trang) tại thanh điều khiển phân trang.
+  - Khi người dùng thay đổi số dòng/trang, hệ thống tự động đưa về trang 1 và tải đúng số lượng bản ghi tương ứng từ API Backend.
+
 ## [2026-09-23] - Tính năng Tải lên & Quét ảnh Mã vạch / QR Code tự động (Upload, Drag-Drop, Paste & Reset)
 
 - **Bổ sung nút Đặt lại & Xóa ảnh preview:** Khi quét ảnh không thành công hoặc muốn đổi ảnh khác, bổ sung nút **"Đặt lại"** (`.btn-reset-scanner-img`) trên thanh công cụ và nút xóa nhanh `✕` góc trên khung preview (`.btn-clear-scanner-preview`) để dễ dàng làm sạch khung laser và thử lại ảnh mới.

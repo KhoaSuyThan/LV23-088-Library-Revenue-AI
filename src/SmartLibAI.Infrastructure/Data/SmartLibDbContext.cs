@@ -163,6 +163,14 @@ public class SmartLibDbContext : DbContext
                 .WithMany(c => c.Books)
                 .HasForeignKey(e => e.CategoryID)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Chỉ mục tối ưu hóa truy vấn lọc và phân trang sách
+            entity.HasIndex(e => e.CategoryID)
+                .HasDatabaseName("IX_Books_CategoryID");
+
+            entity.HasIndex(e => new { e.IsActive, e.CategoryID })
+                .HasDatabaseName("IX_Books_IsActive_CategoryID")
+                .IncludeProperties(e => new { e.Title, e.Author, e.Publisher, e.BasePrice, e.ISBN });
         });
 
         // BookCopies
@@ -179,6 +187,10 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasDefaultValue("Available");
+
+            // Chỉ mục tối ưu hóa đếm và tra cứu tình trạng bản sao theo đầu sách
+            entity.HasIndex(e => new { e.BookID, e.Status })
+                .HasDatabaseName("IX_BookCopies_BookID_Status");
 
             entity.HasOne(e => e.Book)
                 .WithMany(b => b.BookCopies)

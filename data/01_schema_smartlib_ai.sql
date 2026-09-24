@@ -162,3 +162,30 @@ CREATE TABLE AIPredictionLogs (
     FOREIGN KEY (BorrowingID) REFERENCES Borrowings(BorrowingID)
 );
 GO
+
+-- =============================================
+-- 5. TỐI ƯU HÓA CHỈ MỤC (INDEXING FOR PERFORMANCE)
+-- =============================================
+
+-- 5.1. Chỉ mục tối ưu cho bảng Books: Lọc theo thể loại & trạng thái lưu thông kèm các cột hiển thị
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_CategoryID' AND object_id = OBJECT_ID('Books'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_Books_CategoryID ON Books(CategoryID);
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_IsActive_CategoryID' AND object_id = OBJECT_ID('Books'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_Books_IsActive_CategoryID 
+    ON Books(IsActive, CategoryID)
+    INCLUDE (Title, Author, Publisher, BasePrice, ISBN);
+END
+GO
+
+-- 5.2. Chỉ mục tối ưu cho bảng BookCopies: Lọc theo BookID và tình trạng bản sao (Available, Borrowed,...)
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BookCopies_BookID_Status' AND object_id = OBJECT_ID('BookCopies'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_BookCopies_BookID_Status 
+    ON BookCopies(BookID, Status);
+END
+GO
