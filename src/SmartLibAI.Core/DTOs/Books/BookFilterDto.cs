@@ -55,4 +55,9 @@ public class BookFilterDto
     /// Trạng thái sách: 'available' (sẵn sàng/còn sách) hoặc 'out_of_stock' (hết sách/đang mượn hết).
     /// </summary>
     public string? Status { get; set; }
+
+    /// <summary>
+    /// Tùy chọn chỉ hiển thị những sách đang có sẵn trong kho (số bản sao sẵn sàng cho mượn > 0) (AC2).
+    /// </summary>
+    public bool? OnlyAvailable { get; set; }
 }

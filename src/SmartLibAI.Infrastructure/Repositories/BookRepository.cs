@@ -38,10 +38,11 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
                 searchBookId = directId;
             }
 
+            var pattern = $"%{keyword}%";
             query = query.Where(b =>
-                b.Title.Contains(keyword) ||
-                b.Author.Contains(keyword) ||
-                (b.ISBN != null && b.ISBN.Contains(keyword)) ||
+                EF.Functions.Like(EF.Functions.Collate(b.Title, "SQL_Latin1_General_CP1_CI_AI"), pattern) ||
+                EF.Functions.Like(EF.Functions.Collate(b.Author, "SQL_Latin1_General_CP1_CI_AI"), pattern) ||
+                (b.ISBN != null && EF.Functions.Like(EF.Functions.Collate(b.ISBN, "SQL_Latin1_General_CP1_CI_AI"), pattern)) ||
                 (searchBookId.HasValue && b.BookID == searchBookId.Value));
         }
 
@@ -61,14 +62,14 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             query = query.Where(b => b.BasePrice <= filter.MaxPrice.Value);
         }
 
-        // 4. Lọc theo trạng thái tồn kho (available, out_of_stock / borrowed_all)
-        if (!string.IsNullOrWhiteSpace(filter.Status) && !filter.Status.Equals("all", StringComparison.OrdinalIgnoreCase))
+        // 4. Lọc theo trạng thái tồn kho (AC2: có sẵn trong kho tức là số bản sao sẵn sàng cho mượn > 0)
+        if (filter.OnlyAvailable == true || (!string.IsNullOrWhiteSpace(filter.Status) && filter.Status.Equals("available", StringComparison.OrdinalIgnoreCase)))
         {
-            if (filter.Status.Equals("available", StringComparison.OrdinalIgnoreCase))
-            {
-                query = query.Where(b => b.BookCopies.Any(c => c.Status == "Available"));
-            }
-            else if (filter.Status.Equals("out_of_stock", StringComparison.OrdinalIgnoreCase) ||
+            query = query.Where(b => b.BookCopies.Any(c => c.Status == "Available"));
+        }
+        else if (!string.IsNullOrWhiteSpace(filter.Status) && !filter.Status.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (filter.Status.Equals("out_of_stock", StringComparison.OrdinalIgnoreCase) ||
                      filter.Status.Equals("borrowed_all", StringComparison.OrdinalIgnoreCase) ||
                      filter.Status.Equals("borrowed", StringComparison.OrdinalIgnoreCase))
             {
