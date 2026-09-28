@@ -1,0 +1,879 @@
+/* ==========================================================================
+   SMARTLIB AI - PHÂN HỆ QUẦY MƯỢN TRẢ SÁCH (CIRCULATION DESK)
+   Thiết kế chuẩn Figma: Tông màu Navy + Blue Accent + Card Trắng tinh gọn
+   ========================================================================== */
+
+.circulation-desk-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 20px 24px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* Tùy chỉnh thanh cuộn mượt mà */
+.circulation-desk-container::-webkit-scrollbar {
+  width: 6px;
+}
+.circulation-desk-container::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   CARD CHUNG (COMMON CARD STYLING)
+   ========================================================================== */
+.circulation-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.card-icon-blue {
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon-orange {
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-description {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+  margin-top: -6px;
+  margin-bottom: 14px;
+}
+
+/* ==========================================================================
+   HÀNG 1: 2 THẺ TẠO PHIẾU MƯỢN & TIẾP NHẬN TRẢ SÁCH
+   ========================================================================== */
+.circulation-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.form-control {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px 0 36px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.form-control::placeholder {
+  color: #94a3b8;
+  font-size: 12.5px;
+}
+
+/* Nút xác nhận mượn sách toàn chiều ngang */
+.btn-confirm-borrow {
+  width: 100%;
+  height: 40px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.btn-confirm-borrow:hover {
+  background-color: #1d4ed8;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+}
+
+.btn-confirm-borrow:active {
+  transform: translateY(1px);
+}
+
+/* Khung chờ quét mã vạch Barcode */
+.barcode-scanner-zone {
+  border: 1.5px dashed #cbd5e1;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  padding: 13px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.barcode-scanner-zone:hover {
+  border-color: #3b82f6;
+  background-color: #f1f5f9;
+}
+
+.barcode-scanner-zone.is-scanning {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+  animation: pulseScan 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseScan {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+  }
+}
+
+.scanner-text {
+  font-size: 12px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: -0.2px;
+}
+
+/* ==========================================================================
+   HÀNG 2: CHI TIẾT KIỂM TRA SÁCH HOÀN TRẢ
+   ========================================================================== */
+.return-detail-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 4 Cột Metadata */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding-bottom: 14px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.meta-value {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Dòng Checkbox kiểm tra vi phạm */
+.violation-checks-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 10px 0 16px;
+  flex-wrap: wrap;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-checkbox {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  border: 1.5px solid #cbd5e1;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox.checked-orange {
+  background-color: #f97316;
+  border-color: #f97316;
+}
+
+.custom-checkbox.checked-green {
+  background-color: #10b981;
+  border-color: #10b981;
+}
+
+.checkbox-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+/* Banner tổng tiền phạt màu hồng đỏ */
+.fine-summary-banner {
+  background-color: #fff1f2;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fine-info-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fine-total-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.waiver-badge-applied {
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.fine-breakdown-subtext {
+  font-size: 12px;
+  color: #b91c1c;
+}
+
+.fine-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-waiver {
+  background-color: #ffffff;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-waiver:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.btn-waiver:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-create-receipt {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-create-receipt:hover {
+  background-color: #b91c1c;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
+}
+
+/* ==========================================================================
+   HÀNG 3: BẢNG GIAO DỊCH MƯỢN TRẢ TRONG NGÀY
+   ========================================================================== */
+.transactions-card {
+  padding-bottom: 12px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.circulation-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.circulation-table th {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.circulation-table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.table-row-item {
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.table-row-item:hover {
+  background-color: #f8fafc;
+}
+
+.table-row-item.row-active {
+  background-color: #f0fdf4;
+}
+
+.slip-code-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.slip-code-btn:hover {
+  text-decoration: underline;
+}
+
+.reader-cell-text {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.book-cell-text {
+  color: #334155;
+}
+
+/* Badges trạng thái */
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.badge-pending {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+.badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.badge-borrowing {
+  background-color: #e0f2fe;
+  color: #0284c7;
+}
+
+/* Định dạng số tiền phạt */
+.amount-text-fine {
+  color: #ea580c;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.amount-text-neutral {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* ==========================================================================
+   TOAST THÔNG BÁO TƯƠNG TÁC
+   ========================================================================== */
+.circulation-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  animation: slideInUp 0.25s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.toast-close-btn:hover {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   MODAL HỘP THOẠI (WAIVER & RECEIPT)
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-dialog {
+  background-color: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalScale 0.2s ease-out;
+}
+
+@keyframes modalScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-wrap h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modal-icon-sparkle {
+  color: #8b5cf6;
+}
+
+.modal-icon-receipt {
+  color: #dc2626;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.modal-close:hover {
+  color: #0f172a;
+}
+
+.modal-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-summary-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.modal-sum-row {
+  display: flex;
+  justify-content: space-between;
+  color: #475569;
+}
+
+.text-red-bold {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.modal-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.waiver-presets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.preset-btn strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.preset-btn span {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.preset-btn:hover {
+  border-color: #3b82f6;
+  background-color: #f0f7ff;
+}
+
+.preset-btn.active {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.receipt-preview-card {
+  border: 1px dashed #cbd5e1;
+  background-color: #fafaf9;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.receipt-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.5px;
+}
+
+.receipt-code {
+  font-size: 11.5px;
+  color: #64748b;
+  font-family: monospace;
+}
+
+.receipt-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.receipt-line {
+  display: flex;
+  justify-content: space-between;
+}
+
+.receipt-line .lbl {
+  color: #64748b;
+}
+
+.receipt-line .val {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.receipt-divider {
+  height: 1px;
+  border-top: 1px dashed #e2e8f0;
+  margin: 6px 0;
+}
+
+.receipt-line-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.receipt-amount {
+  color: #dc2626;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.payment-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pay-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pay-option:hover {
+  border-color: #3b82f6;
+}
+
+.pay-option.selected {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.btn-cancel {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit-pay {
+  background-color: #dc2626;
+  border: none;
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.btn-submit-pay:hover {
+  background-color: #b91c1c;
+}
+
+/* ==========================================================================
+   TAG HIỂN THỊ MÃ VẠCH (BARCODE TAG & PILL)
+   ========================================================================== */
+.barcode-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #1e293b;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.barcode-inline-icon {
+  color: #475569;
+}
+
+.book-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-barcode-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  letter-spacing: -0.2px;
+}
