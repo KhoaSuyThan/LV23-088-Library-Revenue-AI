@@ -819,6 +819,11 @@
   font-weight: 700;
 }
 
+.breadcrumb-blue {
+  color: #2563eb;
+  font-weight: 700;
+}
+
 .header-search-readers {
   width: 260px;
   background-color: #f8fafc;
@@ -856,6 +861,25 @@
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+
+.header-search-circulation {
+  width: 220px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+.header-search-circulation:focus-within {
+  border-color: #3b82f6;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 

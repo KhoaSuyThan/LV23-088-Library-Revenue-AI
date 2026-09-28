@@ -21,6 +21,7 @@ import { authApi } from '../api/authApi';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
+import CirculationDesk from './CirculationDesk';
 import './DashboardPage.css';
 
 /**
@@ -46,6 +47,7 @@ export default function DashboardPage({
   // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách & Hồ sơ Độc giả (đồng bộ thanh Header)
   const [catalogSearch, setCatalogSearch] = React.useState('');
   const [readerSearch, setReaderSearch] = React.useState('');
+  const [circulationSearch, setCirculationSearch] = React.useState('');
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -178,7 +180,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <LayoutGrid size={18} />
               </div>
-              <span>Tổng quan</span>
+              <span>Tổng quan (Dashboard)</span>
             </li>
 
             <li
@@ -188,7 +190,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <ArrowLeftRight size={18} />
               </div>
-              <span>Mượn - Trả sách</span>
+              <span>Mượn - Trả sách (Circulation)</span>
             </li>
 
             <li
@@ -198,7 +200,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <BookOpen size={18} />
               </div>
-              <span>Quản lý Sách</span>
+              <span>Quản lý Sách (Book Catalog)</span>
             </li>
 
             <li
@@ -208,7 +210,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <CircleDollarSign size={18} />
               </div>
-              <span>Báo cáo Thu phạt</span>
+              <span>Báo cáo Thu phạt (Fine Revenue)</span>
             </li>
 
             <li
@@ -218,7 +220,7 @@ export default function DashboardPage({
               <div className="menu-icon">
                 <Users size={18} />
               </div>
-              <span>Hồ sơ Độc giả</span>
+              <span>Hồ sơ Độc giả (Readers)</span>
             </li>
 
             {/* Phân quyền: Cài đặt chỉ hiển thị cho Admin */}
@@ -230,7 +232,7 @@ export default function DashboardPage({
                 <div className="menu-icon">
                   <Settings size={18} />
                 </div>
-                <span>Cài đặt</span>
+                <span>Cài đặt quy định (Settings)</span>
               </li>
             )}
           </ul>
@@ -256,7 +258,14 @@ export default function DashboardPage({
       <main className="dashboard-main">
         {/* Thanh Header Topbar (Ghim cố định Sticky) */}
         <header className="dashboard-header">
-          {activeTab === 'readers' ? (
+          {activeTab === 'circulation' ? (
+            /* Breadcrumbs cho phân hệ Mượn - Trả sách */
+            <div className="header-breadcrumb">
+              <span className="breadcrumb-root">Trang chủ</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-blue">Mượn - Trả sách</span>
+            </div>
+          ) : activeTab === 'readers' ? (
             /* Breadcrumbs cho phân hệ Hồ sơ Độc giả khớp 100% ảnh Figma */
             <div className="header-breadcrumb">
               <span className="breadcrumb-root">Trang chủ</span>
@@ -291,7 +300,18 @@ export default function DashboardPage({
 
           {/* Cụm hành động bên phải */}
           <div className="header-right">
-            {activeTab === 'readers' || activeTab === 'catalog' ? (
+            {activeTab === 'circulation' ? (
+              <div className="header-search-circulation">
+                <Search size={16} />
+                <input
+                  type="text"
+                  className="header-search-input"
+                  placeholder="Tìm kiếm..."
+                  value={circulationSearch}
+                  onChange={(e) => setCirculationSearch(e.target.value)}
+                />
+              </div>
+            ) : activeTab === 'readers' || activeTab === 'catalog' ? (
               <>
                 <div className="header-search-readers">
                   <Search size={16} />
@@ -338,9 +358,11 @@ export default function DashboardPage({
             <div className="user-profile">
               <div className="user-text">
                 <span className="user-name-title">
-                  {user?.fullName || (isAdmin ? 'Thủ thư (Admin)' : 'Thủ thư (Staff)')}
+                  {user?.fullName || 'Nguyễn Văn A'}
                 </span>
-                <span className="user-dept">Ban Quản Lý Thư Viện</span>
+                <span className="user-dept">
+                  {activeTab === 'circulation' ? 'Ban Vận Hành Thư Viện' : 'Ban Quản Lý Thư Viện'}
+                </span>
               </div>
               <div className="user-avatar" title={user?.role || 'Admin'}>
                 <img
@@ -636,6 +658,11 @@ export default function DashboardPage({
                 </div>
               </div>
             </>
+          ) : activeTab === 'circulation' ? (
+            /* ----------------------------------------------------------------
+                PHÂN HỆ MƯỢN - TRẢ SÁCH (CIRCULATION DESK) KHỚP 100% ẢNH THIẾT KẾ
+                ---------------------------------------------------------------- */
+            <CirculationDesk user={user} externalSearch={circulationSearch} />
           ) : activeTab === 'settings' ? (
             /* ----------------------------------------------------------------
                 PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
