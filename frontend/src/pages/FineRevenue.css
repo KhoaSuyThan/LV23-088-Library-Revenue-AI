@@ -1,0 +1,848 @@
+/* ==========================================================================
+   SMARTLIB AI - BÁO CÁO THU PHẠT (FINE REVENUE & AI PREDICTION) STYLES
+   Khớp 100% Mockup Figma thiết kế & Tối ưu trải nghiệm thủ thư cao cấp
+   ========================================================================== */
+
+.fine-revenue-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   1. NAVIGATION SUB-TABS & ACTION TOOLBAR (Thao tác nhanh cho Thủ thư)
+   -------------------------------------------------------------------------- */
+.fine-revenue-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fine-revenue-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.fine-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.fine-tab-btn:hover {
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.fine-tab-btn.active {
+  background-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.fine-tab-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.fine-tab-btn.active .fine-tab-badge {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.fine-tab-btn:not(.active) .fine-tab-badge {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.fine-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-secondary-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary-action:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.btn-primary-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #10b981;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-primary-action:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   2. HÀNG 3 THẺ CHỈ SỐ STAT CARDS (Khớp 100% Mockup Figma)
+   -------------------------------------------------------------------------- */
+.revenue-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.revenue-kpi-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.revenue-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.revenue-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.revenue-kpi-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+}
+
+.revenue-kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.revenue-kpi-icon-blue {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.revenue-kpi-icon-yellow {
+  background-color: #fffbeb;
+  color: #f59e0b;
+}
+
+.revenue-kpi-icon-red {
+  background-color: #fef2f2;
+  color: #ef4444;
+}
+
+.revenue-kpi-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+  line-height: 1.2;
+}
+
+.revenue-kpi-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.revenue-growth-badge {
+  background-color: #dcfce7;
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.revenue-kpi-subtext {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   3. BIỂU ĐỒ THU PHẠT & XU HƯỚNG TRỄ HẠN 30 NGÀY TỚI (FULL WIDTH CARD)
+   -------------------------------------------------------------------------- */
+.revenue-chart-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px 28px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.revenue-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.revenue-chart-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.revenue-chart-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.revenue-legend-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.revenue-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.revenue-legend-item.dimmed {
+  opacity: 0.4;
+}
+
+.legend-dot-blue {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+}
+
+.legend-dot-red {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.revenue-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #f8fafc;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-chart-range {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-chart-range.active {
+  background-color: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Vùng đồ thị SVG tương tác */
+.revenue-svg-wrapper {
+  width: 100%;
+  height: 240px;
+  position: relative;
+  overflow: visible;
+  user-select: none;
+}
+
+.revenue-svg-chart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Hover Tooltip trên biểu đồ */
+.chart-tooltip-box {
+  position: absolute;
+  top: 15px;
+  pointer-events: none;
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  transform: translateX(-50%);
+  z-index: 20;
+  white-space: nowrap;
+  animation: fadeIn 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.chart-tooltip-date {
+  font-weight: 700;
+  color: #93c5fd;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 4px;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   4. BẢNG DANH SÁCH ĐỘC GIẢ CÓ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH)
+   -------------------------------------------------------------------------- */
+.revenue-table-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.revenue-table-header {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.revenue-table-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.revenue-table-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.ai-engine-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #dbeafe;
+}
+
+.revenue-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f8fafc;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.filter-pill-btn {
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill-btn.active {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.btn-batch-remind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-batch-remind:hover {
+  background-color: #fecaca;
+  color: #b91c1c;
+}
+
+/* Bảng dữ liệu */
+.revenue-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.revenue-table th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: none;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.revenue-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.revenue-table tr:hover td {
+  background-color: #f8fafc;
+}
+
+.revenue-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Cột Mã phiếu mượn */
+.borrow-code-cell {
+  font-weight: 700;
+  color: #2563eb;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.borrow-code-cell:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Cột Độc giả */
+.reader-cell-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reader-cell-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.reader-cell-code {
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* Cột Tên sách */
+.book-title-cell {
+  font-weight: 600;
+  color: #1e293b;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cột Hạn trả */
+.due-date-cell {
+  font-weight: 600;
+  color: #334155;
+}
+
+.due-date-overdue {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* Cột AI Score & Progress Bar */
+.ai-score-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 140px;
+}
+
+.ai-score-bar-bg {
+  flex: 1;
+  height: 8px;
+  background-color: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ai-score-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-score-value {
+  font-weight: 800;
+  font-size: 13.5px;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Nút Thao tác Gửi nhắc nhở (Khớp mockup: Viền/Nền đỏ hồng nhạt, chuông) */
+.btn-send-reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-send-reminder:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
+}
+
+.btn-send-reminder.sent {
+  background-color: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   5. TAB PHỤ 2: SỔ THU PHẠT & NỢ ĐỌNG (47 LƯỢT QUÁ HẠN)
+   -------------------------------------------------------------------------- */
+.arrears-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.arrears-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.arrears-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arrears-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+  transition: all 0.2s ease;
+}
+
+.arrears-item:hover {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* --------------------------------------------------------------------------
+   6. TAB PHỤ 3: LỊCH SỬ BIÊN LAI ĐÃ THU (RECEIPTS)
+   -------------------------------------------------------------------------- */
+.receipts-summary-box {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.receipt-method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.receipt-method-cash {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.receipt-method-qr {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* --------------------------------------------------------------------------
+   7. MODAL CHI TIẾT & GỬI NHẮC NHỞ
+   -------------------------------------------------------------------------- */
+.fine-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.fine-modal-content {
+  background-color: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.fine-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fine-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fine-modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.fine-modal-close:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.fine-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fine-modal-footer {
+  padding: 16px 24px;
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+/* Hộp phân tích AI Feature Importance trong Modal */
+.ai-factors-box {
+  background-color: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.ai-factor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.ai-factor-bar {
+  width: 120px;
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Toast Thông báo Thành công */
+.fine-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  z-index: 200;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

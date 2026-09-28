@@ -6,6 +6,7 @@ import {
   BookMarked,
   ArrowLeftRight,
   CircleDollarSign,
+  DollarSign,
   Users,
   Settings,
   Search,
@@ -22,6 +23,7 @@ import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
 import CirculationDesk from './CirculationDesk';
+import FineRevenue from './FineRevenue';
 import './DashboardPage.css';
 
 /**
@@ -44,10 +46,11 @@ export default function DashboardPage({
   const activeTab = pathParts[0] || propActiveTab || 'dashboard';
   const subTab = pathParts[1] || '';
 
-  // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách & Hồ sơ Độc giả (đồng bộ thanh Header)
+  // Quản lý từ khóa tìm kiếm cho phân hệ Quản lý Sách, Hồ sơ Độc giả & Báo cáo Thu phạt (đồng bộ thanh Header)
   const [catalogSearch, setCatalogSearch] = React.useState('');
   const [readerSearch, setReaderSearch] = React.useState('');
   const [circulationSearch, setCirculationSearch] = React.useState('');
+  const [revenueSearch, setRevenueSearch] = React.useState('');
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -208,7 +211,7 @@ export default function DashboardPage({
               onClick={() => handleTabClick('revenue')}
             >
               <div className="menu-icon">
-                <CircleDollarSign size={18} />
+                <DollarSign size={18} strokeWidth={2.4} />
               </div>
               <span>Báo cáo Thu phạt (Fine Revenue)</span>
             </li>
@@ -263,7 +266,14 @@ export default function DashboardPage({
             <div className="header-breadcrumb">
               <span className="breadcrumb-root">Trang chủ</span>
               <span className="breadcrumb-sep">/</span>
-              <span className="breadcrumb-blue">Mượn - Trả sách</span>
+              <span className="breadcrumb-current">Mượn - Trả sách</span>
+            </div>
+          ) : activeTab === 'revenue' ? (
+            /* Breadcrumbs cho phân hệ Báo cáo Thu phạt khớp 100% ảnh Mockup */
+            <div className="header-breadcrumb">
+              <span className="breadcrumb-root">Trang chủ</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">Báo cáo Thu phạt</span>
             </div>
           ) : activeTab === 'readers' ? (
             /* Breadcrumbs cho phân hệ Hồ sơ Độc giả khớp 100% ảnh Figma */
@@ -311,7 +321,7 @@ export default function DashboardPage({
                   onChange={(e) => setCirculationSearch(e.target.value)}
                 />
               </div>
-            ) : activeTab === 'readers' || activeTab === 'catalog' ? (
+            ) : activeTab === 'readers' || activeTab === 'catalog' || activeTab === 'revenue' ? (
               <>
                 <div className="header-search-readers">
                   <Search size={16} />
@@ -321,14 +331,24 @@ export default function DashboardPage({
                     placeholder={
                       activeTab === 'readers'
                         ? 'Tìm kiếm độc giả (Tên, MSSV, Email)...'
-                        : 'Tìm kiếm sách, ISBN hoặc quét Barcode...'
+                        : activeTab === 'catalog'
+                        ? 'Tìm kiếm sách, ISBN hoặc quét Barcode...'
+                        : 'Tìm kiếm...'
                     }
-                    value={activeTab === 'catalog' ? catalogSearch : activeTab === 'readers' ? readerSearch : ''}
+                    value={
+                      activeTab === 'catalog'
+                        ? catalogSearch
+                        : activeTab === 'readers'
+                        ? readerSearch
+                        : revenueSearch
+                    }
                     onChange={(e) => {
                       if (activeTab === 'catalog') {
                         setCatalogSearch(e.target.value);
                       } else if (activeTab === 'readers') {
                         setReaderSearch(e.target.value);
+                      } else if (activeTab === 'revenue') {
+                        setRevenueSearch(e.target.value);
                       }
                     }}
                   />
@@ -358,7 +378,7 @@ export default function DashboardPage({
             <div className="user-profile">
               <div className="user-text">
                 <span className="user-name-title">
-                  {user?.fullName || 'Nguyễn Văn A'}
+                  {user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)'}
                 </span>
                 <span className="user-dept">
                   {activeTab === 'circulation' ? 'Ban Vận Hành Thư Viện' : 'Ban Quản Lý Thư Viện'}
@@ -663,6 +683,11 @@ export default function DashboardPage({
                 PHÂN HỆ MƯỢN - TRẢ SÁCH (CIRCULATION DESK) KHỚP 100% ẢNH THIẾT KẾ
                 ---------------------------------------------------------------- */
             <CirculationDesk user={user} externalSearch={circulationSearch} />
+          ) : activeTab === 'revenue' ? (
+            /* ----------------------------------------------------------------
+                PHÂN HỆ BÁO CÁO THU PHẠT (FINE REVENUE) KHỚP 100% ẢNH MOCKUP FIGMA
+                ---------------------------------------------------------------- */
+            <FineRevenue user={user} externalSearch={revenueSearch} />
           ) : activeTab === 'settings' ? (
             /* ----------------------------------------------------------------
                 PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
