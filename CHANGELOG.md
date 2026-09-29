@@ -6,6 +6,97 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-09-29] - Tối Ưu Vị Trí Icon Quét Mã Vạch Trong Các Ô Nhập Liệu (Quầy Lưu Thông)
+
+- **Tinh Gọn Giao Diện Nhập Liệu & Trải Nghiệm Thao Tác (UI/UX Refactor):**
+  - **Chuyển Icon Quét Mã Sang Trái (Clickable Prefix Icon):** Thay thế icon tĩnh ở đầu ô nhập thành nút bấm tương tác trực tiếp (`input-prefix-scan-btn`), click vào là mở ngay Modal Máy Quét Mã Vạch với hiệu ứng hover màu xanh sinh động.
+  - **Xóa Bỏ Icon Thừa Bên Phải:** Loại bỏ hoàn toàn icon quét trùng lặp ở đuôi ô input, giúp giao diện thông thoáng, chuẩn quy chuẩn thiết kế.
+  - **Tối Ưu Vị Trí Nút Xóa Nhanh (`✕`):** Bên phải ô input chỉ hiển thị duy nhất nút xóa nội dung (`input-clear-btn`) khi ô có dữ liệu, tránh gây rối mắt và nhầm lẫn cho thủ thư.
+  - **Áp Dụng Cho Cả 3 Ô Thao Tác:** Mã độc giả / MSSV, Mã vạch sách và Mã phiếu / Barcode trả sách.
+
+## [2026-09-29] - Tích Hợp Máy Quét Mã Vạch Cho Form Tạo Phiếu Mượn Mới (Quét Thẻ & Sách Liên Hoàn)
+
+- **Nâng Cấp Toàn Diện Quy Trình Mượn Sách Bằng Barcode (Story LOLRA-16):**
+  - **Quét Thẻ Bạn Đọc / Thẻ Sinh Viên:** Ô "Mã độc giả / MSSV" được tích hợp nút quét mã vạch chuyên dụng (`ScanLine`), hỗ trợ quét mã vạch trên thẻ sinh viên qua súng đọc, camera hoặc ảnh chụp.
+  - **Quét Mã Vạch Bản Sao Sách:** Ô "Mã vạch sách" hỗ trợ quét nhanh mã vạch trên cuốn sách (`BC000001-A`, `BC000001-B`...).
+  - **Quy Trình Quét Liên Hoàn (Continuous Scan Workflow):** Sau khi quét xong Thẻ bạn đọc, hệ thống tự động phát tiếng Bíp, đóng modal và tự động chuyển con trỏ chuột sang ô Mã vạch sách để thủ thư quét ngay cuốn sách, hoàn tất tạo phiếu trong tích tắc.
+  - **Modal Ngữ Cảnh Thông Minh:** Modal Máy Quét tự động điều chỉnh tiêu đề, placeholder và danh sách chip mẫu kiểm thử tùy theo việc đang quét Thẻ bạn đọc (`RD20260001`, `102220184`...) hay quét Mã sách (`BC000001-A`, `BC000001-B`...).
+  - **Nút Xóa Nhanh:** Bổ sung nút clear `X` cho cả 2 ô Mã độc giả và Mã vạch sách để làm sạch dữ liệu nhanh chóng.
+
+## [2026-09-29] - Tích Hợp Modal Máy Quét Mã Vạch (Barcode Scanner) Chuẩn Chuyên Nghiệp vào Quầy Lưu Thông
+
+- **Đồng bộ Tính năng Máy Quét Mã Vạch từ Catalog sang Quầy Lưu Thông:**
+  - **Tích hợp Modal Barcode Scanner Đồ Họa:** Thêm Modal Máy Quét Mã Vạch với khung ngắm camera, vạch laser quét màu đỏ sinh động, hỗ trợ tải ảnh mã vạch từ máy tính, kéo thả tệp ảnh, dán ảnh màn hình bằng `Ctrl + V` hoặc quét trực tiếp từ súng quét Barcode / nhập tay.
+  - **Hỗ trợ 2 luồng thao tác linh hoạt:**
+    1. **Tiếp nhận trả sách:** Quét mã vạch trên sách để tự động tra cứu, nạp dữ liệu phiếu mượn tương ứng và kiểm tra vi phạm.
+    2. **Tạo phiếu mượn mới:** Bấm icon `ScanLine` trên ô "Mã vạch sách" để quét nhanh mã sách vào phiếu mượn mà không cần gõ tay.
+  - **Âm thanh tiếng Bíp phản hồi thực tế:** Phát âm thanh Bíp xác thực (`playScannerBeep(true / false)`) bằng Web Audio API khi quét hoặc nhận diện mã thành công.
+  - **Thanh chip mã mẫu kiểm thử:** Tích hợp sẵn hàng nút bấm mã mẫu (`BC000001-A`, `BC000001-B`, `BC000001-C`, `BC000002-A`, `BC000003-A`) giúp thủ thư kiểm thử quy trình mượn/trả trong 1 click.
+  - **Đồng bộ Style & Trải nghiệm:** Bổ sung toàn bộ hệ thống lớp CSS scanner đồ họa vào [`CirculationDesk.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.css).
+
+## [2026-09-29] - Loại Bỏ Triệt Để Fallback BC000001-A & Hỗ Trợ Lọc Realtime Toàn Bộ Giao Dịch
+
+- **Xử lý Triệt để Lỗi "Tìm cái gì cũng nhảy về `BC000001-A`":**
+  - **Xóa bỏ hoàn toàn cơ chế Fallback sai:** Trong [`handleSimulateScan()`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx#L490-L550), nếu người dùng đã nhập mã/từ khóa mà không tìm thấy giao dịch nào, hệ thống thông báo rõ ràng `⚠️ Không tìm thấy giao dịch nào khớp với mã "${returnQuery}"` và **giữ nguyên nội dung, tuyệt đối không tự ý gán đè sang `BC000001-A`**.
+  - **Quét xoay vòng khi ô tìm kiếm trống:** Khi ô tìm kiếm rỗng, bấm nút quét barcode sẽ xoay vòng lần lượt qua từng cuốn sách đang mượn (`BC000001-A`, `BC000001-B`, `BC000002-B`...) thay vì chỉ chọn duy nhất 1 cuốn.
+- **Bổ sung Dữ liệu Mẫu & Seeding cho Bản sao B (`BC000001-B`):**
+  - Cập nhật [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs#L225-L255): Tự động seed phiếu mượn quá hạn cho cuốn `BC000001-B` của bạn đọc Nguyễn Văn Minh (`102220184`).
+  - Cập nhật `INITIAL_TRANSACTIONS` trong [`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx#L28-L85) đầy đủ cả 2 bản sao A và B của đầu sách `BC000001`.
+- **Lọc Danh Sách Giao Dịch Realtime (Bảng Hàng 3):**
+  - Nâng cấp `filteredTransactions` đồng bộ với `returnQuery`. Khi thủ thư gõ "B", "BC000001" hay bất kỳ mã nào, bảng giao dịch bên dưới lập tức lọc và hiển thị danh sách các phiếu khớp ngay trong tích tắc.
+
+## [2026-09-29] - Khắc Phục Lỗi Tìm B Ra A & Bổ Sung Tìm Kiếm Đa Chiều Bằng Mã Sách / Mã Vạch
+
+- **Khắc phục Triệt để Lỗi "Tìm B ra A":**
+  - **Xóa Bỏ Ép Cứng Mã `BC000001-A`:** Sửa hàm `handleSimulateScan()`, ưu tiên nhận diện và quét đúng giá trị người dùng đang nhập trong ô tìm kiếm (`returnQuery`). Khi ô trống mới tự động lấy phiếu mượn thực tế gần nhất, tuyệt đối không ghi đè thành `BC000001-A`.
+- **Hỗ trợ Tìm kiếm Đa Chiều Toàn diện (Mã sách, Mã vạch, Mã phiếu):**
+  - **Tìm kiếm theo Mã đầu sách gốc:** Người dùng có thể tìm bằng `BC000001` (Call Number bỏ hậu tố copy), hệ thống tự động tìm và khớp các phiếu mượn tương ứng.
+  - **Tìm kiếm theo Mã vạch bản sao cụ thể:** Khớp chính xác `BC000001-B`, `BC000001-A` hoặc duyệt sâu vào mảng `items` của phiếu mượn nhiều cuốn.
+  - **Tìm kiếm theo BookID số, MSSV, Tên bạn đọc và Tên sách:** Mở rộng điều kiện khớp dữ liệu linh hoạt.
+  - **Bổ sung Thanh Gợi Ý Chip Nhanh:** Thêm các nút chip tìm nhanh `🔍 BC000001-B (Cuốn B)`, `📖 BC000001 (Mã sách)`, `🏷️ BC000001-A (Cuốn A)` ngay dưới ô tìm kiếm để thủ thư kiểm tra và thao tác 1 chạm.
+  - **Hiển thị Rõ Ràng Cả Mã Sách và Mã Vạch:** Bổ sung hiển thị trực quan cả Mã vạch (`BC000001-B`) và Mã đầu sách gốc (`BC000001`) trong Thẻ Chi tiết kiểm tra sách hoàn trả.
+
+## [2026-09-29] - Sửa Lỗi Quét Barcode Hoàn Trả & Bổ Sung Nút Xác Nhận Trả Sách
+
+- **Khắc phục Triệt để Luồng Quét Barcode & Tiếp Nhận Trả Sách:**
+  - **Sửa Lỗi Quét Mô phỏng:** Điều chỉnh hàm `handleSimulateScan()` liên kết chính xác với các bản ghi giao dịch thực tế trong bảng (`BC000001-A` / các phiếu đang mượn) thay vì gán mã giả lập `PM-9920` không tồn tại, giúp bảng "CHI TIẾT KIỂM TRA SÁCH HOÀN TRẢ" xuất hiện ngay lập tức sau khi máy đọc barcode quét thành công.
+  - **Bổ sung Nút "Xác nhận hoàn tất trả sách":** Khi sách hoàn trả đúng hạn và không có tiền phạt (`finalFine === 0`), hệ thống hiển thị nút xác nhận trả sách màu xanh lá cây (`.btn-confirm-return`), cho phép thủ thư hoàn tất quy trình lưu thông và cập nhật trạng thái phiếu sang `Đã trả (Đúng hạn)`.
+
+## [2026-09-29] - Ẩn Bảng Kiểm Tra Mặc Định Ban Đầu & Bổ Sung Nút X Xóa Tìm Kiếm Hoàn Trả
+
+- **Tối ưu Trải nghiệm Quầy Lưu thông khi Tìm kiếm & Hoàn trả:**
+  - **Ẩn Bảng Kiểm tra Ban đầu:** Thiết lập trạng thái `selectedTransactionId = null` mặc định khi mở màn hình. Bảng "CHI TIẾT KIỂM TRA SÁCH HOÀN TRẢ" chỉ hiển thị khi thủ thư quét mã vạch/tìm kiếm mã phiếu hoặc click vào một giao dịch cụ thể trên bảng.
+  - **Nút X Xóa Nhanh trong Ô Input:** Bổ sung nút clear `X` bên trong ô nhập mã vạch/mã phiếu, cho phép thủ thư xóa nhanh nội dung tìm kiếm chỉ bằng 1 cú nhấp chuột.
+  - **Nút X Đóng Chi Tiết ở Header:** Bổ sung nút "Đóng / Xóa" trên thanh tiêu đề của card kiểm tra hoàn trả để đóng bảng và đưa màn hình trở về trạng thái trống ban đầu một cách tiện lợi.
+
+## [2026-09-29] - Tối ưu Đồng bộ Động Chi Tiết Kiểm Tra Hoàn Trả & Mã Vạch Kho Thực Tế
+
+- **Đồng bộ Động Chi Tiết Kiểm Tra Hoàn Trả theo Từng Phiếu Mượn của Khách:**
+  - **Tính toán Quá hạn Tự động:** Xây dựng hàm `calculateOverdueDays()` tính toán khoảng cách ngày thực tế giữa `DueDate` và ngày hiện tại. Phiếu mượn còn hạn (như PM-0002) sẽ tự động tích **"Đúng hạn"** với tiền phạt = 0đ; phiếu quá hạn sẽ tự động tích **"Quá hạn (Trễ X ngày)"** và tính tiền phạt chuẩn xác `X * 5.000đ`.
+  - **Đồng bộ State Động:** Bổ sung `useEffect` tự động đồng bộ lại các ô kiểm tra vi phạm (`checks`), chi tiết độc giả và tiền phạt tương ứng mỗi khi người dùng chọn phiếu mượn khác nhau trên bảng giao dịch, loại bỏ hoàn toàn các giá trị gán cứng.
+  - **Cập nhật Mã vạch Thật trong Kho CSDL:** Điều chỉnh các nút chip thử nghiệm sang các mã vạch vật lý khả dụng thực tế (`BC000001-A`, `BC000002-B`, `BC000002-C`, `BC000003-B`), giúp quá trình quét mượn sách diễn ra trơn tru.
+
+## [2026-09-29] - Kết nối Frontend CirculationDesk với Backend API & Tích hợp Dữ liệu Thật SQL Server
+
+- **Kết nối API & Xử lý Giao diện Quầy lưu thông (Story LOLRA-16):**
+  - **Service API Frontend:** Tạo [borrowApi.js](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/borrowApi.js) kết nối trực tiếp các endpoint Backend qua Axios `apiClient` (`createBorrow`, `getRecentBorrows`, `checkEligibility`, `lookupBarcode`).
+  - **Tích hợp [CirculationDesk.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx):**
+    - Tự động nạp danh sách phiếu mượn thực tế từ CSDL SQL Server qua `GET /api/borrows/recent` khi mở màn hình.
+    - Hỗ trợ phím tắt **`F2`** giúp thủ thư nhanh chóng đưa con trỏ chuột vào ô quét thẻ bạn đọc/MSSV.
+    - Xử lý tạo phiếu mượn gọi trực tiếp `POST /api/borrows`: khi thành công cập nhật giao dịch mới vào bảng và thông báo toast xanh; khi bị từ chối mượn (Scenario 2) bắt lỗi HTTP 400 và hiển thị banner cảnh báo đỏ nổi bật (`.borrow-error-banner`) giải thích rõ nguyên nhân từ chối (nợ phạt chưa đóng, thẻ bị khóa, vượt hạn mức 5 cuốn,...).
+    - Bổ sung thanh nút chip chọn nhanh các bạn đọc mẫu kiểm thử (`RD20260001`, `102220184`, `102230045`, `102220412`).
+  - **Tạo & Đồng bộ Dữ liệu mẫu kiểm thử trong CSDL:** Cập nhật [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và [02_seed_dummy_data.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql) tự động nạp các độc giả đại diện cho cả 2 kịch bản thành công và từ chối.
+  - **Bộ style giao diện:** Mở rộng [CirculationDesk.css](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.css) với định dạng cho banner cảnh báo lỗi đỏ từ chối và chip kiểm thử nhanh.
+
+## [2026-09-29] - Triển khai Backend API POST /api/borrows Tạo Phiếu Mượn Bằng Mã Vạch (Story LOLRA-16)
+
+- **Viết API Backend POST /api/borrows & Kiểm tra điều kiện độc giả:**
+  - **DTOs nghiệp vụ mượn sách:** Xây dựng [CreateBorrowRequestDto.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/CreateBorrowRequestDto.cs), [BorrowResponseDto.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/BorrowResponseDto.cs) và [BorrowReaderEligibilityDto.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/BorrowReaderEligibilityDto.cs).
+  - **Interface & Repository:** Xây dựng [IBorrowRepository.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IBorrowRepository.cs) và triển khai tại [BorrowRepository.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/BorrowRepository.cs) hỗ trợ tra cứu thẻ bạn đọc, kiểm tra khoản nợ phạt chưa thanh toán (`FineReceipts` có Status = `Pending`), đếm số sách đang mượn (`BorrowingDetails` có ItemStatus = `Borrowed` & ReturnDate = `null`), nạp thông tin bản sao theo mã vạch Barcode Code 128.
+  - **SQL Server Transaction an toàn (Scenario 1):** Triển khai `ExecutionStrategy` và `BeginTransactionAsync()` đảm bảo tính toàn vẹn ACID khi đồng thời chèn bản ghi vào bảng `Borrowings`, ghi nhận danh sách chi tiết vào `BorrowingDetails`, và cập nhật trạng thái các bản sao sách `BookCopies.Status` từ `Available` sang `Borrowed`.
+  - **Kiểm soát chặt chẽ quy tắc từ chối mượn sách (Scenario 2):** Xây dựng [BorrowService.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs) với các lớp bảo vệ trả về HTTP 400 Bad Request kèm lý do chi tiết khi: thẻ bạn đọc bị khóa hoặc hết hạn; độc giả đang có tiền phạt chưa thanh toán; số sách yêu cầu vượt quá hạn mức tối đa (mặc định 5 cuốn đối với sinh viên); mã vạch không tồn tại hoặc bản sao sách đang ở trạng thái không khả dụng/đầu sách ngưng lưu thông.
+  - **Controller & Endpoints:** Xây dựng [BorrowsController.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs) cung cấp các endpoint `POST /api/borrows`, `GET /api/borrows/eligibility/{readerCode}`, `GET /api/borrows/{id}` và `GET /api/borrows/recent`. Đăng ký DI trong [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+
 ## [2026-09-24] - Hoàn thiện 5 Tiêu chí chấp nhận (AC1 - AC5) Phân hệ Tra cứu & Quản lý Sách
 
 - **AC1: Tìm kiếm từ khóa linh hoạt (Không phân biệt hoa/thường & có dấu/không dấu):**

@@ -20,9 +20,11 @@ builder.Services.AddDbContext<SmartLibDbContext>(options =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IBorrowRepository, BorrowRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IBorrowService, BorrowService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -194,6 +196,64 @@ using (var scope = app.Services.CreateScope())
                 IsActive = true
             });
             await context.SaveChangesAsync();
+        }
+
+        // Tự động nạp độc giả mẫu đại diện nếu bảng Readers còn trống
+        if (!await context.Readers.AnyAsync(r => r.ReaderCode == "102220184"))
+        {
+            var userMinh = new SmartLibAI.Core.Entities.User
+            {
+                RoleID = 3,
+                Username = "102220184",
+                PasswordHash = "$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6",
+                FullName = "Nguyễn Văn Minh",
+                Email = "minhnv@smartlib.edu.vn",
+                IsActive = true
+            };
+            await context.Users.AddAsync(userMinh);
+            await context.SaveChangesAsync();
+
+            await context.Readers.AddAsync(new SmartLibAI.Core.Entities.Reader
+            {
+                UserID = userMinh.UserID,
+                ReaderCode = "102220184",
+                MemberType = "Standard",
+                ExpiryDate = DateTime.UtcNow.AddYears(1),
+                CreditScore = 85
+            });
+            await context.SaveChangesAsync();
+        }
+
+        // Tự động seed phiếu mượn mẫu cho cuốn BC000001-B (Bản sao B) phục vụ kiểm thử lưu thông hoàn trả
+        var readerMinh = await context.Readers.Include(r => r.User).FirstOrDefaultAsync(r => r.ReaderCode == "102220184");
+        var copyB = await context.BookCopies.FirstOrDefaultAsync(c => c.Barcode == "BC000001-B");
+        if (readerMinh != null && copyB != null)
+        {
+            var hasBorrowB = await context.BorrowingDetails.AnyAsync(bd => bd.CopyID == copyB.CopyID && bd.ItemStatus == "Borrowed");
+            if (!hasBorrowB)
+            {
+                var adminUser = await context.Users.FirstOrDefaultAsync(u => u.RoleID == 1 || u.RoleID == 2) ?? readerMinh.User;
+                var borrowMinh = new SmartLibAI.Core.Entities.Borrowing
+                {
+                    ReaderID = readerMinh.ReaderID,
+                    LibrarianID = adminUser.UserID,
+                    BorrowDate = DateTime.UtcNow.AddDays(-15),
+                    DueDate = DateTime.UtcNow.AddDays(-5),
+                    Status = "Overdue"
+                };
+                await context.Borrowings.AddAsync(borrowMinh);
+                await context.SaveChangesAsync();
+
+                var detailB = new SmartLibAI.Core.Entities.BorrowingDetail
+                {
+                    BorrowingID = borrowMinh.BorrowingID,
+                    CopyID = copyB.CopyID,
+                    ItemStatus = "Borrowed"
+                };
+                await context.BorrowingDetails.AddAsync(detailB);
+                copyB.Status = "Borrowed";
+                await context.SaveChangesAsync();
+            }
         }
 
         logger.LogInformation("SmartLib AI: Kiểm tra CSDL và Seeding tự động thành công!");
