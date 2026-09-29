@@ -121,10 +121,59 @@
   pointer-events: none;
 }
 
+/* Nút quét mã bên trái trong ô input */
+.input-prefix-scan-btn {
+  position: absolute;
+  left: 6px;
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  z-index: 2;
+  transition: all 0.15s ease;
+}
+
+.input-prefix-scan-btn:hover {
+  color: #1d4ed8;
+  background-color: #eff6ff;
+  transform: scale(1.1);
+}
+
+.input-prefix-scan-btn:active {
+  transform: scale(0.95);
+}
+
+/* Nút xóa nhanh nội dung bên phải */
+.input-clear-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  z-index: 2;
+  transition: all 0.15s ease;
+}
+
+.input-clear-btn:hover {
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
 .form-control {
   width: 100%;
   height: 38px;
-  padding: 0 12px 0 36px;
+  padding: 0 32px 0 38px;
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -877,3 +926,563 @@
   padding: 2px 6px;
   letter-spacing: -0.2px;
 }
+
+/* ==========================================================================
+   CẢNH BÁO TỪ CHỐI MƯỢN SÁCH (SCENARIO 2 - AC STORY LOLRA-16)
+   ========================================================================== */
+.borrow-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: #fff1f2;
+  border: 1.5px solid #f87171;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 2px;
+  margin-bottom: 4px;
+  animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.borrow-error-banner .error-icon {
+  color: #e11d48;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.borrow-error-banner .error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.borrow-error-banner .error-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #9f1239;
+  letter-spacing: 0.2px;
+}
+
+.borrow-error-banner .error-desc {
+  font-size: 12.5px;
+  color: #be123c;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.borrow-error-banner .error-dismiss-btn {
+  background: none;
+  border: none;
+  color: #f43f5e;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.borrow-error-banner .error-dismiss-btn:hover {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+
+/* Thanh thử nghiệm nhanh kịch bản */
+.quick-test-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0 2px;
+}
+
+.quick-test-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.test-chip {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.test-chip:hover {
+  transform: translateY(-1px);
+}
+
+.test-chip.chip-success {
+  background-color: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.test-chip.chip-success:hover {
+  background-color: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.test-chip.chip-danger {
+  background-color: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+
+.test-chip.chip-danger:hover {
+  background-color: #ffe4e6;
+  border-color: #fda4af;
+}
+
+.test-chip.chip-neutral {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.test-chip.chip-neutral:hover {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.input-icon.search-clickable {
+  transition: all 0.15s ease;
+}
+
+.input-icon.search-clickable:hover {
+  color: #2563eb !important;
+  transform: scale(1.15);
+}
+
+/* Hiệu ứng xoay tròn */
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Nút X xóa nhanh trong ô input tìm kiếm */
+.input-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.input-clear-btn:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+/* Nút X/Đóng chi tiết hoàn trả ở card header */
+.btn-close-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-close-detail:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+/* Hiệu ứng xuất hiện mượt mà cho card chi tiết */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Nút Xác nhận hoàn tất trả sách (Xanh lá thành công) */
+.btn-confirm-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-confirm-return:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
+   MODAL MÁY QUÉT MÃ VẠCH (BARCODE SCANNER) - ĐỒNG BỘ TỪ CATALOG
+   ========================================================================== */
+.scanner-dialog-modal {
+  max-width: 520px;
+  width: 95%;
+}
+
+.scanner-header-icon {
+  color: #ef4444;
+}
+
+.scanner-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 24px;
+}
+
+.scanner-viewport-box {
+  position: relative;
+  height: 145px;
+  background-color: #0f172a;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.scanner-viewport-box:hover {
+  border-color: #3b82f6;
+  background-color: #0d1527;
+}
+
+.scanner-viewport-box.is-dragover {
+  border-color: #3b82f6 !important;
+  background-color: #0b1329 !important;
+  box-shadow: inset 0 0 24px rgba(59, 130, 246, 0.35);
+}
+
+.scanner-viewport-box.is-decoding {
+  cursor: wait;
+}
+
+.scanner-preview-image {
+  position: absolute;
+  max-width: 82%;
+  max-height: 82%;
+  object-fit: contain;
+  border-radius: 6px;
+  opacity: 0.65;
+  z-index: 1;
+  filter: contrast(1.1);
+  pointer-events: none;
+}
+
+.scanner-target-reticle {
+  position: relative;
+  width: 220px;
+  height: 70px;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.reticle-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: #ef4444;
+  border-style: solid;
+}
+
+.corner-tl { top: -2px; left: -2px; border-width: 2.5px 0 0 2.5px; }
+.corner-tr { top: -2px; right: -2px; border-width: 2.5px 2.5px 0 0; }
+.corner-bl { bottom: -2px; left: -2px; border-width: 0 0 2.5px 2.5px; }
+.corner-br { bottom: -2px; right: -2px; border-width: 0 2.5px 2.5px 0; }
+
+@keyframes laserScan {
+  0% { top: 6px; opacity: 0.8; }
+  50% { top: calc(100% - 6px); opacity: 1; }
+  100% { top: 6px; opacity: 0.8; }
+}
+
+.laser-scan-line {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ef4444, #f87171, #ef4444, transparent);
+  box-shadow: 0 0 8px #ef4444;
+  animation: laserScan 2s infinite ease-in-out;
+  z-index: 2;
+}
+
+.scanner-status-text {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  margin-top: 10px;
+  z-index: 3;
+  text-align: center;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+/* Thanh công cụ: Nút tải ảnh và gợi ý dán ảnh Clipboard */
+.scanner-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: -4px;
+  margin-bottom: 2px;
+}
+
+.btn-upload-scanner-img {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+}
+
+.btn-upload-scanner-img:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border-color: #60a5fa;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.18);
+}
+
+.btn-upload-scanner-img:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scanner-toolbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-reset-scanner-img {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-scanner-img:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.btn-clear-scanner-preview {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-scanner-preview:hover {
+  background-color: #ef4444;
+  border-color: #ef4444;
+  transform: scale(1.1);
+}
+
+.scanner-paste-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scanner-paste-hint kbd {
+  display: inline-block;
+  padding: 2px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, Consolas, monospace;
+  background: #f8fafc;
+  color: #1e40af;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.scanner-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.scanner-text-field {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  outline: none;
+}
+
+.scanner-text-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.btn-scanner-submit {
+  padding: 10px 18px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-scanner-submit:hover {
+  background-color: #1d4ed8;
+}
+
+.quick-test-barcodes {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.quick-test-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.quick-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-quick-chip {
+  padding: 3px 8px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-chip:hover {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.btn-modal-cancel {
+  padding: 8px 16px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-modal-cancel:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
