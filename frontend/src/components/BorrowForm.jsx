@@ -32,15 +32,165 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
   const [readerCode, setReaderCode] = useState('');
   const [currentBookBarcode, setCurrentBookBarcode] = useState('');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
-  const [dueDate, setDueDate] = useState(() => {
-    // Mặc định ngày hẹn trả sau 14 ngày (định dạng DD/MM/YYYY)
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
+  // Xác định ngày hôm nay theo hệ thống (chuẩn hóa 00:00:00)
+  const getToday = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  };
+
+  // Định dạng ngày sang DD/MM/YYYY
+  const formatDateToVn = (d) => {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
+  };
+
+  // Định dạng ngày sang YYYY-MM-DD (dùng cho thuộc tính min của date picker)
+  const formatDateToIso = (d) => {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = getToday();
+  const todayStr = formatDateToVn(today);
+  const todayIso = formatDateToIso(today);
+
+  // Hạn mức và loại đối tượng bạn đọc động (Sinh viên tối đa 5 cuốn, Giảng viên tối đa 10 cuốn)
+  const [maxBorrowLimit, setMaxBorrowLimit] = useState(5);
+  const [memberType, setMemberType] = useState('Student');
+  const [readerInfo, setReaderInfo] = useState(null);
+  const [isLoadingReader, setIsLoadingReader] = useState(false);
+
+  // Mặc định ngày hẹn trả sau 14 ngày (chuẩn 2 tuần)
+  const [dueDate, setDueDate] = useState(() => {
+    const d = getToday();
+    d.setDate(d.getDate() + 14);
+    return formatDateToVn(d);
   });
+  const [dueDateError, setDueDateError] = useState('');
+  const datePickerInputRef = useRef(null);
+
+  // Parse chuỗi DD/MM/YYYY sang Date object
+  const parseVnDateToObj = (str) => {
+    if (!str) return null;
+    const parts = str.trim().split('/');
+    if (parts.length === 3) {
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+        const obj = new Date(y, m, d);
+        if (obj.getFullYear() === y && obj.getMonth() === m && obj.getDate() === d) {
+          return obj;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Tính số ngày chênh lệch giữa hạn trả đang chọn và hôm nay để highlight chính xác chip thời hạn (+7, +14, +30 ngày)
+  const getDiffDaysFromToday = (dateStr) => {
+    const dateObj = parseVnDateToObj(dateStr);
+    if (!dateObj) return null;
+    const todayMidnight = getToday();
+    const diffTime = dateObj.getTime() - todayMidnight.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const activeQuickDays = getDiffDaysFromToday(dueDate);
+
+  // Lấy chuỗi YYYY-MM-DD từ dueDate để đồng bộ vào picker
+  const getIsoFromDueDate = (str) => {
+    const obj = parseVnDateToObj(str);
+    return obj ? formatDateToIso(obj) : '';
+  };
+
+  // Hàm kiểm tra hợp lệ hạn trả dự kiến (phải đúng định dạng dd/mm/yyyy và KHÔNG được trong quá khứ)
+  const validateDueDate = (str) => {
+    if (!str || !str.trim()) {
+      return 'Vui lòng nhập hoặc chọn Hạn trả dự kiến!';
+    }
+    const trimmed = str.trim();
+    const regex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+    if (!regex.test(trimmed)) {
+      return 'Hạn trả dự kiến phải có định dạng dd/mm/yyyy (ví dụ: 14/10/2026)!';
+    }
+    const dateObj = parseVnDateToObj(trimmed);
+    if (!dateObj) {
+      return 'Ngày/tháng/năm không hợp lệ trong lịch thực tế!';
+    }
+    const todayMidnight = getToday();
+    if (dateObj.getTime() < todayMidnight.getTime()) {
+      return `⚠️ Hạn trả không được ở trong quá khứ! Phải từ hôm nay (${todayStr}) trở đi.`;
+    }
+    return '';
+  };
+
+  // Xử lý khi chọn ngày từ Hộp thoại lịch (Native Date Picker)
+  const handleDatePickerChange = (e) => {
+    const val = e.target.value; // YYYY-MM-DD
+    if (!val) return;
+    const [y, m, d] = val.split('-');
+    const newVnStr = `${d}/${m}/${y}`;
+    setDueDate(newVnStr);
+    setDueDateError('');
+  };
+
+  // Nút chọn nhanh thời hạn: +7 ngày, +14 ngày (chuẩn), +30 ngày
+  const handleQuickDueDate = (days) => {
+    const d = getToday();
+    d.setDate(d.getDate() + days);
+    const newStr = formatDateToVn(d);
+    setDueDate(newStr);
+    setDueDateError('');
+  };
+
+  // Kiểm tra tư cách độc giả và cập nhật hạn mức động theo đối tượng (Sinh viên / Giảng viên)
+  const checkReaderEligibility = async (code) => {
+    const clean = (code !== undefined ? code : readerCode).trim();
+    if (!clean) {
+      setReaderInfo(null);
+      setMaxBorrowLimit(5);
+      setMemberType('Student');
+      return;
+    }
+
+    setIsLoadingReader(true);
+    try {
+      const res = await borrowApi.checkEligibility(clean);
+      if (res && res.success && res.data) {
+        const data = res.data;
+        setReaderInfo(data);
+        const isLecturer = data.memberType === 'Lecturer';
+        const limit = data.maxBorrowLimit || (isLecturer ? 10 : 5);
+        setMaxBorrowLimit(limit);
+        setMemberType(data.memberType || 'Student');
+
+        // Nếu là Giảng viên và thời hạn đang là 14 ngày mặc định, tự động gợi ý sang 30 ngày chuẩn
+        if (isLecturer && activeQuickDays === 14) {
+          handleQuickDueDate(30);
+        }
+
+        if (!data.canBorrow) {
+          const reason = data.rejectionReason || 'Độc giả không đủ điều kiện mượn sách!';
+          setBorrowError(reason);
+          if (showToast) showToast(`⚠️ ${reason}`);
+        } else {
+          setBorrowError('');
+          if (showToast) {
+            showToast(`👤 Độc giả: ${data.fullName} [${isLecturer ? 'Giảng viên (Tối đa 10 cuốn)' : 'Sinh viên (Tối đa 5 cuốn)'}]`);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Không kiểm tra được tư cách bạn đọc qua API:', err);
+    } finally {
+      setIsLoadingReader(false);
+    }
+  };
 
   // Trạng thái xử lý và cảnh báo
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,9 +238,9 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
       return;
     }
 
-    if (selectedBarcodes.length >= 5) {
-      setBorrowError('Hệ thống chỉ cho phép mượn tối đa 5 cuốn sách trong một phiếu (Scenario 1 & 2).');
-      if (showToast) showToast('⚠️ Đã đạt hạn mức tối đa 5 cuốn sách!');
+    if (selectedBarcodes.length >= maxBorrowLimit) {
+      setBorrowError(`Hệ thống chỉ cho phép mượn tối đa ${maxBorrowLimit} cuốn sách trong một phiếu (${memberType === 'Lecturer' ? 'Giảng viên' : 'Sinh viên'}).`);
+      if (showToast) showToast(`⚠️ Đã đạt hạn mức tối đa ${maxBorrowLimit} cuốn sách!`);
       return;
     }
 
@@ -136,7 +286,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
         showToast(
           `➕ Đã thêm cuốn sách [${copyData.barcode}] - "${copyData.bookTitle}" vào phiếu mượn (${
             selectedBarcodes.length + 1
-          }/5)`
+          }/${maxBorrowLimit})`
         );
       }
     } catch (err) {
@@ -176,6 +326,9 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
       setBorrowError('');
       if (showToast) showToast(`⚡ Đã quét mã thẻ độc giả: ${cleanCode}`);
 
+      // Kiểm tra ngay tư cách độc giả và cập nhật hạn mức động
+      checkReaderEligibility(cleanCode);
+
       // Quy trình quét liên hoàn: Tự động focus sang ô Mã vạch sách
       setTimeout(() => {
         const bookInput = document.getElementById(bookCodeInputId);
@@ -213,6 +366,16 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
       return;
     }
 
+    // Kiểm tra tính hợp lệ của Hạn trả dự kiến (định dạng dd/mm/yyyy và không được trong quá khứ)
+    const dateErr = validateDueDate(dueDate);
+    if (dateErr) {
+      setDueDateError(dateErr);
+      setBorrowError(dateErr);
+      if (showToast) showToast(`❌ ${dateErr}`);
+      document.getElementById(dueDateInputId)?.focus();
+      return;
+    }
+
     // Lấy danh sách mã vạch hợp lệ từ danh sách đã so khớp CSDL
     let barcodesToSubmit = selectedBarcodes.map((b) => (typeof b === 'string' ? b : b.barcode));
 
@@ -222,8 +385,8 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
       return;
     }
 
-    if (barcodesToSubmit.length > 5) {
-      setBorrowError('Số sách yêu cầu vượt quá hạn mức tối đa 5 cuốn (Scenario 2).');
+    if (barcodesToSubmit.length > maxBorrowLimit) {
+      setBorrowError(`Số sách yêu cầu vượt quá hạn mức tối đa ${maxBorrowLimit} cuốn (${memberType === 'Lecturer' ? 'Giảng viên' : 'Sinh viên'}).`);
       return;
     }
 
@@ -282,9 +445,19 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
       <form onSubmit={handleSubmit} className="card-form">
         {/* Nhập Mã độc giả / MSSV */}
         <div className="form-group">
-          <label htmlFor={readerInputId} className="form-label">
-            Mã độc giả / MSSV <span className="hotkey-badge" title="Nhấn F2 để quét nhanh">[F2]</span>
-          </label>
+          <div className="form-label-with-badge">
+            <label htmlFor={readerInputId} className="form-label">
+              Mã độc giả / MSSV <span className="hotkey-badge" title="Nhấn F2 để quét nhanh">[F2]</span>
+            </label>
+            {readerInfo && (
+              <span className={`reader-member-badge ${memberType === 'Lecturer' ? 'badge-lecturer' : 'badge-student'}`}>
+                {memberType === 'Lecturer' ? '👨‍🏫 Giảng viên (Tối đa 10 cuốn)' : '🎓 Sinh viên (Tối đa 5 cuốn)'}
+              </span>
+            )}
+            {isLoadingReader && (
+              <Loader2 size={13} className="spin-icon" style={{ color: '#2563eb', marginLeft: '6px' }} />
+            )}
+          </div>
           <div className="input-with-icon">
             <button
               type="button"
@@ -300,13 +473,33 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
               className="form-control"
               placeholder="Quét mã vạch thẻ hoặc nhập MSSV..."
               value={readerCode}
-              onChange={(e) => setReaderCode(e.target.value)}
+              onChange={(e) => {
+                setReaderCode(e.target.value);
+                if (!e.target.value.trim()) {
+                  setReaderInfo(null);
+                  setMaxBorrowLimit(5);
+                  setMemberType('Student');
+                }
+              }}
+              onBlur={() => checkReaderEligibility(readerCode)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  checkReaderEligibility(readerCode);
+                  document.getElementById(bookCodeInputId)?.focus();
+                }
+              }}
             />
             {readerCode && (
               <button
                 type="button"
                 className="input-clear-btn"
-                onClick={() => setReaderCode('')}
+                onClick={() => {
+                  setReaderCode('');
+                  setReaderInfo(null);
+                  setMaxBorrowLimit(5);
+                  setMemberType('Student');
+                }}
                 title="Xóa mã độc giả"
               >
                 <X size={14} />
@@ -319,7 +512,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
         <div className="form-two-cols">
           <div className="form-group">
             <label htmlFor={bookCodeInputId} className="form-label">
-              Mã vạch sách ({selectedBarcodes.length}/5 cuốn)
+              Mã vạch sách ({selectedBarcodes.length}/{maxBorrowLimit} cuốn)
             </label>
             <div className="input-with-icon">
               <button
@@ -360,20 +553,111 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor={dueDateInputId} className="form-label">
-              Hạn trả dự kiến
-            </label>
-            <div className="input-with-icon">
-              <Calendar size={16} className="input-icon" />
+          <div className="form-group due-date-form-group">
+            <div className="due-date-header-row">
+              <label htmlFor={dueDateInputId} className="form-label">
+                Hạn trả dự kiến
+              </label>
+              <span className="today-indicator-tag" title="Ngày hiện tại theo thời gian thực hệ thống">
+                📅 Hôm nay: <strong>{todayStr}</strong>
+              </span>
+            </div>
+
+            <div className={`input-with-icon due-date-input-wrap ${dueDateError ? 'has-error' : ''}`}>
+              <button
+                type="button"
+                className="input-prefix-scan-btn calendar-trigger-btn"
+                title="Nhấn để mở Hộp thoại lịch (Date Picker) - Không cho phép chọn ngày quá khứ"
+                onClick={() => {
+                  if (datePickerInputRef.current?.showPicker) {
+                    datePickerInputRef.current.showPicker();
+                  } else {
+                    datePickerInputRef.current?.focus();
+                  }
+                }}
+              >
+                <Calendar size={16} />
+              </button>
+
               <input
                 id={dueDateInputId}
                 type="text"
-                className="form-control"
-                placeholder="DD/MM/YYYY"
+                className={`form-control ${dueDateError ? 'input-error-border' : ''}`}
+                placeholder="dd/mm/yyyy"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  if (dueDateError) setDueDateError('');
+                }}
+                onBlur={(e) => {
+                  const err = validateDueDate(e.target.value);
+                  setDueDateError(err);
+                }}
               />
+
+              {/* Hộp thoại Date Picker HTML5 với thuộc tính min={todayIso} để khóa 100% các ngày trong quá khứ */}
+              <input
+                ref={datePickerInputRef}
+                type="date"
+                min={todayIso}
+                value={getIsoFromDueDate(dueDate)}
+                onChange={handleDatePickerChange}
+                className="native-hidden-date-picker"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+
+              <button
+                type="button"
+                className="btn-open-calendar-pill"
+                onClick={() => {
+                  if (datePickerInputRef.current?.showPicker) {
+                    datePickerInputRef.current.showPicker();
+                  } else {
+                    datePickerInputRef.current?.focus();
+                  }
+                }}
+                title="Mở hộp thoại lịch"
+              >
+                Chọn lịch
+              </button>
+            </div>
+
+            {/* Thông báo lỗi nếu chọn hoặc nhập ngày trong quá khứ */}
+            {dueDateError && (
+              <div className="due-date-alert-msg">
+                <AlertTriangle size={13} className="alert-inline-icon" />
+                <span>{dueDateError}</span>
+              </div>
+            )}
+
+            {/* Thanh chọn nhanh số ngày thời hạn mượn */}
+            <div className="quick-due-chips-bar">
+              <span className="quick-due-title">Thời hạn:</span>
+              <button
+                type="button"
+                className={`quick-due-chip ${activeQuickDays === 7 ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(7)}
+                title="Mượn 7 ngày (1 tuần)"
+              >
+                +7 ngày
+              </button>
+              <button
+                type="button"
+                className={`quick-due-chip ${activeQuickDays === 14 ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(14)}
+                title="Mượn 14 ngày (Chuẩn sinh viên 2 tuần)"
+              >
+                +14 ngày {memberType !== 'Lecturer' ? '(Chuẩn)' : ''}
+              </button>
+              <button
+                type="button"
+                className={`quick-due-chip ${activeQuickDays === 30 ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(30)}
+                title="Mượn 30 ngày (1 tháng - Chuẩn giảng viên)"
+              >
+                +30 ngày {memberType === 'Lecturer' ? '(Chuẩn)' : ''}
+              </button>
             </div>
           </div>
         </div>
@@ -383,7 +667,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
           <div className="selected-barcodes-box">
             <div className="selected-barcodes-header">
               <span className="selected-barcodes-title">
-                Sách sẽ mượn ({selectedBarcodes.length}/5 cuốn):
+                Sách sẽ mượn ({selectedBarcodes.length}/{maxBorrowLimit} cuốn):
               </span>
               <button
                 type="button"
@@ -444,6 +728,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
               setReaderCode('RD20260001');
               setSelectedBarcodes([]);
               setBorrowError('');
+              await checkReaderEligibility('RD20260001');
               await handleAddBarcodeToList('BC000001-C');
             }}
           >
@@ -457,6 +742,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
               setReaderCode('102220184');
               setSelectedBarcodes([]);
               setBorrowError('');
+              await checkReaderEligibility('102220184');
               await handleAddBarcodeToList('BC000002-B');
             }}
           >
@@ -470,6 +756,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
               setReaderCode('102230045');
               setSelectedBarcodes([]);
               setBorrowError('');
+              await checkReaderEligibility('102230045');
               await handleAddBarcodeToList('BC000013-A');
             }}
           >
@@ -483,6 +770,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
               setReaderCode('102220412');
               setSelectedBarcodes([]);
               setBorrowError('');
+              await checkReaderEligibility('102220412');
               await handleAddBarcodeToList('BC000001-C');
             }}
           >

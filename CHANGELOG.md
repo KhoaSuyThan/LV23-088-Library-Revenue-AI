@@ -6,43 +6,28 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
-## [2026-09-30] - Biểu Mẫu Hành Chính Phiếu Mượn & Phiếu Trả Sách Chuẩn A4, Xuất Tệp PDF & In Trực Tiếp
+## [2026-09-30] - Nâng Cấp Toàn Diện Quầy Lưu Thông: Hoàn Trả Rải Rác (LOLRA-17), Hạn Mức Mượn Động, In Phiếu A4 & Tối Ưu Máy Quét
 
-- **Biểu Mẫu Hành Chính Chuẩn Văn Bản Thư Viện ([`CirculationReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), [`CirculationReceiptModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css)):**
-  - **Khớp 100% Mẫu Văn Bản Hành Chính:** Thiết kế chuẩn trang giấy A4 (phông chữ Times New Roman trang trọng) bao gồm đầy đủ Quốc hiệu, Tiêu ngữ, Tiêu đề Phiếu (**PHIẾU MƯỢN SÁCH** / **PHIẾU TRẢ SÁCH**), Số phiếu, Thông tin bạn đọc (Họ tên, Mã bạn đọc, Khoa/Lớp), Bảng kê tài liệu chi tiết (STT, Tên sách, Tác giả, Mã vạch, Hạn trả/Ngày trả, Ghi chú), Điều khoản quy định mượn/trả sách, và Khu vực chữ ký xác nhận của Người mượn/trả và Thủ thư phụ trách.
-  - **Hỗ Trợ Đầy Đủ 2 Chế Độ Phiếu:**
-    - `type="borrow"`: Phiếu mượn sách mới với danh sách tài liệu và ngày hẹn hoàn trả.
-    - `type="return"`: Phiếu trả sách với ngày trả thực tế, tình trạng tài liệu, xác nhận đúng hạn hoặc ghi nhận thông tin đã thu phí phạt vi phạm.
-  - **In Trực Tiếp Chuẩn A4:** Tích hợp nút **"In trực tiếp (Print)"** kích hoạt `window.print()` với định dạng `@media print` ẩn khung viền ứng dụng, chỉ in đúng khổ giấy A4 sạch đẹp.
-  - **Xuất File PDF Chất Lượng Cao:** Tích hợp nút **"Tải tệp PDF (A4)"** sử dụng bộ đôi `html2canvas` (scale 2x siêu nét) và `jsPDF` (`p`, `mm`, `a4`), bảo đảm giữ nguyên định dạng tiếng Việt có dấu 100% không bị vỡ hạt hay lỗi font chữ.
-- **Tích Hợp Luồng Mượn / Trả Sách & Bảng Giao Dịch ([`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), [`CirculationDesk.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.css)):**
-  - **Tự Động Mở Phiếu Mượn Sau Khi Tạo Phiếu:** Ngay khi thủ thư xác nhận tạo phiếu mượn mới trên `BorrowForm`, hệ thống tự động mở Modal xem trước Phiếu mượn sách để thủ thư in hoặc xuất PDF giao cho bạn đọc.
-  - **Tự Động Mở Phiếu Trả Sau Khi Hoàn Tất:** Khi thủ thư tiếp nhận trả sách thành công (dù là trả đúng hạn miễn phí hay đã thu tiền phạt vi phạm), hệ thống tự động hiển thị Modal Phiếu trả sách tương ứng.
-  - **Xem Trước Phiếu Trả Sách Trước Khi Hoàn Tất:** Thêm nút **"Xem trước phiếu trả"** ngay tại khung kiểm tra vi phạm hoàn trả.
-  - **Cột Thao Tác [Phiếu in] Trên Bảng Giao Dịch Trong Ngày:** Bổ sung nút bấm **"Phiếu mượn / Phiếu trả"** trên từng dòng giao dịch để thủ thư có thể xem lại và in lại phiếu bất kỳ lúc nào.
+- **Tiếp Nhận Sách Trả Rải Rác & Xử Lý Vi Phạm (Story LOLRA-17):**
+  - **Backend API (.NET Core & SQL Server):** Triển khai [`ReturnsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`ReturnService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs) và các DTOs ([`ReturnBookRequestDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookRequestDto.cs), [`ReturnBookResponseDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs)). Cung cấp 2 endpoints RESTful: `GET /api/returns/lookup/{barcodeOrCode}` và `POST /api/returns/process-item`.
+  - **Logic Hoàn Trả & Phạt:** Trả sách hợp lệ tự động tăng `AvailableCopies + 1`, đổi trạng thái bản sao `Available` và đóng phiếu `Returned` khi trả đủ. Trả sách sự cố (hỏng bìa, mất sách, trễ hạn) đánh dấu `Damaged`/`Lost` (không nhập kho), tự động tính tiền phạt vi phạm và kích hoạt tạo biên lai thu phạt điện tử.
+  - **Frontend:** Xây dựng component độc lập [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`ReturnProcessing.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.css) tích hợp tính phạt động, miễn giảm phạt và modal thu tiền.
 
-## [2026-09-30] - Khắc Phục Lấy Nét Camera, Bổ Sung Macro Zoom Kỹ Thuật Số & Nâng Cấp BinaryBitmap ZXing
+- **Nâng Cấp Hạn Mức Mượn Động & Chuẩn Hóa Thời Hạn Mượn ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`BorrowForm.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.css)):**
+  - **Hạn Mức Động Theo Đối Tượng:** Đồng bộ với Backend theo quy định: Sinh viên mượn tối đa 5 cuốn (chuẩn 14 ngày), Giảng viên mượn tối đa 10 cuốn (chuẩn 30 ngày).
+  - **Nhận Diện Tư Cách Bạn Đọc:** Tự động gọi API `GET /api/borrows/eligibility/{readerCode}` khi quét/nhập mã bạn đọc; hiển thị badge đối tượng trực quan.
+  - **Sửa Lỗi Highlight Nút Thời Hạn:** Bỏ màu xanh cố định ở nút 14 ngày; kích hoạt `chip-active` động chính xác theo số ngày chênh lệch thực tế (+7, +14, +30 ngày) so với ngày hiện tại hôm nay.
+  - **Tối Ưu Form Mượn & Phím Tắt:** Tách form thành component độc lập, bổ sung phím tắt `F2` focus nhanh ô mã thẻ và cơ chế quét liên hoàn từ thẻ sang sách.
 
-- **Khắc Phục Lỗi Lấy Nét (Focus) Ở Cự Ly Gần ([`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx)):**
-  - **Tích Hợp Digital Macro Zoom (1x, 1.5x, 2x):** Bổ sung cụm nút chọn mức thu phóng kỹ thuật số giúp thủ thư đưa điện thoại hoặc sách ở khoảng cách tiêu cự chuẩn (30 - 45cm) để camera lấy nét sắc nét nhất mà không bị nhòe mờ vạch, trong khi hình ảnh mã vạch vẫn được phóng to chiếm trọn khung ngắm đỏ.
-  - **Tối Ưu Hóa MultiFormatReader & BinaryBitmap Chuẩn:** Thay thế `BrowserCodeReader.decode(canvas)` (vốn bị lỗi ngầm `naturalWidth: undefined`) bằng pipeline giải mã gốc `HTMLCanvasElementLuminanceSource` -> `HybridBinarizer` -> `BinaryBitmap` -> `MultiFormatReader.decode()`, đảm bảo phân tích pixel chính xác tuyệt đối trên mọi trình duyệt.
-  - **Vòng Lặp Quét Đa Tầng:** Quét đồng thời cả vùng trung tâm phóng to (Center Crop ROI) và toàn khung hình (Full Frame) ở cả 2 chiều (chiều xuôi và chiều lật ngược).
-  - **Cập Nhật Dòng Hướng Dẫn Trực Quan:** Bổ sung mẹo lấy nét khoảng cách và xoay vòng ren ống kính webcam USB.
+- **Biểu Mẫu Hành Chính Phiếu Mượn & Phiếu Trả Chuẩn A4 ([`CirculationReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), [`CirculationReceiptModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css)):**
+  - **Thiết Kế Văn Bản Chuẩn Quốc Gia:** Đầy đủ Quốc hiệu, Tiêu ngữ, bảng kê danh mục sách mượn/trả, tình trạng tài liệu, xác nhận thu phạt và chữ ký 2 bên.
+  - **In & Xuất Tệp PDF:** Hỗ trợ in trực tiếp khổ A4 (`window.print()`) và xuất file PDF chất lượng cao (html2canvas scale 2x + jsPDF), đảm bảo tiếng Việt chuẩn sắc nét.
+  - **Tự Động Mở Phiếu:** Mở xem trước phiếu ngay sau khi tạo phiếu mượn hoặc tiếp nhận trả sách; thêm nút xem/in lại phiếu trên từng dòng bảng giao dịch trong ngày tại [`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx).
 
-
-- **Component Hóa Form Mượn Sách ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx)):**
-  - **Tách Component Độc Lập:** Tách toàn bộ logic và giao diện tạo phiếu mượn sách từ `CirculationDesk.jsx` sang component tái sử dụng `BorrowForm.jsx` và file định kiểu [`BorrowForm.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.css).
-  - **Phím Tắt F2 Linh Hoạt:** Bắt sự kiện bàn phím toàn cục `F2` để tự động focus trỏ chuột vào ô quét thẻ bạn đọc/MSSV kèm âm thanh/thông báo sẵn sàng quét.
-  - **Mượn Sách Nhiều Bản Sao (Tối đa 5 cuốn - Scenario 1):** Hỗ trợ thủ thư quét liên tiếp nhiều mã vạch sách (Barcode Code 128) vào danh sách tạm trên form, hiển thị trực quan các thẻ chip mã sách kèm nút xóa từng cuốn hoặc xóa tất cả.
-  - **Cảnh Báo Từ Chối Mượn Sách (Scenario 2):** Hiển thị banner cảnh báo đỏ nổi bật khi vi phạm điều kiện mượn (độc giả nợ phạt chưa thanh toán, thẻ bị khóa, đạt tối đa 5 cuốn, sách không khả dụng) và giữ nguyên kho sách.
-- **Nâng Cấp Máy Quét Camera Trực Tiếp ([`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx)):**
-  - **Đồng Bộ Giao Diện Hợp Nhất 1 Tab (Chuẩn Catalog):** Gộp chung luồng Camera và Tải/Dán ảnh trên cùng 1 màn hình duy nhất y hệt trang Tra cứu Sách Catalog; loại bỏ chia tab rườm rà.
-  - **Live Webcam Stream Thời Gian Thực:** Sử dụng thư viện `@zxing/library` (`BrowserMultiFormatReader`) quét trực tiếp từ luồng webcam máy tính với khung ngắm hồng ngoại và tia laser động; bổ sung nút Bật Camera và cơ chế tự động xử lý thiết bị bị chiếm dụng/kẹt stream.
-  - **Tùy Chọn Lật Ngang Camera (Flip / Mirror Horizontal):** Hỗ trợ nút bật/tắt lật ngang hình ảnh camera để khắc phục tình trạng camera rời bị lật gương (ngược chiều ngang), giúp quét mã vạch 1D Code 128 chính xác tuyệt đối.
-  - **Bộ Chọn Camera Ngoại Vi (Device Selector):** Cho phép chọn nhanh giữa camera tích hợp của máy tính hoặc webcam rời kết nối ngoài qua cổng USB.
-  - **Đa Phương Thức Quét:** Tích hợp đồng thời quét qua Live Camera, tải file ảnh, kéo thả ảnh, dán ảnh từ clipboard (`Ctrl + V`) và nhập qua súng quét barcode.
-- **Tích Hợp Đồng Bộ ([`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx)):**
-  - Nhúng `BorrowForm` vào thẻ mượn sách bên trái và sử dụng `BarcodeCameraModal` cho cả quy trình trả sách ở thẻ bên phải, tinh gọn và loại bỏ code trùng lặp.
+- **Tối Ưu Máy Quét Mã Vạch Camera ([`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx)):**
+  - **Macro Zoom Kỹ Thuật Số (1x, 1.5x, 2x):** Hỗ trợ zoom khung hình giúp camera lấy nét sắc nét ở cự ly chuẩn (30-45cm) mà không bị mờ nhòe mã vạch.
+  - **Nâng Cấp Giải Mã ZXing BinaryBitmap:** Pipeline phân tích pixel đa tầng (Center Crop + Full Frame, quét 2 chiều), tăng tốc độ và độ chính xác khi quét mã 1D Code 128.
+  - **Đa Năng & Hợp Nhất Giao Diện:** Tích hợp live camera, chọn webcam rời USB, lật ngang hình ảnh (Flip Horizontal), tải file ảnh và dán ảnh clipboard (`Ctrl + V`) trên cùng một màn hình.
 
 ## [2026-09-29] - Hoàn Thiện Phân Hệ Mượn Sách & Máy Quét Mã Vạch Tại Quầy Lưu Thông (Story LOLRA-16)
 

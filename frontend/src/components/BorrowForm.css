@@ -288,3 +288,191 @@
   border-radius: 6px;
   margin-top: 10px;
 }
+
+/* ==========================================================================
+   DUE DATE PICKER & VALIDATION STYLES (Hạn trả dự kiến)
+   ========================================================================== */
+.due-date-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.today-indicator-tag {
+  font-size: 11px;
+  color: #0369a1;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.today-indicator-tag strong {
+  color: #0284c7;
+}
+
+.due-date-input-wrap {
+  position: relative;
+}
+
+.calendar-trigger-btn {
+  color: #2563eb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.calendar-trigger-btn:hover {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.native-hidden-date-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.btn-open-calendar-pill {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-open-calendar-pill:hover {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.input-error-border {
+  border-color: #ef4444 !important;
+  background-color: #fff5f5 !important;
+}
+
+.input-error-border:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.due-date-alert-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 4px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 4px 8px;
+  border-radius: 4px;
+  animation: shakeAlert 0.3s ease-in-out;
+}
+
+@keyframes shakeAlert {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.quick-due-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.quick-due-title {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.quick-due-chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-due-chip:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.quick-due-chip.chip-active {
+  background-color: #ecfdf5;
+  color: #047857;
+  border-color: #10b981;
+  font-weight: 700;
+  box-shadow: 0 0 0 1.5px rgba(16, 185, 129, 0.25);
+}
+
+.quick-due-chip.chip-active:hover {
+  background-color: #d1fae5;
+  border-color: #059669;
+}
+
+.form-label-with-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.form-label-with-badge .form-label {
+  margin-bottom: 0;
+}
+
+.reader-member-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1.3;
+}
+
+.reader-member-badge.badge-lecturer {
+  background-color: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+}
+
+.reader-member-badge.badge-student {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+
