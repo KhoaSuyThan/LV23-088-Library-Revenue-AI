@@ -71,8 +71,9 @@ public class BooksController : ControllerBase
     /// <param name="file">Tệp bảng tính .csv (tối đa 15MB)</param>
     [HttpPost("import-csv")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> ImportBooksFromCsv([FromForm] IFormFile? file)
+    public async Task<IActionResult> ImportBooksFromCsv([FromForm] BookImportCsvUploadDto dto)
     {
+        var file = dto?.File;
         if (file == null || file.Length == 0)
         {
             return BadRequest(ApiResponse<BookImportResultDto>.ErrorResult("Vui lòng chọn tệp CSV để nạp vào hệ thống."));
@@ -150,4 +151,12 @@ public class BooksController : ControllerBase
 
         return Ok(result);
     }
+}
+
+/// <summary>
+/// DTO chứa file upload cho Swagger multipart/form-data
+/// </summary>
+public class BookImportCsvUploadDto
+{
+    public IFormFile? File { get; set; }
 }
