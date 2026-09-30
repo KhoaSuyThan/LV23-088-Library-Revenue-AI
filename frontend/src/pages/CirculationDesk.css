@@ -1174,7 +1174,7 @@
    MODAL MÁY QUÉT MÃ VẠCH (BARCODE SCANNER) - ĐỒNG BỘ TỪ CATALOG
    ========================================================================== */
 .scanner-dialog-modal {
-  max-width: 520px;
+  max-width: 620px;
   width: 95%;
 }
 
@@ -1191,7 +1191,7 @@
 
 .scanner-viewport-box {
   position: relative;
-  height: 145px;
+  height: 250px;
   background-color: #0f172a;
   border: 2px solid transparent;
   border-radius: 10px;
@@ -1233,9 +1233,9 @@
 
 .scanner-target-reticle {
   position: relative;
-  width: 220px;
-  height: 70px;
-  border: 1px dashed rgba(255, 255, 255, 0.25);
+  width: 300px;
+  height: 85px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
   border-radius: 6px;
   z-index: 2;
   pointer-events: none;
@@ -1296,14 +1296,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 6px 12px;
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
 }
@@ -1325,6 +1327,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn-reset-scanner-img {
@@ -1484,5 +1487,53 @@
 .btn-modal-cancel:hover {
   background-color: #e2e8f0;
   color: #1e293b;
+}
+
+/* ==========================================================================
+   NÚT XEM TRƯỚC VÀ IN PHIẾU MƯỢN / PHIẾU TRẢ SÁCH (CIRCULATION RECEIPT)
+   ========================================================================== */
+.btn-preview-slip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background-color: #ffffff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.btn-preview-slip:hover {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-print-slip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background-color: #f8fafc;
+  color: #2563eb;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-print-slip-row:hover {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
 }
 

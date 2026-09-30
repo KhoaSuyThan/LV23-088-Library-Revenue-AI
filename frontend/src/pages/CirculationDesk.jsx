@@ -1,4 +1,4 @@
-import React, { useState, useId, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
 import {
   PlusCircle,
   ArrowLeftRight,
@@ -18,12 +18,13 @@ import {
   Barcode,
   ScanLine,
   Loader2,
-  ImageUp,
-  RotateCcw
+  FileText
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
 import { playScannerBeep } from '../utils/barcodeGenerator';
-import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
+import BorrowForm from '../components/BorrowForm';
+import BarcodeCameraModal from '../components/BarcodeCameraModal';
+import CirculationReceiptModal from '../components/CirculationReceiptModal';
 import './CirculationDesk.css';
 
 /**
@@ -123,28 +124,13 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   // Giao dịch đang được chọn để kiểm tra hoàn trả (Mặc định ban đầu chưa tìm kiếm ai là null)
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
 
-  // Form tạo phiếu mượn mới
-  const [borrowReaderCode, setBorrowReaderCode] = useState('');
-  const [borrowBookCode, setBorrowBookCode] = useState('');
-  const [borrowDueDate, setBorrowDueDate] = useState('30/09/2026');
-
-  // Trạng thái xử lý mượn sách & cảnh báo từ chối mượn
-  const [borrowError, setBorrowError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingBorrows, setIsLoadingBorrows] = useState(false);
-
   // Input tìm kiếm mã phiếu / mã vạch ở cột trả sách
   const [returnQuery, setReturnQuery] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [isLoadingBorrows, setIsLoadingBorrows] = useState(false);
 
-  // State Modal Máy Quét Mã Vạch (Barcode Scanner) chuyên nghiệp tương tự Catalog
+  // State Modal Máy Quét Mã Vạch (Barcode Scanner) cho quầy trả sách
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
-  const [scannerTargetField, setScannerTargetField] = useState('return'); // 'return' | 'borrowBook'
-  const [scannerInputValue, setScannerInputValue] = useState('');
-  const [isDecodingImage, setIsDecodingImage] = useState(false);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const scannerImageInputRef = useRef(null);
 
   // Trạng thái kiểm tra vi phạm của giao dịch hiện tại
   const [checks, setChecks] = useState({
@@ -161,12 +147,15 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   // Modals & Thông báo
   const [showWaiverModal, setShowWaiverModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  // Modal biểu mẫu hành chính Phiếu mượn sách & Phiếu trả sách chuẩn A4 PDF
+  const [receiptModalConfig, setReceiptModalConfig] = useState({
+    isOpen: false,
+    type: 'borrow',
+    data: null
+  });
   const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' | 'transfer'
   const [toastMessage, setToastMessage] = useState('');
 
-  const readerInputId = useId();
-  const bookCodeInputId = useId();
-  const dueDateInputId = useId();
   const returnInputId = useId();
 
   // Hiển thị toast thông báo
@@ -273,22 +262,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     loadRecentTransactions();
   }, [loadRecentTransactions]);
 
-  // Phím tắt F2: Tự động nhảy con trỏ chuột vào ô Quét mã thẻ bạn đọc
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        const inputElem = document.getElementById(readerInputId);
-        if (inputElem) {
-          inputElem.focus();
-          inputElem.select?.();
-          showToast('⚡ [Phím tắt F2]: Sẵn sàng quét mã thẻ bạn đọc / MSSV');
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [readerInputId]);
+
 
   // Lấy dữ liệu chi tiết của phiếu mượn được chọn (chỉ có khi thủ thư tìm kiếm hoặc click chọn)
   const currentTransaction = selectedTransactionId
@@ -351,77 +325,72 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     }
   };
 
-  // Xử lý tạo phiếu mượn mới (Kết nối API POST /api/borrows thật vào CSDL SQL Server qua Transaction an toàn)
-  const handleCreateBorrow = async (e) => {
-    e.preventDefault();
-    setBorrowError('');
+  // Xử lý khi tạo phiếu mượn mới thành công từ component BorrowForm (Story LOLRA-16)
+  const handleBorrowSuccess = (created) => {
+    if (!created) return;
+    const firstItem = created.items && created.items.length > 0 ? created.items[0] : null;
+    const cleanBarcode = firstItem?.barcode || 'Tài liệu';
+    const newTx = {
+      id: created.borrowCode,
+      borrowingId: created.borrowingID,
+      bookCode: cleanBarcode,
+      readerName: created.readerName || 'Độc giả',
+      studentCode: created.readerCode || '',
+      bookTitle: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
+      borrowDate: new Date(created.borrowDate).toLocaleDateString('vi-VN'),
+      dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+      status: 'borrowing',
+      statusText: 'Đang mượn',
+      fineAmount: 0,
+      fineText: '-',
+      overdueDays: 0,
+      isOverdue: false,
+      isDamaged: false,
+      isLost: false,
+      isOnTime: false,
+      damageFee: 0,
+      overdueFee: 0
+    };
 
-    if (!borrowReaderCode.trim()) {
-      showToast('⚠️ Vui lòng nhập hoặc quét Mã độc giả / MSSV!');
-      document.getElementById(readerInputId)?.focus();
-      return;
-    }
-    if (!borrowBookCode.trim()) {
-      showToast('⚠️ Vui lòng nhập hoặc quét Mã vạch sách!');
-      document.getElementById(bookCodeInputId)?.focus();
-      return;
-    }
+    setTransactions((prev) => [newTx, ...prev]);
+    setSelectedTransactionId(created.borrowCode);
 
-    setIsSubmitting(true);
-    try {
-      const cleanReaderCode = borrowReaderCode.trim();
-      const cleanBarcode = borrowBookCode.trim().toUpperCase();
-
-      const payload = {
-        readerCode: cleanReaderCode,
-        barcodes: [cleanBarcode],
-        dueDate: parseDateFromVn(borrowDueDate)
-      };
-
-      const res = await borrowApi.createBorrow(payload);
-      if (res && res.success && res.data) {
-        const created = res.data;
-        const firstItem = created.items && created.items.length > 0 ? created.items[0] : null;
-        const newTx = {
-          id: created.borrowCode,
-          borrowingId: created.borrowingID,
-          bookCode: cleanBarcode,
-          readerName: created.readerName || cleanReaderCode,
-          studentCode: created.readerCode || cleanReaderCode,
-          bookTitle: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
-          borrowDate: new Date(created.borrowDate).toLocaleDateString('vi-VN'),
-          dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
-          status: 'borrowing',
-          statusText: 'Đang mượn',
-          fineAmount: 0,
-          fineText: '-',
-          overdueDays: 0,
-          isOverdue: false,
-          isDamaged: false,
-          isLost: false,
-          isOnTime: false,
-          damageFee: 0,
-          overdueFee: 0
-        };
-
-        setTransactions((prev) => [newTx, ...prev]);
-        setSelectedTransactionId(created.borrowCode);
-        setBorrowBookCode('');
-        setBorrowError('');
-        showToast(`✅ ${res.message || `Tạo phiếu mượn ${created.borrowCode} thành công!`}`);
-      } else {
-        const msg = res?.message || 'Không thể tạo phiếu mượn.';
-        setBorrowError(msg);
-        showToast(`❌ Từ chối mượn sách: ${msg}`);
+    // Tự động mở Modal Phiếu mượn sách chuẩn A4 (để xem trước, in hoặc tải file PDF)
+    setReceiptModalConfig({
+      isOpen: true,
+      type: 'borrow',
+      data: {
+        id: created.borrowCode,
+        borrowCode: created.borrowCode,
+        borrowingId: created.borrowingID,
+        readerName: created.readerName || 'Độc giả',
+        readerCode: created.readerCode || '',
+        studentCode: created.readerCode || '',
+        department: created.memberType || 'Khoa Công nghệ Thông tin',
+        rawBorrowDate: created.borrowDate,
+        rawDueDate: created.dueDate,
+        borrowDate: new Date(created.borrowDate).toLocaleDateString('vi-VN'),
+        dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+        librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
+        items: created.items && created.items.length > 0
+          ? created.items.map((it) => ({
+              title: it.title,
+              author: it.author || 'Nhiều tác giả',
+              barcode: it.barcode,
+              dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+              note: 'Sách mượn mới (Tình trạng tốt)'
+            }))
+          : [
+              {
+                title: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
+                author: firstItem?.author || 'Nhiều tác giả',
+                barcode: cleanBarcode,
+                dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+                note: 'Sách mượn mới (Tình trạng tốt)'
+              }
+            ]
       }
-    } catch (err) {
-      // Bắt lỗi từ Backend (400 Bad Request theo kịch bản Scenario 2)
-      const serverMsg = err.response?.data?.message || err.response?.data?.title || err.message || 'Lỗi khi tạo phiếu mượn';
-      setBorrowError(serverMsg);
-      showToast(`❌ Từ chối mượn: ${serverMsg}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   // Xử lý tìm kiếm hoặc quét barcode hoàn trả (hỗ trợ Mã sách, Mã vạch bản sao, Mã phiếu, MSSV, Tên sách)
@@ -499,111 +468,9 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     }
   };
 
-  // Mở modal Máy Quét Mã Vạch (Barcode Scanner) cho mục tiêu trả sách hoặc mượn sách
-  const handleOpenScanner = (target = 'return') => {
-    setScannerTargetField(target);
-    setScannerInputValue('');
-    setImagePreviewUrl(null);
-    setIsScannerModalOpen(true);
-  };
-
-  // Đặt lại khung quét ảnh về trạng thái ban đầu
-  const handleResetScannerImage = (e) => {
-    if (e) e.stopPropagation();
-    setImagePreviewUrl(null);
-    setIsDraggingImage(false);
-    setIsDecodingImage(false);
-    if (scannerImageInputRef.current) {
-      scannerImageInputRef.current.value = '';
-    }
-  };
-
-  // Xử lý xác nhận mã từ máy quét (nhập tay, súng quét đọc mã hoặc bấm mã mẫu)
-  const handleBarcodeScanSubmit = (scannedCode) => {
-    const cleanCode = (scannedCode || scannerInputValue).trim();
-    if (!cleanCode) return;
-
-    playScannerBeep(true);
-    setIsScannerModalOpen(false);
-    handleResetScannerImage();
-
-    if (scannerTargetField === 'reader') {
-      setBorrowReaderCode(cleanCode);
-      setBorrowError('');
-      showToast(`⚡ Đã quét mã thẻ độc giả / MSSV: ${cleanCode}`);
-      // Tạo luồng quét liên hoàn: tự động focus sang ô Mã vạch sách để quét tiếp sách
-      setTimeout(() => {
-        const bookInput = document.getElementById(bookCodeInputId);
-        if (bookInput) {
-          bookInput.focus();
-          bookInput.select?.();
-        }
-      }, 250);
-    } else if (scannerTargetField === 'borrowBook') {
-      setBorrowBookCode(cleanCode);
-      setBorrowError('');
-      showToast(`⚡ Đã quét mã sách vào phiếu mượn: ${cleanCode}`);
-    } else {
-      setReturnQuery(cleanCode);
-      handleReturnSearch(cleanCode);
-    }
-  };
-
-  // Xử lý tệp hình ảnh chứa mã vạch (Tải lên, Kéo thả hoặc Dán Clipboard Ctrl+V)
-  const handleProcessBarcodeImage = async (file) => {
-    if (!file) return;
-    if (!file.type || !file.type.startsWith('image/')) {
-      showToast('⚠️ Vui lòng chọn hoặc dán tệp định dạng hình ảnh (PNG, JPG, WEBP,...)!');
-      return;
-    }
-
-    setIsDecodingImage(true);
-    const preview = URL.createObjectURL(file);
-    setImagePreviewUrl(preview);
-
-    try {
-      showToast('🔍 Đang giải mã mã vạch / QR từ hình ảnh...');
-      const result = await decodeBarcodeFromImage(file);
-      if (result.success && result.barcode) {
-        setScannerInputValue(result.barcode);
-        showToast(`⚡ Đã nhận diện mã: [${result.barcode}] (${result.format || 'Barcode'})! Đang xử lý...`);
-        handleBarcodeScanSubmit(result.barcode);
-      } else {
-        playScannerBeep(false);
-        showToast(result.message || '⚠️ Không tìm thấy mã vạch hợp lệ trong ảnh.');
-      }
-    } catch (err) {
-      playScannerBeep(false);
-      showToast('⚠️ Lỗi khi giải mã ảnh: ' + (err.message || 'Không xác định'));
-    } finally {
-      setIsDecodingImage(false);
-    }
-  };
-
-  // Lắng nghe sự kiện Paste (Ctrl + V) khi Modal Máy quét đang mở
-  useEffect(() => {
-    if (!isScannerModalOpen) {
-      handleResetScannerImage();
-      return;
-    }
-
-    const handleWindowPaste = (e) => {
-      const imgFile = getImageFileFromClipboard(e);
-      if (imgFile) {
-        e.preventDefault();
-        handleProcessBarcodeImage(imgFile);
-      }
-    };
-
-    window.addEventListener('paste', handleWindowPaste);
-    return () => {
-      window.removeEventListener('paste', handleWindowPaste);
-    };
-  }, [isScannerModalOpen]);
-
   // Mô phỏng quét mã vạch bằng máy quét barcode (Code 128)
   const handleSimulateScan = () => {
-    handleOpenScanner('return');
+    setIsScannerModalOpen(true);
   };
 
   // Xử lý áp dụng miễn giảm phạt
@@ -617,6 +484,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   // Xử lý xác nhận trả sách đúng hạn (không phạt)
   const handleReturnSuccessOnTime = () => {
     if (!currentTransaction) return;
+    const returnDateStr = new Date().toLocaleDateString('vi-VN');
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === currentTransaction.id
@@ -633,11 +501,53 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       )
     );
     showToast(`✅ Đã hoàn tất tiếp nhận trả sách cho phiếu ${currentTransaction.id} (${currentTransaction.bookTitle})!`);
+
+    // Tự động mở Modal Phiếu trả sách chuẩn A4 PDF
+    setReceiptModalConfig({
+      isOpen: true,
+      type: 'return',
+      data: {
+        id: currentTransaction.id,
+        borrowCode: currentTransaction.id,
+        readerName: currentTransaction.readerName,
+        studentCode: currentTransaction.studentCode,
+        readerCode: currentTransaction.studentCode,
+        department: currentTransaction.department || 'Khoa Công nghệ Thông tin',
+        rawBorrowDate: currentTransaction.rawBorrowDate,
+        rawDueDate: currentTransaction.rawDueDate,
+        borrowDate: currentTransaction.borrowDate,
+        dueDate: currentTransaction.dueDate,
+        returnDate: returnDateStr,
+        fineAmount: 0,
+        statusText: 'Hoàn trả đúng hạn, nguyên vẹn - Miễn phí',
+        librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
+        items: currentTransaction.items && currentTransaction.items.length > 0
+          ? currentTransaction.items.map((it) => ({
+              title: it.title,
+              author: it.author || 'Nhiều tác giả',
+              barcode: it.barcode,
+              dueDate: currentTransaction.dueDate,
+              returnDate: returnDateStr,
+              note: 'Trả đúng hạn, tình trạng tốt'
+            }))
+          : [
+              {
+                title: currentTransaction.bookTitle,
+                author: currentTransaction.author || 'Nhiều tác giả',
+                barcode: currentTransaction.bookCode,
+                dueDate: currentTransaction.dueDate,
+                returnDate: returnDateStr,
+                note: 'Trả đúng hạn, tình trạng tốt'
+              }
+            ]
+      }
+    });
   };
 
   // Xử lý xác nhận lập phiếu thu tiền phạt
   const handleConfirmPayment = () => {
     setShowReceiptModal(false);
+    const returnDateStr = new Date().toLocaleDateString('vi-VN');
     // Cập nhật trạng thái phiếu đã thu tiền
     setTransactions((prev) =>
       prev.map((t) =>
@@ -652,6 +562,47 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       )
     );
     showToast(`🧾 Đã lập phiếu thu và xác nhận thanh toán ${finalFine.toLocaleString('vi-VN')}đ cho phiếu ${currentTransaction.id}`);
+
+    // Tự động mở Modal Phiếu trả sách chuẩn A4 PDF kèm thông tin thu phạt
+    setReceiptModalConfig({
+      isOpen: true,
+      type: 'return',
+      data: {
+        id: currentTransaction.id,
+        borrowCode: currentTransaction.id,
+        readerName: currentTransaction.readerName,
+        studentCode: currentTransaction.studentCode,
+        readerCode: currentTransaction.studentCode,
+        department: currentTransaction.department || 'Khoa Công nghệ Thông tin',
+        rawBorrowDate: currentTransaction.rawBorrowDate,
+        rawDueDate: currentTransaction.rawDueDate,
+        borrowDate: currentTransaction.borrowDate,
+        dueDate: currentTransaction.dueDate,
+        returnDate: returnDateStr,
+        fineAmount: finalFine,
+        statusText: `Đã hoàn trả - Đã thu phạt: ${finalFine.toLocaleString('vi-VN')} VNĐ (${paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản QR'})`,
+        librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
+        items: currentTransaction.items && currentTransaction.items.length > 0
+          ? currentTransaction.items.map((it) => ({
+              title: it.title,
+              author: it.author || 'Nhiều tác giả',
+              barcode: it.barcode,
+              dueDate: currentTransaction.dueDate,
+              returnDate: returnDateStr,
+              note: `Đã nộp phạt ${finalFine.toLocaleString('vi-VN')}đ (${paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản QR'})`
+            }))
+          : [
+              {
+                title: currentTransaction.bookTitle,
+                author: currentTransaction.author || 'Nhiều tác giả',
+                barcode: currentTransaction.bookCode,
+                dueDate: currentTransaction.dueDate,
+                returnDate: returnDateStr,
+                note: `Đã nộp phạt ${finalFine.toLocaleString('vi-VN')}đ (${paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản QR'})`
+              }
+            ]
+      }
+    });
   };
 
   // Lọc danh sách giao dịch theo externalSearch từ header hoặc returnQuery từ ô tìm kiếm hoàn trả
@@ -691,188 +642,8 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           HÀNG 1: 2 THẺ (TẠO PHIẾU MƯỢN MỚI & TIẾP NHẬN TRẢ SÁCH)
           ==================================================================== */}
       <div className="circulation-top-grid">
-        {/* THẺ TRÁI: TẠO PHIẾU MƯỢN MỚI */}
-        <section className="circulation-card" aria-label="Tạo phiếu mượn mới">
-          <div className="card-header-row">
-            <h2 className="card-title">TẠO PHIẾU MƯỢN MỚI</h2>
-            <div className="card-icon-blue" title="Mượn sách mới">
-              <PlusCircle size={20} strokeWidth={2.2} />
-            </div>
-          </div>
-
-          <form onSubmit={handleCreateBorrow} className="card-form">
-            {/* Nhập Mã độc giả / MSSV */}
-            <div className="form-group">
-              <label htmlFor={readerInputId} className="form-label">Mã độc giả / MSSV</label>
-              <div className="input-with-icon">
-                <button
-                  type="button"
-                  className="input-prefix-scan-btn"
-                  title="Nhấn để mở Máy Quét Thẻ Bạn Đọc / Thẻ Sinh Viên"
-                  onClick={() => handleOpenScanner('reader')}
-                >
-                  <ScanLine size={16} />
-                </button>
-                <input
-                  id={readerInputId}
-                  type="text"
-                  className="form-control"
-                  placeholder="Quét mã vạch thẻ hoặc nhập MSSV..."
-                  value={borrowReaderCode}
-                  onChange={(e) => setBorrowReaderCode(e.target.value)}
-                />
-                {borrowReaderCode && (
-                  <button
-                    type="button"
-                    className="input-clear-btn"
-                    onClick={() => setBorrowReaderCode('')}
-                    title="Xóa mã độc giả"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* 2 Cột: Mã vạch sách & Hạn trả dự kiến */}
-            <div className="form-two-cols">
-              <div className="form-group">
-                <label htmlFor={bookCodeInputId} className="form-label">Mã vạch sách</label>
-                <div className="input-with-icon">
-                  <button
-                    type="button"
-                    className="input-prefix-scan-btn"
-                    title="Nhấn để mở Máy Quét Mã Vạch Sách (Barcode Scanner)"
-                    onClick={() => handleOpenScanner('borrowBook')}
-                  >
-                    <ScanLine size={16} />
-                  </button>
-                  <input
-                    id={bookCodeInputId}
-                    type="text"
-                    className="form-control"
-                    placeholder="BC000001-A..."
-                    value={borrowBookCode}
-                    onChange={(e) => setBorrowBookCode(e.target.value)}
-                  />
-                  {borrowBookCode && (
-                    <button
-                      type="button"
-                      className="input-clear-btn"
-                      onClick={() => setBorrowBookCode('')}
-                      title="Xóa mã sách"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor={dueDateInputId} className="form-label">Hạn trả dự kiến</label>
-                <div className="input-with-icon">
-                  <Calendar size={16} className="input-icon" />
-                  <input
-                    id={dueDateInputId}
-                    type="text"
-                    className="form-control"
-                    placeholder="30/09/2026"
-                    value={borrowDueDate}
-                    onChange={(e) => setBorrowDueDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Thanh chọn nhanh mã bạn đọc để kiểm thử Scenario 1 (Thành công) & Scenario 2 (Từ chối) */}
-            <div className="quick-test-bar">
-              <span className="quick-test-label">Thử nghiệm nhanh:</span>
-              <button
-                type="button"
-                className="test-chip chip-success"
-                title="Độc giả hợp lệ, thẻ hoạt động, không nợ phạt (Scenario 1)"
-                onClick={() => {
-                  setBorrowReaderCode('RD20260001');
-                  setBorrowBookCode('BC000001-A');
-                  setBorrowError('');
-                }}
-              >
-                ✓ RD20260001 (Mượn OK)
-              </button>
-              <button
-                type="button"
-                className="test-chip chip-danger"
-                title="Đang có nợ phạt quá hạn 45.000đ (Scenario 2 - Từ chối)"
-                onClick={() => {
-                  setBorrowReaderCode('102220184');
-                  setBorrowBookCode('BC000002-B');
-                  setBorrowError('');
-                }}
-              >
-                ✗ 102220184 (Nợ phạt)
-              </button>
-              <button
-                type="button"
-                className="test-chip chip-danger"
-                title="Thẻ độc giả bị khóa (Scenario 2 - Từ chối)"
-                onClick={() => {
-                  setBorrowReaderCode('102230045');
-                  setBorrowBookCode('BC000002-C');
-                  setBorrowError('');
-                }}
-              >
-                ✗ 102230045 (Khóa thẻ)
-              </button>
-              <button
-                type="button"
-                className="test-chip chip-danger"
-                title="Đã mượn tối đa 5 cuốn (Scenario 2 - Từ chối)"
-                onClick={() => {
-                  setBorrowReaderCode('102220412');
-                  setBorrowBookCode('BC000003-B');
-                  setBorrowError('');
-                }}
-              >
-                ✗ 102220412 (Max 5 cuốn)
-              </button>
-            </div>
-
-            {/* Cảnh báo đỏ từ chối mượn sách theo Scenario 2 (AC Story LOLRA-16) */}
-            {borrowError && (
-              <div className="borrow-error-banner" role="alert">
-                <AlertTriangle size={18} className="error-icon" />
-                <div className="error-content">
-                  <span className="error-title">HỆ THỐNG TỪ CHỐI TẠO PHIẾU MƯỢN:</span>
-                  <span className="error-desc">{borrowError}</span>
-                </div>
-                <button
-                  type="button"
-                  className="error-dismiss-btn"
-                  onClick={() => setBorrowError('')}
-                  title="Đóng cảnh báo"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-
-            {/* Nút xác nhận mượn sách màu xanh dương toàn chiều ngang */}
-            <button
-              type="submit"
-              className="btn-confirm-borrow"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="spin-icon" style={{ display: 'inline-block', marginRight: '6px' }} />
-                  Đang ghi nhận vào SQL Server...
-                </>
-              ) : (
-                'Xác nhận mượn sách'
-              )}
-            </button>
-          </form>
-        </section>
+        {/* THẺ TRÁI: TẠO PHIẾU MƯỢN MỚI (Story LOLRA-16 - Component BorrowForm) */}
+        <BorrowForm onBorrowSuccess={handleBorrowSuccess} showToast={showToast} />
 
         {/* THẺ PHẢI: TIẾP NHẬN TRẢ SÁCH & KIỂM TRA VI PHẠM */}
         <section className="circulation-card" aria-label="Tiếp nhận trả sách và kiểm tra vi phạm">
@@ -970,9 +741,9 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
 
             {/* Khung quét mã vạch từ máy đọc (Viền nét đứt tương tác mở Barcode Scanner Modal) */}
             <div
-              className={`barcode-scanner-zone ${isScannerModalOpen && scannerTargetField === 'return' ? 'is-scanning' : ''}`}
-              onClick={() => handleOpenScanner('return')}
-              title="Nhấn vào đây để mở Máy Quét Mã Vạch (Barcode Scanner) - hỗ trợ súng đọc, camera, dán ảnh Ctrl+V"
+              className={`barcode-scanner-zone ${isScannerModalOpen ? 'is-scanning' : ''}`}
+              onClick={() => setIsScannerModalOpen(true)}
+              title="Nhấn vào đây để mở Máy Quét Mã Vạch (Barcode Scanner) - hỗ trợ camera trực tiếp, lật ngang, súng đọc, dán ảnh Ctrl+V"
               style={{ cursor: 'pointer' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -1133,6 +904,59 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           </div>
 
           <div className="fine-actions-right">
+            {/* Nút Xem trước / In phiếu trả sách chuẩn mẫu A4 */}
+            <button
+              type="button"
+              className="btn-preview-slip"
+              title="Xem trước và xuất file PDF phiếu trả sách"
+              onClick={() => {
+                setReceiptModalConfig({
+                  isOpen: true,
+                  type: 'return',
+                  data: {
+                    id: currentTransaction.id,
+                    borrowCode: currentTransaction.id,
+                    readerName: currentTransaction.readerName,
+                    studentCode: currentTransaction.studentCode,
+                    readerCode: currentTransaction.studentCode,
+                    department: currentTransaction.department || 'Khoa Công nghệ Thông tin',
+                    rawBorrowDate: currentTransaction.rawBorrowDate,
+                    rawDueDate: currentTransaction.rawDueDate,
+                    borrowDate: currentTransaction.borrowDate,
+                    dueDate: currentTransaction.dueDate,
+                    returnDate: new Date().toLocaleDateString('vi-VN'),
+                    fineAmount: finalFine,
+                    statusText: finalFine === 0
+                      ? 'Hoàn trả đúng hạn, nguyên vẹn'
+                      : `Phát sinh tiền phạt ${finalFine.toLocaleString('vi-VN')} VNĐ`,
+                    librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
+                    items: currentTransaction.items && currentTransaction.items.length > 0
+                      ? currentTransaction.items.map((it) => ({
+                          title: it.title,
+                          author: it.author || 'Nhiều tác giả',
+                          barcode: it.barcode,
+                          dueDate: currentTransaction.dueDate,
+                          returnDate: new Date().toLocaleDateString('vi-VN'),
+                          note: finalFine === 0 ? 'Trả đúng hạn' : `Phạt ${finalFine.toLocaleString('vi-VN')}đ`
+                        }))
+                      : [
+                          {
+                            title: currentTransaction.bookTitle,
+                            author: currentTransaction.author || 'Nhiều tác giả',
+                            barcode: currentTransaction.bookCode,
+                            dueDate: currentTransaction.dueDate,
+                            returnDate: new Date().toLocaleDateString('vi-VN'),
+                            note: finalFine === 0 ? 'Trả đúng hạn' : `Phạt ${finalFine.toLocaleString('vi-VN')}đ`
+                          }
+                        ]
+                  }
+                });
+              }}
+            >
+              <FileText size={16} />
+              <span>Xem trước phiếu trả</span>
+            </button>
+
             {finalFine === 0 ? (
               /* Nút Hoàn tất trả sách khi đúng hạn, không có phạt */
               <button
@@ -1186,11 +1010,13 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                 <th>Tên sách</th>
                 <th style={{ width: '170px' }}>Trạng thái</th>
                 <th style={{ width: '120px', textAlign: 'right' }}>Tiền thu</th>
+                <th style={{ width: '120px', textAlign: 'center' }}>Phiếu in</th>
               </tr>
             </thead>
             <tbody>
               {filteredTransactions.map((tx) => {
                 const isSelected = tx.id === selectedTransactionId;
+                const isBorrowSlip = tx.status === 'borrowing';
                 return (
                   <tr
                     key={tx.id}
@@ -1254,6 +1080,51 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                       >
                         {tx.fineText}
                       </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn-print-slip-row"
+                        title={isBorrowSlip ? 'Xem / In Phiếu mượn sách (A4 PDF)' : 'Xem / In Phiếu trả sách (A4 PDF)'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReceiptModalConfig({
+                            isOpen: true,
+                            type: isBorrowSlip ? 'borrow' : 'return',
+                            data: {
+                              id: tx.id,
+                              borrowCode: tx.id,
+                              readerName: tx.readerName,
+                              studentCode: tx.studentCode,
+                              readerCode: tx.studentCode,
+                              department: tx.department || 'Khoa Công nghệ Thông tin',
+                              rawBorrowDate: tx.rawBorrowDate,
+                              rawDueDate: tx.rawDueDate,
+                              borrowDate: tx.borrowDate,
+                              dueDate: tx.dueDate,
+                              returnDate: isBorrowSlip ? '' : new Date().toLocaleDateString('vi-VN'),
+                              fineAmount: tx.fineAmount || 0,
+                              statusText: tx.statusText,
+                              librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
+                              items: tx.items && tx.items.length > 0
+                                ? tx.items
+                                : [
+                                    {
+                                      title: tx.bookTitle,
+                                      author: tx.author || 'Nhiều tác giả',
+                                      barcode: tx.bookCode,
+                                      dueDate: tx.dueDate,
+                                      returnDate: isBorrowSlip ? '' : new Date().toLocaleDateString('vi-VN'),
+                                      note: tx.statusText || 'Bình thường'
+                                    }
+                                  ]
+                            }
+                          });
+                        }}
+                      >
+                        <Printer size={13} />
+                        <span>{isBorrowSlip ? 'Phiếu mượn' : 'Phiếu trả'}</span>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -1456,209 +1327,30 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       {/* ====================================================================
           MODAL 3: MÁY QUÉT MÃ VẠCH (BARCODE SCANNER) - ĐỒNG BỘ TỪ CATALOG
           ==================================================================== */}
-      {isScannerModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsScannerModalOpen(false)}>
-          <div className="modal-dialog scanner-dialog-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-wrap">
-                <ScanLine size={20} className="scanner-header-icon" style={{ color: '#ef4444' }} />
-                <h3>
-                  {scannerTargetField === 'reader'
-                    ? 'Máy Quét Thẻ Bạn Đọc / Thẻ Sinh Viên'
-                    : scannerTargetField === 'borrowBook'
-                    ? 'Máy Quét Mã Vạch Bản Sao Sách Cần Mượn'
-                    : 'Máy Quét Mã Vạch Sách Hoàn Trả'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => {
-                  handleResetScannerImage();
-                  setIsScannerModalOpen(false);
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* ====================================================================
+          MODAL MÁY QUÉT MÃ VẠCH (Tích hợp Live Webcam Stream, Lật ngang & Upload ảnh)
+          ==================================================================== */}
+      <BarcodeCameraModal
+        isOpen={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        onScanSuccess={(code) => {
+          setIsScannerModalOpen(false);
+          setReturnQuery(code);
+          handleReturnSearch(code);
+        }}
+        targetField="return"
+        title="MÁY QUÉT MÃ VẠCH SÁCH HOÀN TRẢ (RETURN SCANNER)"
+      />
 
-            <div className="modal-body scanner-dialog-body">
-              {/* Hiệu ứng quét laser đồ họa & Vùng Drop-zone kéo thả ảnh */}
-              <div
-                className={`scanner-viewport-box ${isDraggingImage ? 'is-dragover' : ''} ${isDecodingImage ? 'is-decoding' : ''}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingImage(true);
-                }}
-                onDragLeave={() => setIsDraggingImage(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDraggingImage(false);
-                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    handleProcessBarcodeImage(e.dataTransfer.files[0]);
-                  }
-                }}
-                onClick={() => scannerImageInputRef.current?.click()}
-                title="Bấm để chọn file ảnh, hoặc kéo thả ảnh mã vạch vào đây"
-              >
-                {imagePreviewUrl && (
-                  <>
-                    <img
-                      src={imagePreviewUrl}
-                      alt="Barcode preview"
-                      className="scanner-preview-image"
-                    />
-                    <button
-                      type="button"
-                      className="btn-clear-scanner-preview"
-                      onClick={handleResetScannerImage}
-                      title="Xóa ảnh này / Đặt lại khung quét"
-                    >
-                      <X size={14} />
-                    </button>
-                  </>
-                )}
-                <div className="scanner-target-reticle">
-                  <div className="reticle-corner corner-tl"></div>
-                  <div className="reticle-corner corner-tr"></div>
-                  <div className="reticle-corner corner-bl"></div>
-                  <div className="reticle-corner corner-br"></div>
-                  <div className="laser-scan-line"></div>
-                </div>
-                <span className="scanner-status-text">
-                  {isDecodingImage
-                    ? 'Đang giải mã mã vạch / QR từ ảnh...'
-                    : isDraggingImage
-                    ? 'Thả tệp ảnh vào đây để quét mã...'
-                    : imagePreviewUrl
-                    ? 'Đang xem ảnh tải lên. Bấm nút [✕] hoặc [Đặt lại] để chọn ảnh khác'
-                    : 'Kéo thả ảnh vào đây, nhấn Ctrl+V để dán, hoặc quét bằng súng đọc'}
-                </span>
-              </div>
-
-              {/* Thanh công cụ: Nút tải ảnh mã vạch, nút Đặt lại và gợi ý dán ảnh Clipboard */}
-              <div className="scanner-toolbar-row">
-                <div className="scanner-toolbar-buttons">
-                  <button
-                    type="button"
-                    className="btn-upload-scanner-img"
-                    onClick={() => scannerImageInputRef.current?.click()}
-                    disabled={isDecodingImage}
-                    title="Tải ảnh chứa mã vạch (Code128) hoặc QR Code từ máy tính"
-                  >
-                    <ImageUp size={15} />
-                    <span>{isDecodingImage ? 'Đang giải mã ảnh...' : 'Tải ảnh mã vạch / QR'}</span>
-                  </button>
-                  {imagePreviewUrl && (
-                    <button
-                      type="button"
-                      className="btn-reset-scanner-img"
-                      onClick={handleResetScannerImage}
-                      title="Xóa ảnh hiện tại và đặt lại khung quét"
-                    >
-                      <RotateCcw size={14} />
-                      <span>Đặt lại</span>
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={scannerImageInputRef}
-                  style={{ display: 'none' }}
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleProcessBarcodeImage(e.target.files[0]);
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                <span className="scanner-paste-hint">
-                  Dán nhanh ảnh chụp bằng <kbd>Ctrl + V</kbd>
-                </span>
-              </div>
-
-              {/* Ô nhập liệu mã vạch (kết nối máy quét USB/Bluetooth tự động gõ vào đây) */}
-              <div className="scanner-input-group">
-                <input
-                  type="text"
-                  autoFocus
-                  className="scanner-text-field"
-                  placeholder={
-                    scannerTargetField === 'reader'
-                      ? 'Quét thẻ sinh viên bằng đầu đọc hoặc gõ MSSV rồi nhấn Enter...'
-                      : 'Quét mã bằng đầu đọc hoặc gõ mã vạch rồi nhấn Enter...'
-                  }
-                  value={scannerInputValue}
-                  onChange={(e) => setScannerInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && scannerInputValue.trim()) {
-                      handleBarcodeScanSubmit(scannerInputValue.trim());
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn-scanner-submit"
-                  onClick={() => scannerInputValue.trim() && handleBarcodeScanSubmit(scannerInputValue.trim())}
-                >
-                  {scannerTargetField === 'reader' ? 'Xác nhận thẻ' : 'Tra cứu'}
-                </button>
-              </div>
-
-              {/* Danh sách các mã mẫu theo từng ngữ cảnh để thủ thư kiểm thử nhanh */}
-              <div className="quick-test-barcodes">
-                <span className="quick-test-label">
-                  {scannerTargetField === 'reader'
-                    ? 'Bấm mã thẻ độc giả mẫu để kiểm thử:'
-                    : 'Bấm mã sách mẫu để kiểm thử quét nhanh:'}
-                </span>
-                <div className="quick-chips-row">
-                  {scannerTargetField === 'reader'
-                    ? [
-                        { label: '✓ RD20260001 (Mượn OK)', code: 'RD20260001' },
-                        { label: '✗ 102220184 (Nợ phạt)', code: '102220184' },
-                        { label: '✗ 102230045 (Khóa thẻ)', code: '102230045' },
-                        { label: '✗ 102220412 (Max 5 cuốn)', code: '102220412' }
-                      ].map((item) => (
-                        <button
-                          key={item.code}
-                          type="button"
-                          className="btn-quick-chip"
-                          onClick={() => handleBarcodeScanSubmit(item.code)}
-                        >
-                          {item.label}
-                        </button>
-                      ))
-                    : ['BC000001-A', 'BC000001-B', 'BC000001-C', 'BC000002-A', 'BC000002-B'].map((code) => (
-                        <button
-                          key={code}
-                          type="button"
-                          className="btn-quick-chip"
-                          onClick={() => handleBarcodeScanSubmit(code)}
-                        >
-                          {code}
-                        </button>
-                      ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-modal-cancel"
-                onClick={() => {
-                  handleResetScannerImage();
-                  setIsScannerModalOpen(false);
-                }}
-              >
-                Hủy bỏ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ====================================================================
+          MODAL 4: BIỂU MẪU HÀNH CHÍNH PHIẾU MƯỢN / PHIẾU TRẢ SÁCH (IN & XUẤT A4 PDF)
+          ==================================================================== */}
+      <CirculationReceiptModal
+        isOpen={receiptModalConfig.isOpen}
+        onClose={() => setReceiptModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        type={receiptModalConfig.type}
+        data={receiptModalConfig.data}
+      />
     </div>
   );
 }
