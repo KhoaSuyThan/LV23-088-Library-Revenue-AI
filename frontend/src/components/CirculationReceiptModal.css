@@ -1,0 +1,548 @@
+/* ==========================================================================
+   CIRCULATION RECEIPT MODAL & A4 PAPER STYLES
+   Mô phỏng tờ giấy in biểu mẫu hành chính Phiếu Mượn / Trả Sách (Chuẩn Thư Viện)
+   ========================================================================== */
+
+.receipt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: fadeInOverlay 0.2s ease-out;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.receipt-modal-dialog {
+  background-color: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: scaleUpDialog 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleUpDialog {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header modal */
+.receipt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.receipt-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.receipt-title-icon {
+  color: #2563eb;
+}
+
+.receipt-tag-code {
+  font-family: monospace;
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.receipt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-receipt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.btn-receipt-action.btn-print {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.btn-receipt-action.btn-print:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-receipt-action.btn-export-pdf {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+}
+
+.btn-receipt-action.btn-export-pdf:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+.receipt-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: #64748b;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: all 0.15s ease;
+}
+
+.receipt-modal-close:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+/* Vùng cuộn xem trước tờ giấy in */
+.receipt-paper-container {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #e2e8f0;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Tờ giấy in trắng mô phỏng khổ A4 */
+.receipt-paper-sheet {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 650px;
+  min-height: 780px;
+  padding: 26px 30px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  color: #111827;
+  font-family: 'Times New Roman', Times, serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 1. Quốc hiệu tiêu ngữ */
+.paper-header-national {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.national-title {
+  font-size: 12pt;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+  color: #000000;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.national-motto {
+  font-size: 11pt;
+  font-weight: bold;
+  color: #000000;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.national-underline {
+  width: 140px;
+  height: 1px;
+  background-color: #000000;
+  margin: 4px auto 0 auto;
+}
+
+/* 2. Tiêu đề biểu mẫu */
+.paper-form-title {
+  text-align: center;
+  margin: 10px 0 16px 0;
+}
+
+.paper-form-title h2 {
+  font-size: 15pt;
+  font-weight: bold;
+  color: #000000;
+  letter-spacing: 0.8px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* 3. Thông tin hành chính kết hợp Barcode mã vạch */
+.paper-info-section-with-barcode {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+  font-size: 10.5pt;
+  line-height: 1.45;
+}
+
+.paper-info-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.paper-info-row {
+  display: flex;
+  align-items: baseline;
+  color: #111827;
+}
+
+.info-bullet {
+  margin-right: 6px;
+  font-size: 11pt;
+  line-height: 1;
+}
+
+.info-label {
+  font-weight: normal;
+  margin-right: 6px;
+  min-width: 115px;
+  font-size: 10pt;
+}
+
+.info-value {
+  flex: 1;
+  border-bottom: 1px dotted #94a3b8;
+  padding-bottom: 1px;
+  font-size: 10pt;
+}
+
+.info-value.bold {
+  font-weight: bold;
+}
+
+.info-value.info-code {
+  font-family: monospace;
+  font-weight: bold;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+/* Khối Barcode của phiếu */
+.paper-barcode-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-width: 175px;
+}
+
+.paper-barcode-graphic svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.paper-barcode-caption {
+  font-size: 8.5pt;
+  font-style: italic;
+  color: #64748b;
+  margin-top: 2px;
+  text-align: center;
+}
+
+/* 4. Bảng danh sách sách mượn - Khắc phục tràn viền A4 */
+.paper-table-section {
+  margin-bottom: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.section-heading {
+  font-size: 10.5pt;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #000000;
+}
+
+.paper-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 9pt;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.paper-table th,
+.paper-table td {
+  border: 1px solid #000000;
+  padding: 4px 5px;
+  vertical-align: middle;
+  font-size: 9pt;
+  line-height: 1.25;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.paper-table th {
+  background-color: #f1f5f9;
+  font-weight: bold;
+  color: #000000;
+  text-align: left;
+}
+
+.paper-table tr.empty-row td {
+  height: 22px;
+}
+
+.book-title-cell {
+  font-weight: 500;
+  font-size: 8.5pt;
+  line-height: 1.2;
+}
+
+.book-author-cell {
+  font-size: 8.5pt;
+  line-height: 1.2;
+}
+
+.book-note-cell {
+  font-size: 8.5pt;
+  line-height: 1.2;
+}
+
+/* 5. Điều khoản quy định */
+.paper-terms-section {
+  margin-bottom: 16px;
+}
+
+.terms-list {
+  margin: 3px 0 0 0;
+  padding-left: 18px;
+  font-size: 9.5pt;
+  line-height: 1.45;
+}
+
+.terms-list li {
+  margin-bottom: 2px;
+}
+
+/* 6. Chữ ký hai bên */
+.paper-signatures-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.sig-block {
+  text-align: center;
+  width: 190px;
+}
+
+.sig-role {
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #000000;
+}
+
+.sig-sub {
+  font-size: 8.5pt;
+  font-style: italic;
+  color: #4b5563;
+  margin-top: 2px;
+}
+
+.sig-space {
+  height: 48px;
+}
+
+.sig-name {
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #000000;
+}
+
+/* Footer modal */
+.receipt-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.receipt-hint-text {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.btn-close-receipt {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-close-receipt:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.receipt-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-footer-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-footer-print:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-footer-export-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-footer-export-pdf:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 3px 6px rgba(37, 99, 235, 0.35);
+}
+
+.btn-footer-export-pdf:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   PRINT MEDIA QUERY: In khổ A4 sạch sẽ chỉ có tờ phiếu in
+   ========================================================================== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .receipt-modal-overlay {
+    position: static;
+    background: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .receipt-modal-dialog {
+    box-shadow: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .receipt-paper-container {
+    background: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .receipt-paper-sheet,
+  .receipt-paper-sheet * {
+    visibility: visible !important;
+  }
+
+  .receipt-paper-sheet {
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10mm 15mm !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
