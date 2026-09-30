@@ -47,10 +47,26 @@ public class ReturnsController : ControllerBase
     /// <response code="200">Hoàn tất trả sách, cập nhật CSDL và trả về kết quả chi tiết</response>
     /// <response code="400">Dữ liệu không hợp lệ hoặc sách không ở trạng thái đang mượn</response>
     [HttpPost("process-item")]
-    [HttpPost] // Cho phép gọi cả POST /api/returns và POST /api/returns/process-item
+    [ProducesResponseType(typeof(ApiResponse<ReturnBookResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ReturnBookResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ProcessReturnItem([FromBody] ReturnBookRequestDto request)
+    {
+        return await HandleProcessReturnAsync(request);
+    }
+
+    /// <summary>
+    /// Tiếp nhận hoàn trả sách theo mã Barcode (Alias cho route POST /api/returns theo AC Story LOLRA-17).
+    /// </summary>
+    /// <param name="request">Thông tin yêu cầu hoàn trả</param>
+    [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<ReturnBookResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<ReturnBookResponseDto>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ProcessReturn([FromBody] ReturnBookRequestDto request)
+    {
+        return await HandleProcessReturnAsync(request);
+    }
+
+    private async Task<IActionResult> HandleProcessReturnAsync(ReturnBookRequestDto request)
     {
         if (!ModelState.IsValid)
         {
