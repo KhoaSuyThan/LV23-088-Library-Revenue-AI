@@ -6,6 +6,37 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-10-01] - Cập Nhật Dữ Liệu Phạt Vi Phạm Chờ Thu (Pending) & Hoàn Thiện Luồng Kiểm Thử LOLRA-19
+
+- **Cơ Sở Dữ Liệu & Seeding Dữ Liệu Kiểm Thử:**
+  - **Khởi tạo dữ liệu Pending:** Bổ sung các bản ghi phạt vi phạm trạng thái `Pending` trong bảng `FineReceipts` (trỏ tới các phiếu mượn thực tế trong `Borrowings`) vào CSDL trực tiếp và cập nhật trong [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql).
+  - **Seeding tự động Idempotent:** Cập nhật [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) để tự động kiểm tra và khởi tạo bản ghi phạt `Pending` mẫu nếu hệ thống chưa có khoản phạt nào đang chờ thu, đảm bảo hệ thống luôn sẵn sàng kiểm thử luồng thu tiền phạt và xuất biên lai.
+
+## [2026-10-01] - Hoàn Thiện Thu Tiền Phạt, Hóa Đơn Kế Toán Bất Biến & Xuất Biên Lai K80/A5 (Story LOLRA-19)
+
+- **Cơ Sở Dữ Liệu & Hóa Đơn Kế Toán Bất Biến (`PenaltyInvoices`):**
+  - **Schema & Seeding:** Bổ sung bảng `PenaltyInvoices` vào [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql), [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), và logic tự động tạo bảng an toàn (Idempotent DDL) trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - **Entity C# & DbContext:** Tạo Entity [`PenaltyInvoice.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/PenaltyInvoice.cs) và cập nhật [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs), cấu hình khóa ngoại `ReceiptID` trỏ tới `FineReceipts` và `CashierID` trỏ tới `Users`.
+
+- **Backend API Kế Toán Bất Biến & Mở Lại Quyền Mượn Sách (Sub-task 1 - Khoa NK):**
+  - **Controller & Endpoints:** Triển khai [`InvoicesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs) với các endpoints: `POST /api/invoices` (xác nhận thu tiền), `GET /api/invoices/pending` (danh sách nợ phạt) và `GET /api/invoices/{idOrCode}` (tra cứu biên lai).
+  - **Database Transaction Bất Biến:** Xây dựng [`InvoiceRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs) và [`InvoiceService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), bọc toàn bộ thao tác trong `IDbContextTransaction`. Cơ chế chống thanh toán trùng lặp (Double-spending protection), tự động sinh mã biên lai chuẩn hóa `INVyyyyMMddxxxx`.
+  - **Tự Động Mở Lại Quyền Mượn Sách (Scenario 1):** Cập nhật `FineReceipt.Status = 'Paid'` đồng bộ ngay lập tức với cơ chế kiểm tra `CheckUnpaidFinesByReaderIdAsync()` của module lưu thông, giúp bạn đọc có thể mượn sách trở lại ngay sau khi hoàn thành nộp phạt.
+
+- **Frontend In Ấn Biên Lai K80/A5 & Tích Hợp Quầy Lưu Thông (Sub-task 2 - Huy TH):**
+  - **Chuẩn Hóa Nhận Diện HUTECH & Tối Ưu Bố Cục:**
+    - Cập nhật chuẩn hóa tên trường thành **TRƯỜNG ĐẠI HỌC CÔNG NGHỆ TP.HCM (HUTECH)** và **TRUNG TÂM THÔNG TIN - THƯ VIỆN HUTECH** (475A Điện Biên Phủ, P. 25, Q. Bình Thạnh, TP.HCM).
+    - Tinh chỉnh typography cho cả 2 khổ K80 và A5: thu nhỏ font chữ vừa vặn, đều đẹp, thay thế các dòng gạch ký tự thô bằng đường viền CSS border dashed, khắc phục triệt để lỗi tràn chữ và xuống hàng cục bộ.
+    - Căn chỉnh nút đóng `X` ngay ngắn, sát mép phải thanh công cụ modal.
+    - Tách biệt thanh header thành 2 hàng độc lập (Hàng 1: Tiêu đề + Nút X; Hàng 2: Bộ chọn khổ in K80/A5 + Chọn phương thức thanh toán + Nút Xác nhận thu), giải quyết triệt để lỗi các nút bấm và chữ bị chồng chéo, đè lên nhau.
+  - **Quy Trình Nghiệp Vụ "Xem Trước Biên Lai Rồi Mới Xác Nhận Thu Tiền":**
+    - Khi thủ thư bấm "Thu tiền ngay" tại sổ nợ hoặc "Lập phiếu thu phạt" tại quầy trả sách, hệ thống mở ngay [`ReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReceiptModal.jsx) ở chế độ **Xem trước (Preview)**.
+    - Cho phép thủ thư kiểm tra đối soát thông tin độc giả, lý do vi phạm, số tiền thực thu và lựa chọn hình thức thanh toán (Tiền mặt / Chuyển khoản QR) trực tiếp trên giao diện biên lai.
+    - Bấm nút **"Xác nhận đã thu tiền"** để kích hoạt gọi API Backend lập hóa đơn bất biến, tự động cấp mã `INVxxxxxx`, cập nhật `Paid` và mở khóa mượn sách.
+  - **In Trực Tiếp & Xuất PDF:** Tích hợp `window.print()` với `@media print` tối ưu trang in nhiệt K80 và xuất file PDF vector sắc nét (html2canvas + jsPDF).
+  - **Kết Nối Quầy Trả Sách:** Tích hợp gọi [`invoiceApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/invoiceApi.js) trực tiếp trong [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) khi thủ thư tiếp nhận trả sách và bấm "Xác nhận thu & Xuất biên lai".
+  - **Kết Nối Quản Lý Thu Phạt:** Nâng cấp [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx), bổ sung nút "Thu tiền ngay" trên từng dòng nợ đọng, hộp thoại xác nhận thanh toán (tiền mặt / chuyển khoản QR) và nút in lại biên lai trên bảng lịch sử.
+
 ## [2026-09-30] - Nâng Cấp Toàn Diện Quầy Lưu Thông: Hoàn Trả Rải Rác (LOLRA-17), Hạn Mức Mượn Động, In Phiếu A4 & Tối Ưu Máy Quét
 
 - **Tiếp Nhận Sách Trả Rải Rác & Xử Lý Vi Phạm (Story LOLRA-17):**

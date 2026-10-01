@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   TrendingUp,
   AlertTriangle,
@@ -23,8 +23,13 @@ import {
   User,
   Clock,
   ShieldAlert,
-  ArrowUpRight
+  ArrowUpRight,
+  QrCode,
+  Loader2,
+  Receipt
 } from 'lucide-react';
+import { invoiceApi } from '../api/invoiceApi';
+import ReceiptModal from '../components/ReceiptModal';
 import './FineRevenue.css';
 
 /**
@@ -242,6 +247,81 @@ export default function FineRevenue({ user, externalSearch = '' }) {
     setTimeout(() => {
       setToastMessage('');
     }, 4000);
+  };
+
+  // State quản lý Hóa đơn & Thu tiền phạt kế toán (Story LOLRA-19)
+  const [backendPendingFines, setBackendPendingFines] = useState([]);
+  const [isLoadingFines, setIsLoadingFines] = useState(false);
+  const [selectedFineToPay, setSelectedFineToPay] = useState(null);
+  const [payMethod, setPayMethod] = useState('Cash'); // 'Cash' | 'Transfer'
+  const [isProcessingPay, setIsProcessingPay] = useState(false);
+  const [activeReceiptData, setActiveReceiptData] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
+  // Tải danh sách khoản phạt Pending từ Backend
+  const fetchPendingFines = async () => {
+    setIsLoadingFines(true);
+    try {
+      const res = await invoiceApi.getPendingFines();
+      if (res.success && Array.isArray(res.data)) {
+        setBackendPendingFines(res.data);
+      }
+    } catch (err) {
+      console.warn('Chưa tải được danh sách nợ phạt từ Backend:', err.message);
+    } finally {
+      setIsLoadingFines(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingFines();
+  }, []);
+
+  // Mở ReceiptModal ở chế độ xem trước (Preview) trước khi xác nhận thu tiền (LOLRA-19)
+  const handleOpenPayModal = (fine) => {
+    setActiveReceiptData({
+      receiptId: fine.receiptId,
+      isPending: true,
+      readerName: fine.readerName,
+      readerCode: fine.readerCode,
+      department: fine.department || 'Độc giả HUTECH',
+      borrowCode: fine.borrowCode,
+      bookTitle: fine.bookTitle,
+      reason: fine.reason || `Phạt quá hạn ${fine.daysOverdue || 0} ngày`,
+      totalAmount: fine.totalAmount || fine.finalAmount,
+      discountAmount: fine.discountAmount || 0,
+      amountPaid: fine.finalAmount,
+      paymentMethod: 'Cash',
+      cashierName: user?.fullName || 'Thủ thư tiếp nhận'
+    });
+    setIsReceiptModalOpen(true);
+  };
+
+  // Xác nhận thu tiền trực tiếp từ trong ReceiptModal sau khi xem trước biên lai
+  const handleConfirmPaymentFromModal = async (method) => {
+    if (!activeReceiptData || !activeReceiptData.receiptId) return;
+    try {
+      const payload = {
+        receiptId: activeReceiptData.receiptId,
+        paymentMethod: method || 'Cash',
+        note: `Thu tiền phạt tại Sổ nợ đọng thư viện (${activeReceiptData.borrowCode})`
+      };
+
+      const res = await invoiceApi.createInvoice(payload);
+      if (res.success && res.data) {
+        triggerToast(`🎉 Đã thu tiền thành công! Mã biên lai ${res.data.invoiceCode}. Đã tự động mở lại quyền mượn sách.`);
+        setActiveReceiptData({
+          ...res.data,
+          isPending: false
+        });
+        fetchPendingFines();
+      } else {
+        triggerToast(`❌ Lỗi thu tiền: ${res.message}`);
+      }
+    } catch (err) {
+      triggerToast(`❌ Lỗi giao dịch: ${err.response?.data?.message || err.message}`);
+      throw err;
+    }
   };
 
   // Lọc danh sách độc giả theo từ khóa & mức độ rủi ro
@@ -822,54 +902,89 @@ export default function FineRevenue({ user, externalSearch = '' }) {
       {subTab === 'arrears' && (
         <div className="arrears-grid">
           <div className="arrears-card">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#0f172a' }}>
-              Danh sách 47 trường hợp quá hạn & nợ phạt tích lũy
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>
+                Danh sách các trường hợp quá hạn & nợ phạt tích lũy ({backendPendingFines.length > 0 ? backendPendingFines.length : 47})
+              </h3>
+              <button
+                type="button"
+                onClick={fetchPendingFines}
+                style={{ fontSize: '12px', background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}
+              >
+                {isLoadingFines ? 'Đang tải...' : '↻ Làm mới'}
+              </button>
+            </div>
+
             <div className="arrears-list">
-              {[
-                {
-                  code: 'PM-9920',
-                  name: 'Nguyễn Văn Minh (102220184)',
-                  book: 'Nhập môn Machine Learning',
-                  overdueDays: 5,
-                  fee: '25.000 đ'
-                },
-                {
-                  code: 'PM-9915',
-                  name: 'Đặng Tuấn Anh (102210443)',
-                  book: 'Giải tích 2 Nâng cao',
-                  overdueDays: 14,
-                  fee: '70.000 đ'
-                },
-                {
-                  code: 'PM-9908',
-                  name: 'Lê Thùy Dung (102220912)',
-                  book: 'Xác suất Thống kê ứng dụng',
-                  overdueDays: 8,
-                  fee: '40.000 đ'
-                },
-                {
-                  code: 'PM-9892',
-                  name: 'Hoàng Minh Quân (102230556)',
-                  book: 'Kiến trúc máy tính hiện đại',
-                  overdueDays: 22,
-                  fee: '110.000 đ'
-                }
-              ].map((item, idx) => (
-                <div key={idx} className="arrears-item">
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{item.name}</div>
+              {(backendPendingFines.length > 0
+                ? backendPendingFines
+                : [
+                    {
+                      receiptId: 1,
+                      borrowCode: 'PM-9920',
+                      readerName: 'Nguyễn Văn Minh',
+                      readerCode: '102220184',
+                      bookTitle: 'Nhập môn Machine Learning',
+                      daysOverdue: 5,
+                      finalAmount: 25000
+                    },
+                    {
+                      receiptId: 2,
+                      borrowCode: 'PM-9915',
+                      readerName: 'Đặng Tuấn Anh',
+                      readerCode: '102210443',
+                      bookTitle: 'Giải tích 2 Nâng cao',
+                      daysOverdue: 14,
+                      finalAmount: 70000
+                    },
+                    {
+                      receiptId: 3,
+                      borrowCode: 'PM-9908',
+                      readerName: 'Lê Thùy Dung',
+                      readerCode: '102220912',
+                      bookTitle: 'Xác suất Thống kê ứng dụng',
+                      daysOverdue: 8,
+                      finalAmount: 40000
+                    },
+                    {
+                      receiptId: 4,
+                      borrowCode: 'PM-9892',
+                      readerName: 'Hoàng Minh Quân',
+                      readerCode: '102230556',
+                      bookTitle: 'Kiến trúc máy tính hiện đại',
+                      daysOverdue: 22,
+                      finalAmount: 110000
+                    }
+                  ]
+              ).map((item, idx) => (
+                <div key={idx} className="arrears-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                      {item.readerName} ({item.readerCode})
+                    </div>
                     <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '3px' }}>
-                      Sách: {item.book} • Mã phiếu: <strong>{item.code}</strong>
+                      Sách: {item.bookTitle} • Phiếu: <strong>{item.borrowCode}</strong>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '15px' }}>
-                      {item.fee}
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    <div>
+                      <span style={{ color: '#ef4444', fontWeight: 800, fontSize: '15px' }}>
+                        {item.finalAmount?.toLocaleString('vi-VN')} đ
+                      </span>
+                      <span style={{ fontSize: '11.5px', color: '#dc2626', marginLeft: '6px' }}>
+                        (Quá hạn {item.daysOverdue || 5} ngày)
+                      </span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#dc2626' }}>
-                      Quá hạn {item.overdueDays} ngày
-                    </div>
+                    <button
+                      type="button"
+                      className="btn-primary-action"
+                      style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '5px' }}
+                      onClick={() => handleOpenPayModal(item)}
+                      title="Thu tiền và xuất biên lai kế toán K80/A5 (LOLRA-19)"
+                    >
+                      <Receipt size={13} />
+                      <span>Thu tiền ngay</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -964,6 +1079,7 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                   <th>Phương thức</th>
                   <th>Số tiền</th>
                   <th>Thủ thư tiếp nhận</th>
+                  <th style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -989,6 +1105,32 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                       <strong style={{ color: '#0f172a' }}>{r.amount}</strong>
                     </td>
                     <td>{r.cashier}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary-action"
+                        style={{ padding: '3px 8px', fontSize: '11.5px', borderRadius: '4px' }}
+                        onClick={() => {
+                          const numAmount = parseInt(r.amount.replace(/[^0-9]/g, ''), 10) || 0;
+                          setActiveReceiptData({
+                            invoiceCode: r.code,
+                            readerName: r.reader.split('(')[0]?.trim() || r.reader,
+                            readerCode: r.reader.match(/\(([^)]+)\)/)?.[1] || 'N/A',
+                            reason: r.type,
+                            amountPaid: numAmount,
+                            totalAmount: numAmount,
+                            paymentMethod: r.method,
+                            cashierName: r.cashier,
+                            paymentDate: new Date()
+                          });
+                          setIsReceiptModalOpen(true);
+                        }}
+                        title="Xem chi tiết & In biên lai K80 / A5"
+                      >
+                        <Printer size={12} />
+                        <span>In phiếu</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1388,6 +1530,20 @@ export default function FineRevenue({ user, externalSearch = '' }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ----------------------------------------------------------------------
+          MODAL BIÊN LAI THU PHẠT KẾ TOÁN BẤT BIẾN K80 / A5 (Story LOLRA-19)
+          Hỗ trợ: XEM TRƯỚC BIÊN LAI -> CHỌN PHƯƠNG THỨC -> XÁC NHẬN THU TIỀN -> IN BIÊN LAI
+          ---------------------------------------------------------------------- */}
+      {activeReceiptData && (
+        <ReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => setIsReceiptModalOpen(false)}
+          invoiceData={activeReceiptData}
+          defaultFormat="k80"
+          onConfirmPayment={activeReceiptData.isPending ? handleConfirmPaymentFromModal : null}
+        />
       )}
 
       {/* ----------------------------------------------------------------------
