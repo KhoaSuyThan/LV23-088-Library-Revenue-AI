@@ -23,6 +23,7 @@ public class SmartLibDbContext : DbContext
     public DbSet<BorrowingDetail> BorrowingDetails => Set<BorrowingDetail>();
     public DbSet<FineRule> FineRules => Set<FineRule>();
     public DbSet<FineReceipt> FineReceipts => Set<FineReceipt>();
+    public DbSet<PenaltyInvoice> PenaltyInvoices => Set<PenaltyInvoice>();
     public DbSet<AIPredictionLog> AIPredictionLogs => Set<AIPredictionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -308,6 +309,38 @@ public class SmartLibDbContext : DbContext
             entity.HasOne(e => e.FineRule)
                 .WithMany(fr => fr.FineReceipts)
                 .HasForeignKey(e => e.RuleID)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // PenaltyInvoices (Hóa đơn kế toán thu tiền phạt bất biến - Story LOLRA-19)
+        modelBuilder.Entity<PenaltyInvoice>(entity =>
+        {
+            entity.ToTable("PenaltyInvoices");
+            entity.HasKey(e => e.InvoiceID);
+            entity.Property(e => e.InvoiceCode)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.HasIndex(e => e.InvoiceCode)
+                .IsUnique();
+            entity.Property(e => e.PaymentMethod)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.AmountPaid)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+            entity.Property(e => e.PaymentDate)
+                .HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.Note)
+                .HasMaxLength(255);
+
+            entity.HasOne(e => e.FineReceipt)
+                .WithOne(fr => fr.PenaltyInvoice)
+                .HasForeignKey<PenaltyInvoice>(e => e.ReceiptID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Cashier)
+                .WithMany()
+                .HasForeignKey(e => e.CashierID)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

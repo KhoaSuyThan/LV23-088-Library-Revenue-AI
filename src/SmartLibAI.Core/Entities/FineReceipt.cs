@@ -23,4 +23,6 @@ public class FineReceipt
     public Borrowing Borrowing { get; set; } = null!;
 
     public FineRule FineRule { get; set; } = null!;
+
+    public PenaltyInvoice? PenaltyInvoice { get; set; }
 }

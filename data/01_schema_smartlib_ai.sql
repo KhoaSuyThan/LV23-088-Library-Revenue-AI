@@ -17,6 +17,7 @@ GO
 -- Xóa bảng theo thứ tự ràng buộc khóa ngoại (nếu đã tồn tại)
 DROP TABLE IF EXISTS Notifications;
 DROP TABLE IF EXISTS AIPredictionLogs;
+DROP TABLE IF EXISTS PenaltyInvoices;
 DROP TABLE IF EXISTS FineReceipts;
 DROP TABLE IF EXISTS FineRules;
 DROP TABLE IF EXISTS BorrowingDetails;
@@ -151,6 +152,19 @@ CREATE TABLE FineReceipts (
     Status NVARCHAR(50) DEFAULT 'Pending', -- 'Pending', 'Paid', 'Cancelled'
     FOREIGN KEY (BorrowingID) REFERENCES Borrowings(BorrowingID),
     FOREIGN KEY (RuleID) REFERENCES FineRules(RuleID)
+);
+
+CREATE TABLE PenaltyInvoices (
+    InvoiceID INT IDENTITY(1,1) PRIMARY KEY,
+    InvoiceCode NVARCHAR(50) NOT NULL UNIQUE,       -- Định dạng: INV + yyyyMMdd + ID
+    ReceiptID INT NOT NULL,                          -- Tham chiếu bản ghi phạt trong FineReceipts
+    PaymentMethod NVARCHAR(50) NOT NULL,            -- 'Cash' (Tiền mặt), 'Transfer' (Chuyển khoản)
+    AmountPaid DECIMAL(18,2) NOT NULL,               -- Số tiền thực tế thu
+    PaymentDate DATETIME NOT NULL DEFAULT GETDATE(), -- Thời điểm thu tiền
+    CashierID INT NOT NULL,                          -- Thủ thư thu tiền (Users.UserID)
+    Note NVARCHAR(255) NULL,
+    FOREIGN KEY (ReceiptID) REFERENCES FineReceipts(ReceiptID),
+    FOREIGN KEY (CashierID) REFERENCES Users(UserID)
 );
 
 CREATE TABLE AIPredictionLogs (

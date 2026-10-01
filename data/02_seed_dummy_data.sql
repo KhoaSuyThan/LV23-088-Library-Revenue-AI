@@ -159,4 +159,32 @@ BEGIN
 
     SET @Counter = @Counter + 1;
 END
+
+-- =============================================
+-- 6. KHỞI TẠO HÓA ĐƠN THU TIỀN PHẠT MẪU (PenaltyInvoices)
+-- =============================================
+-- Cập nhật một số biên lai phạt sang Paid và tạo hóa đơn kế toán mẫu
+IF EXISTS (SELECT 1 FROM FineReceipts WHERE Status = 'Pending')
+BEGIN
+    DECLARE @SampleReceiptID INT = (SELECT TOP 1 ReceiptID FROM FineReceipts WHERE Status = 'Pending');
+    DECLARE @SampleAmount DECIMAL(18,2) = (SELECT FinalAmount FROM FineReceipts WHERE ReceiptID = @SampleReceiptID);
+    
+    UPDATE FineReceipts 
+    SET Status = 'Paid' 
+    WHERE ReceiptID = @SampleReceiptID;
+
+    INSERT INTO PenaltyInvoices (InvoiceCode, ReceiptID, PaymentMethod, AmountPaid, PaymentDate, CashierID, Note)
+    VALUES ('INV20261001001', @SampleReceiptID, N'Cash', @SampleAmount, GETDATE(), 2, N'Thu tiền phạt trễ hạn trực tiếp tại quầy');
+END
+
+-- Đảm bảo luôn duy trì các khoản phạt vi phạm chưa thu (Pending) để phục vụ kiểm thử thu tiền phạt & xuất biên lai
+IF NOT EXISTS (SELECT 1 FROM FineReceipts WHERE Status = 'Pending')
+BEGIN
+    DECLARE @PendingBorrowID INT = (SELECT TOP 1 BorrowingID FROM Borrowings WHERE Status = 'Overdue');
+    IF @PendingBorrowID IS NOT NULL
+    BEGIN
+        INSERT INTO FineReceipts (BorrowingID, RuleID, TotalAmount, DiscountAmount, FinalAmount, Status)
+        VALUES (@PendingBorrowID, 1, 25000.00, 0, 25000.00, 'Pending');
+    END
+END
 GO

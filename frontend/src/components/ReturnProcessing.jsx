@@ -16,8 +16,10 @@ import {
   Loader2
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
+import { invoiceApi } from '../api/invoiceApi';
 import { playScannerBeep } from '../utils/barcodeGenerator';
 import BarcodeCameraModal from './BarcodeCameraModal';
+import ReceiptModal from './ReceiptModal';
 import './ReturnProcessing.css';
 
 /**
@@ -59,6 +61,10 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   // Modal thu tiền phạt
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' | 'transfer'
+
+  // Modal hiển thị & in ấn hóa đơn thu tiền chuẩn K80 / A5 (Story LOLRA-19)
+  const [paidInvoiceData, setPaidInvoiceData] = useState(null);
+  const [showPaidReceiptModal, setShowPaidReceiptModal] = useState(false);
 
   // Khi có dữ liệu tra cứu mới, tự động đồng bộ trạng thái quá hạn
   useEffect(() => {
@@ -172,6 +178,27 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
 
         showToast?.(`✅ ${result.message}`);
         setShowReceiptModal(false);
+
+        // Nếu có phát sinh phạt và thủ thư bấm "Xác nhận thu & Xuất biên lai" (Story LOLRA-19)
+        if (isPaidFine && result.receiptId) {
+          try {
+            const invRes = await invoiceApi.createInvoice({
+              receiptId: result.receiptId,
+              paymentMethod: paymentMethod === 'transfer' ? 'Transfer' : 'Cash',
+              note: `Thu tiền phạt tại quầy lưu thông (${lookupData.borrowCode})`
+            });
+
+            if (invRes.success && invRes.data) {
+              setPaidInvoiceData(invRes.data);
+              setShowPaidReceiptModal(true);
+              showToast?.(`🎉 Đã lập hóa đơn ${invRes.data.invoiceCode} và tự động mở lại quyền mượn sách!`);
+            }
+          } catch (invErr) {
+            console.error('Lỗi khi lập hóa đơn thu phạt:', invErr);
+            const errDetail = invErr.response?.data?.message || invErr.message || '';
+            showToast?.(`⚠️ Tiếp nhận trả thành công nhưng chưa lập được hóa đơn: ${errDetail}`);
+          }
+        }
 
         // Gọi callback báo cho trang cha cập nhật bảng giao dịch và mở Modal Phiếu trả
         onReturnSuccess?.({
@@ -728,6 +755,16 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         targetField="return"
         title="MÁY QUÉT MÃ VẠCH SÁCH HOÀN TRẢ (RETURN SCANNER)"
       />
+
+      {/* MODAL BIÊN LAI THU PHẠT KẾ TOÁN BẤT BIẾN K80 / A5 (Story LOLRA-19) */}
+      {paidInvoiceData && (
+        <ReceiptModal
+          isOpen={showPaidReceiptModal}
+          onClose={() => setShowPaidReceiptModal(false)}
+          invoiceData={paidInvoiceData}
+          defaultFormat="k80"
+        />
+      )}
     </>
   );
 }

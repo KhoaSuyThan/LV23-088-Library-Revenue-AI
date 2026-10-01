@@ -22,11 +22,13 @@ builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBorrowRepository, BorrowRepository>();
 builder.Services.AddScoped<IReturnRepository, ReturnRepository>();
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IBorrowService, BorrowService>();
 builder.Services.AddScoped<IReturnService, ReturnService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -168,6 +170,23 @@ using (var scope = app.Services.CreateScope())
                 CREATE NONCLUSTERED INDEX IX_BookCopies_BookID_Status 
                 ON BookCopies(BookID, Status);
             END
+
+            -- Tự động kiểm tra và tạo bảng PenaltyInvoices (Story LOLRA-19)
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PenaltyInvoices')
+            BEGIN
+                CREATE TABLE PenaltyInvoices (
+                    InvoiceID INT IDENTITY(1,1) PRIMARY KEY,
+                    InvoiceCode NVARCHAR(50) NOT NULL UNIQUE,
+                    ReceiptID INT NOT NULL,
+                    PaymentMethod NVARCHAR(50) NOT NULL,
+                    AmountPaid DECIMAL(18,2) NOT NULL,
+                    PaymentDate DATETIME NOT NULL DEFAULT GETDATE(),
+                    CashierID INT NOT NULL,
+                    Note NVARCHAR(255) NULL,
+                    FOREIGN KEY (ReceiptID) REFERENCES FineReceipts(ReceiptID),
+                    FOREIGN KEY (CashierID) REFERENCES Users(UserID)
+                );
+            END
         ");
 
         // Tự động nạp vai trò nếu chưa có
@@ -254,6 +273,28 @@ using (var scope = app.Services.CreateScope())
                 };
                 await context.BorrowingDetails.AddAsync(detailB);
                 copyB.Status = "Borrowed";
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // Tự động seed khoản phạt vi phạm Pending mẫu nếu chưa có khoản nào đang chờ thu (Story LOLRA-19)
+        if (!await context.FineReceipts.AnyAsync(f => f.Status == "Pending"))
+        {
+            var overdueBorrowing = await context.Borrowings.FirstOrDefaultAsync(b => b.Status == "Overdue") 
+                                  ?? await context.Borrowings.FirstOrDefaultAsync();
+            var defaultRule = await context.FineRules.FirstOrDefaultAsync();
+            if (overdueBorrowing != null && defaultRule != null)
+            {
+                var samplePendingFine = new SmartLibAI.Core.Entities.FineReceipt
+                {
+                    BorrowingID = overdueBorrowing.BorrowingID,
+                    RuleID = defaultRule.RuleID,
+                    TotalAmount = 25000m,
+                    DiscountAmount = 0m,
+                    FinalAmount = 25000m,
+                    Status = "Pending"
+                };
+                await context.FineReceipts.AddAsync(samplePendingFine);
                 await context.SaveChangesAsync();
             }
         }
