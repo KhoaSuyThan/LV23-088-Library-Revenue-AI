@@ -1,40 +1,31 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
+  ReceiptText,
   TrendingUp,
   AlertTriangle,
-  GraduationCap,
-  ReceiptText,
-  Bell,
-  Search,
-  Filter,
-  Download,
-  Calendar,
   Sparkles,
-  FileSpreadsheet,
-  CheckCircle2,
-  X,
+  Download,
+  Bell,
   Send,
-  Eye,
-  CreditCard,
-  Banknote,
-  Printer,
+  CheckCircle2,
   ChevronRight,
+  X,
   BookOpen,
-  User,
   Clock,
   ShieldAlert,
-  ArrowUpRight,
-  QrCode,
-  Loader2,
-  Receipt
+  Award
 } from 'lucide-react';
 import { invoiceApi } from '../api/invoiceApi';
 import ReceiptModal from '../components/ReceiptModal';
+import RevenueAiForecastTab from '../components/revenue/RevenueAiForecastTab';
+import RevenueArrearsTab from '../components/revenue/RevenueArrearsTab';
+import RevenueReceiptsTab from '../components/revenue/RevenueReceiptsTab';
+import RevenueBreakdownTab from '../components/revenue/RevenueBreakdownTab';
 import './FineRevenue.css';
 
 /**
- * Dữ liệu độc giả nguy cơ trễ hạn cao (AI phân tích)
- * Khớp 100% Mockup Figma thiết kế của SmartLib AI
+ * Dữ liệu giả lập 6 độc giả có nguy cơ trễ hạn cao (Khớp 100% Mockup Figma)
  */
 const INITIAL_AI_READERS = [
   {
@@ -42,10 +33,10 @@ const INITIAL_AI_READERS = [
     name: 'Nguyễn Văn Minh',
     studentCode: '102220184',
     department: 'Khoa Công Nghệ Thông Tin',
-    bookTitle: 'Nhập môn Machine Learning',
-    bookCode: 'BC000001-A',
-    dueDate: '25/09/2026',
-    score: 92,
+    bookTitle: 'Harry Potter and the Half-Blood Prince (Harry Potter #6)',
+    bookCode: 'BC000001-B',
+    dueDate: '20/09/2026',
+    score: 94,
     scoreColor: '#ef4444',
     riskLevel: 'very_high',
     riskLabel: 'Nguy cơ rất cao',
@@ -118,37 +109,37 @@ const INITIAL_AI_READERS = [
   {
     id: 'PM-9780',
     name: 'Vũ Thị Mai',
-    studentCode: '102230198',
-    department: 'Khoa Ngoại Ngữ Ứng Dụng',
-    bookTitle: 'Trí Tuệ Nhân Tạo Hiện Đại',
-    bookCode: 'BC000005-B',
-    dueDate: '24/09/2026',
-    score: 86,
-    scoreColor: '#ef4444',
-    riskLevel: 'very_high',
-    riskLabel: 'Nguy cơ rất cao',
+    studentCode: '102210889',
+    department: 'Khoa Ngôn Ngữ Anh',
+    bookTitle: 'Oxford Advanced Learner Dictionary',
+    bookCode: 'BC000005-A',
+    dueDate: '29/09/2026',
+    score: 28,
+    scoreColor: '#3b82f6',
+    riskLevel: 'low',
+    riskLabel: 'Nguy cơ thấp',
     factors: [
-      { label: 'Quá hạn 1 ngày chưa đến trả sách', weight: '+55%' },
-      { label: 'Chưa phản hồi email thông báo trước đó', weight: '+31%' }
+      { label: 'Thường xuyên gia hạn trực tuyến chủ động', weight: '-35%' },
+      { label: 'Chỉ còn 1 ngày đến hạn nhưng chưa có cảnh báo', weight: '-20%' }
     ],
     reminderSent: false,
     estimatedDailyFine: '5.000 đ/ngày'
   },
   {
-    id: 'PM-9765',
-    name: 'Đỗ Hoàng Quân',
-    studentCode: '102210512',
-    department: 'Khoa Kinh Tế Số',
-    bookTitle: 'Hệ Thống Phân Tán Thực Hành',
+    id: 'PM-9745',
+    name: 'Đặng Tuấn Anh',
+    studentCode: '102210443',
+    department: 'Khoa Xây Dựng',
+    bookTitle: 'Cơ học Kết cấu Công trình',
     bookCode: 'BC000006-A',
-    dueDate: '27/09/2026',
-    score: 65,
-    scoreColor: '#f97316',
-    riskLevel: 'high',
-    riskLabel: 'Nguy cơ cao',
+    dueDate: '25/09/2026',
+    score: 82,
+    scoreColor: '#ef4444',
+    riskLevel: 'very_high',
+    riskLabel: 'Nguy cơ rất cao',
     factors: [
-      { label: 'Thời gian giữ sách vượt 85% hạn mức quy định', weight: '+40%' },
-      { label: 'Sinh viên năm cuối chuẩn bị bảo vệ đề án', weight: '+25%' }
+      { label: 'Quá hạn 4 ngày chưa liên hệ thư viện', weight: '+55%' },
+      { label: 'Số điện thoại liên lạc tạm khóa', weight: '+30%' }
     ],
     reminderSent: false,
     estimatedDailyFine: '5.000 đ/ngày'
@@ -156,37 +147,34 @@ const INITIAL_AI_READERS = [
 ];
 
 /**
- * Dữ liệu các điểm trên đồ thị 30 ngày tới
+ * Dữ liệu mẫu danh sách biên lai thu phạt gần đây
  */
-const CHART_POINTS = [
-  { date: '01/09', expected: '3.200.000 đ', aiPredicted: '3.200.000 đ', x: 30, yExp: 195, yAi: 195 },
-  { date: '05/09', expected: '2.100.000 đ', aiPredicted: '5.400.000 đ', x: 180, yExp: 215, yAi: 165 },
-  { date: '10/09', expected: '6.800.000 đ', aiPredicted: '8.900.000 đ', x: 340, yExp: 175, yAi: 145 },
-  { date: '15/09', expected: '5.200.000 đ', aiPredicted: '7.100.000 đ', x: 500, yExp: 185, yAi: 155 },
-  { date: '20/09', expected: '9.400.000 đ', aiPredicted: '11.800.000 đ', x: 660, yExp: 145, yAi: 120 },
-  { date: '25/09', expected: '12.600.000 đ', aiPredicted: '11.100.000 đ', x: 810, yExp: 130, yAi: 135 },
-  { date: '30/09 [Dự báo]', expected: '15.450.000 đ', aiPredicted: '16.800.000 đ', x: 970, yExp: 110, yAi: 105 }
-];
-
-/**
- * Danh sách biên lai đã thu (cho Tab Biên lai)
- */
-const RECENT_RECEIPTS = [
+const INITIAL_RECENT_RECEIPTS = [
   {
-    code: 'BL-2026-0891',
-    date: '28/09/2026 14:15',
+    code: 'BL-2026-0892',
+    date: '28/09/2026 14:25',
     reader: 'Nguyễn Văn Minh (102220184)',
-    type: 'Phạt trễ hạn 5 ngày',
+    type: 'Phạt trễ hạn 5 ngày (Harry Potter #6)',
     amount: '25.000 đ',
     method: 'Tiền mặt',
     isQr: false,
     cashier: 'Thủ thư Nguyễn Văn A'
   },
   {
+    code: 'BL-2026-0891',
+    date: '28/09/2026 11:10',
+    reader: 'Lê Thùy Dung (102220912)',
+    type: 'Bồi hoàn rách gáy sách Giáo trình Xác suất',
+    amount: '35.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
     code: 'BL-2026-0890',
-    date: '28/09/2026 11:20',
-    reader: 'Lê Thị Khánh Huyền (102230045)',
-    type: 'Bồi hoàn rách trang sách BC000002-A',
+    date: '27/09/2026 17:05',
+    reader: 'Hoàng Minh Quân (102230556)',
+    type: 'Phạt trễ hạn 4 ngày',
     amount: '20.000 đ',
     method: 'QR VietQR',
     isQr: true,
@@ -214,15 +202,34 @@ const RECENT_RECEIPTS = [
   }
 ];
 
-export default function FineRevenue({ user, externalSearch = '' }) {
-  // Quản lý tab nội bộ phân hệ Thu phạt
-  const [subTab, setSubTab] = useState('ai_forecast'); // 'ai_forecast' | 'arrears' | 'receipts' | 'breakdown'
+export default function FineRevenue({ user, externalSearch = '', subTab: propSubTab }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Xác định subTab chuẩn xác từ đường dẫn URL (ví dụ: /revenue/arrears -> 'arrears')
+  // Mặc định là 'ai-forecast' khi truy cập /revenue hoặc /revenue/
+  const pathParts = location.pathname.replace(/^\//, '').split('/');
+  const rawSubTab = propSubTab || pathParts[1] || '';
+
+  const currentSubTab =
+    rawSubTab === 'arrears' || rawSubTab === 'receipts' || rawSubTab === 'breakdown'
+      ? rawSubTab
+      : 'ai-forecast';
+
+  // Điều hướng chuyển tab đồng bộ trực tiếp với URL
+  const handleTabChange = (targetTab) => {
+    if (targetTab === 'ai-forecast') {
+      navigate('/revenue/ai-forecast');
+    } else {
+      navigate(`/revenue/${targetTab}`);
+    }
+  };
 
   // Dữ liệu danh sách độc giả nguy cơ
   const [readers, setReaders] = useState(INITIAL_AI_READERS);
 
   // Bộ lọc mức độ nguy cơ
-  const [filterRisk, setFilterRisk] = useState('all'); // 'all' | 'very_high' | 'high' | 'medium'
+  const [filterRisk, setFilterRisk] = useState('all');
 
   // Hover trên đồ thị SVG
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
@@ -241,7 +248,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
   // Thông báo Toast thành công
   const [toastMessage, setToastMessage] = useState('');
 
-  // Hiện toast tạm thời
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -252,9 +258,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
   // State quản lý Hóa đơn & Thu tiền phạt kế toán (Story LOLRA-19)
   const [backendPendingFines, setBackendPendingFines] = useState([]);
   const [isLoadingFines, setIsLoadingFines] = useState(false);
-  const [selectedFineToPay, setSelectedFineToPay] = useState(null);
-  const [payMethod, setPayMethod] = useState('Cash'); // 'Cash' | 'Transfer'
-  const [isProcessingPay, setIsProcessingPay] = useState(false);
   const [activeReceiptData, setActiveReceiptData] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
@@ -324,6 +327,23 @@ export default function FineRevenue({ user, externalSearch = '' }) {
     }
   };
 
+  // Xử lý xem & in lại biên lai cũ từ bảng Lịch sử biên lai đã thu
+  const handlePrintPastReceipt = (r) => {
+    const numAmount = parseInt(r.amount.replace(/[^0-9]/g, ''), 10) || 0;
+    setActiveReceiptData({
+      invoiceCode: r.code,
+      readerName: r.reader.split('(')[0]?.trim() || r.reader,
+      readerCode: r.reader.match(/\(([^)]+)\)/)?.[1] || 'N/A',
+      reason: r.type,
+      amountPaid: numAmount,
+      totalAmount: numAmount,
+      paymentMethod: r.method,
+      cashierName: r.cashier,
+      paymentDate: new Date()
+    });
+    setIsReceiptModalOpen(true);
+  };
+
   // Lọc danh sách độc giả theo từ khóa & mức độ rủi ro
   const filteredReaders = useMemo(() => {
     const q = (externalSearch || '').toLowerCase().trim();
@@ -367,7 +387,7 @@ export default function FineRevenue({ user, externalSearch = '' }) {
     }, 700);
   };
 
-  // Xử lý gửi nhắc nhở hàng loạt cho tất cả độc giả nguy cơ cao
+  // Xử lý gửi nhắc nhở hàng loạt
   const handleBatchRemind = () => {
     const count = filteredReaders.filter((r) => !r.reminderSent).length;
     if (count === 0) {
@@ -394,13 +414,14 @@ export default function FineRevenue({ user, externalSearch = '' }) {
   return (
     <div className="fine-revenue-container">
       {/* ----------------------------------------------------------------------
-          1. NAVIGATION SUB-TABS & THANH ĐIỀU HƯỚNG TỔNG
+          1. NAVIGATION SUB-TABS & THANH ĐIỀU HƯỚNG TỔNG (URL SUB-ROUTES)
           ---------------------------------------------------------------------- */}
       <div className="fine-revenue-toolbar">
         <div className="fine-revenue-tabs">
           <button
-            className={`fine-tab-btn ${subTab === 'ai_forecast' ? 'active' : ''}`}
-            onClick={() => setSubTab('ai_forecast')}
+            className={`fine-tab-btn ${currentSubTab === 'ai-forecast' ? 'active' : ''}`}
+            onClick={() => handleTabChange('ai-forecast')}
+            type="button"
           >
             <Sparkles size={16} />
             <span>AI Dự báo & Xu hướng</span>
@@ -408,17 +429,21 @@ export default function FineRevenue({ user, externalSearch = '' }) {
           </button>
 
           <button
-            className={`fine-tab-btn ${subTab === 'arrears' ? 'active' : ''}`}
-            onClick={() => setSubTab('arrears')}
+            className={`fine-tab-btn ${currentSubTab === 'arrears' ? 'active' : ''}`}
+            onClick={() => handleTabChange('arrears')}
+            type="button"
           >
             <AlertTriangle size={15} />
             <span>Sổ nợ đọng & Sách hư hỏng</span>
-            <span className="fine-tab-badge">47</span>
+            <span className="fine-tab-badge">
+              {backendPendingFines.length > 0 ? backendPendingFines.length : 47}
+            </span>
           </button>
 
           <button
-            className={`fine-tab-btn ${subTab === 'receipts' ? 'active' : ''}`}
-            onClick={() => setSubTab('receipts')}
+            className={`fine-tab-btn ${currentSubTab === 'receipts' ? 'active' : ''}`}
+            onClick={() => handleTabChange('receipts')}
+            type="button"
           >
             <ReceiptText size={15} />
             <span>Biên lai đã thu</span>
@@ -426,8 +451,9 @@ export default function FineRevenue({ user, externalSearch = '' }) {
           </button>
 
           <button
-            className={`fine-tab-btn ${subTab === 'breakdown' ? 'active' : ''}`}
-            onClick={() => setSubTab('breakdown')}
+            className={`fine-tab-btn ${currentSubTab === 'breakdown' ? 'active' : ''}`}
+            onClick={() => handleTabChange('breakdown')}
+            type="button"
           >
             <TrendingUp size={15} />
             <span>Cơ cấu doanh thu</span>
@@ -440,75 +466,63 @@ export default function FineRevenue({ user, externalSearch = '' }) {
             <span>Xuất file Excel</span>
           </button>
 
-          <button
-            className="btn-primary-action"
-            onClick={handleBatchRemind}
-            type="button"
-            title="Gửi email & Zalo cảnh báo tự động cho độc giả có nguy cơ cao"
-          >
-            <Bell size={15} />
-            <span>Gửi nhắc nhở hàng loạt</span>
-          </button>
+          {currentSubTab === 'ai-forecast' && (
+            <button className="btn-primary-action" onClick={handleBatchRemind} type="button">
+              <Bell size={15} />
+              <span>Gửi nhắc nhở hàng loạt</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* ----------------------------------------------------------------------
-          2. HÀNG 3 THẺ CHỈ SỐ STAT CARDS (Khớp 100% Mockup Figma)
+          2. BA THẺ CHỈ SỐ KPI TỔNG QUAN (GIỮ CỐ ĐỊNH Ở ĐẦU TRANG)
           ---------------------------------------------------------------------- */}
       <div className="revenue-kpi-grid">
         {/* Thẻ 1: Tổng tiền phạt đã thu */}
-        <div
-          className="revenue-kpi-card"
-          onClick={() => setSubTab('receipts')}
-          style={{ cursor: 'pointer' }}
-          title="Nhấp để xem chi tiết danh sách biên lai"
-        >
+        <div className="revenue-kpi-card">
           <div className="revenue-kpi-top">
-            <h3 className="revenue-kpi-title">Tổng tiền phạt đã thu</h3>
+            <span className="revenue-kpi-title">Tổng tiền phạt đã thu</span>
             <div className="revenue-kpi-icon-box revenue-kpi-icon-blue">
-              <ReceiptText size={20} strokeWidth={2.2} />
+              <ReceiptText size={20} />
             </div>
           </div>
           <div className="revenue-kpi-value">15.450.000 đ</div>
           <div className="revenue-kpi-footer">
             <span className="revenue-growth-badge">
-              <ArrowUpRight size={12} strokeWidth={3} />
+              <TrendingUp size={13} />
               +12%
             </span>
-            <span className="revenue-kpi-subtext">so với tháng trước</span>
+            <span>so với tháng trước</span>
           </div>
         </div>
 
         {/* Thẻ 2: Tiền phạt chưa thu / nợ đọng */}
-        <div
-          className="revenue-kpi-card"
-          onClick={() => setSubTab('arrears')}
-          style={{ cursor: 'pointer' }}
-          title="Nhấp để xem 47 trường hợp mượn quá hạn"
-        >
+        <div className="revenue-kpi-card">
           <div className="revenue-kpi-top">
-            <h3 className="revenue-kpi-title">Tiền phạt chưa thu / nợ đọng</h3>
+            <span className="revenue-kpi-title">Tiền phạt chưa thu / nợ đọng</span>
             <div className="revenue-kpi-icon-box revenue-kpi-icon-yellow">
-              <AlertTriangle size={20} strokeWidth={2.2} />
+              <AlertTriangle size={20} />
             </div>
           </div>
-          <div className="revenue-kpi-value">2.150.000 đ</div>
+          <div className="revenue-kpi-value">
+            {backendPendingFines.length > 0
+              ? `${backendPendingFines.reduce((sum, f) => sum + (f.finalAmount || 0), 0).toLocaleString('vi-VN')} đ`
+              : '2.150.000 đ'}
+          </div>
           <div className="revenue-kpi-footer">
-            <span className="revenue-kpi-subtext">47 lượt mượn quá hạn</span>
+            <span className="revenue-kpi-subtext">
+              {backendPendingFines.length > 0 ? backendPendingFines.length : 47} lượt mượn quá hạn
+            </span>
           </div>
         </div>
 
         {/* Thẻ 3: Tổng giá trị sách bị mất/hư hỏng */}
-        <div
-          className="revenue-kpi-card"
-          onClick={() => setSubTab('arrears')}
-          style={{ cursor: 'pointer' }}
-          title="Nhấp để xem 12 ca bồi thường sách"
-        >
+        <div className="revenue-kpi-card">
           <div className="revenue-kpi-top">
-            <h3 className="revenue-kpi-title">Tổng giá trị sách bị mất/hư hỏng</h3>
+            <span className="revenue-kpi-title">Tổng giá trị sách bị mất/hư hỏng</span>
             <div className="revenue-kpi-icon-box revenue-kpi-icon-red">
-              <GraduationCap size={20} strokeWidth={2.2} />
+              <Award size={20} />
             </div>
           </div>
           <div className="revenue-kpi-value">3.800.000 đ</div>
@@ -519,753 +533,43 @@ export default function FineRevenue({ user, externalSearch = '' }) {
       </div>
 
       {/* ----------------------------------------------------------------------
-          3. NỘI DUNG CHÍNH THEO CÁC SUB-TAB
+          3. NỘI DUNG TỪNG TAB THEO URL SUB-ROUTE
           ---------------------------------------------------------------------- */}
-      {subTab === 'ai_forecast' && (
-        <>
-          {/* ==================================================================
-              A. BIỂU ĐỒ THU PHẠT & XU HƯỚNG TRỄ HẠN 30 NGÀY TỚI (FULL-WIDTH)
-              ================================================================== */}
-          <div className="revenue-chart-card">
-            <div className="revenue-chart-header">
-              <h3 className="revenue-chart-title">
-                <span>Biểu đồ Thu phạt & Xu hướng Trễ hạn 30 ngày tới</span>
-              </h3>
-
-              <div className="revenue-chart-right">
-                <div className="revenue-legend-group">
-                  <div
-                    className={`revenue-legend-item ${!showExpected ? 'dimmed' : ''}`}
-                    onClick={() => setShowExpected(!showExpected)}
-                    title="Nhấp để ẩn/hiện Doanh thu kỳ vọng"
-                  >
-                    <div className="legend-dot-blue"></div>
-                    <span>Doanh thu kỳ vọng</span>
-                  </div>
-
-                  <div
-                    className={`revenue-legend-item ${!showPredicted ? 'dimmed' : ''}`}
-                    onClick={() => setShowPredicted(!showPredicted)}
-                    title="Nhấp để ẩn/hiện AI dự báo"
-                  >
-                    <div className="legend-dot-red"></div>
-                    <span>AI dự báo</span>
-                  </div>
-                </div>
-
-                <div className="revenue-chart-controls">
-                  <button className="btn-chart-range active" type="button">
-                    30 ngày
-                  </button>
-                  <button className="btn-chart-range" type="button">
-                    Theo quý
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Vùng đồ thị SVG tương tác */}
-            <div className="revenue-svg-wrapper">
-              <svg
-                className="revenue-svg-chart"
-                viewBox="0 0 1000 240"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  {/* Gradient xanh mềm */}
-                  <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                  </linearGradient>
-
-                  {/* Gradient đỏ mềm */}
-                  <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-
-                {/* Các đường gióng ngang mờ */}
-                <line x1="30" y1="40" x2="970" y2="40" stroke="#f1f5f9" strokeWidth="1" />
-                <line x1="30" y1="90" x2="970" y2="90" stroke="#f1f5f9" strokeWidth="1" />
-                <line x1="30" y1="140" x2="970" y2="140" stroke="#f1f5f9" strokeWidth="1" />
-                <line x1="30" y1="190" x2="970" y2="190" stroke="#e2e8f0" strokeWidth="1" />
-
-                {/* Vùng diện tích mờ dưới đường xanh */}
-                {showExpected && (
-                  <polygon
-                    points="30,195 180,215 340,175 500,185 660,145 810,130 970,110 970,190 30,190"
-                    fill="url(#blueGradient)"
-                  />
-                )}
-
-                {/* Vùng diện tích mờ dưới đường đỏ */}
-                {showPredicted && (
-                  <polygon
-                    points="30,195 180,165 340,145 500,155 660,120 810,135 970,105 970,190 30,190"
-                    fill="url(#redGradient)"
-                  />
-                )}
-
-                {/* Đường xanh: Doanh thu kỳ vọng */}
-                {showExpected && (
-                  <path
-                    d="M 30 195 
-                       L 180 215 
-                       L 340 175 
-                       L 500 185 
-                       L 660 145 
-                       L 810 130 
-                       L 970 110"
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-
-                {/* Đường đỏ: AI dự báo */}
-                {showPredicted && (
-                  <path
-                    d="M 30 195 
-                       L 180 165 
-                       L 340 145 
-                       L 500 155 
-                       L 660 120 
-                       L 810 135 
-                       L 970 105"
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-
-                {/* Các điểm neo tương tác trên đồ thị */}
-                {CHART_POINTS.map((pt, idx) => (
-                  <g
-                    key={idx}
-                    onMouseEnter={() => setHoveredPointIndex(idx)}
-                    onMouseLeave={() => setHoveredPointIndex(null)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {/* Cột dọc nhận hover vô hình */}
-                    <rect
-                      x={pt.x - 30}
-                      y="20"
-                      width="60"
-                      height="180"
-                      fill="transparent"
-                    />
-
-                    {/* Vạch gióng đứng khi hover */}
-                    {hoveredPointIndex === idx && (
-                      <line
-                        x1={pt.x}
-                        y1="30"
-                        x2={pt.x}
-                        y2="190"
-                        stroke="#94a3b8"
-                        strokeDasharray="4 4"
-                        strokeWidth="1.2"
-                      />
-                    )}
-
-                    {/* Điểm tròn xanh */}
-                    {showExpected && (
-                      <circle
-                        cx={pt.x}
-                        cy={pt.yExp}
-                        r={hoveredPointIndex === idx ? 6 : 4}
-                        fill="#ffffff"
-                        stroke="#3b82f6"
-                        strokeWidth={hoveredPointIndex === idx ? 3 : 2}
-                      />
-                    )}
-
-                    {/* Điểm tròn đỏ */}
-                    {showPredicted && (
-                      <circle
-                        cx={pt.x}
-                        cy={pt.yAi}
-                        r={hoveredPointIndex === idx ? 6 : 4}
-                        fill="#ffffff"
-                        stroke="#ef4444"
-                        strokeWidth={hoveredPointIndex === idx ? 3 : 2}
-                      />
-                    )}
-
-                    {/* Nhãn trục hoành */}
-                    <text
-                      x={pt.x}
-                      y="218"
-                      fill={hoveredPointIndex === idx ? '#0f172a' : '#94a3b8'}
-                      fontWeight={hoveredPointIndex === idx ? '700' : '500'}
-                      fontSize="12.5"
-                      textAnchor={
-                        idx === 0
-                          ? 'start'
-                          : idx === CHART_POINTS.length - 1
-                          ? 'end'
-                          : 'middle'
-                      }
-                    >
-                      {pt.date}
-                    </text>
-                  </g>
-                ))}
-              </svg>
-
-              {/* Floating Tooltip khi người dùng di chuột */}
-              {hoveredPointIndex !== null && (
-                <div
-                  className="chart-tooltip-box"
-                  style={{
-                    left: `${(CHART_POINTS[hoveredPointIndex].x / 1000) * 100}%`
-                  }}
-                >
-                  <div className="chart-tooltip-date">
-                    Mốc thời gian: {CHART_POINTS[hoveredPointIndex].date}
-                  </div>
-                  <div className="chart-tooltip-row">
-                    <span style={{ color: '#93c5fd' }}>● Doanh thu kỳ vọng:</span>
-                    <strong>{CHART_POINTS[hoveredPointIndex].expected}</strong>
-                  </div>
-                  <div className="chart-tooltip-row">
-                    <span style={{ color: '#fca5a5' }}>● AI dự báo trễ hạn:</span>
-                    <strong>{CHART_POINTS[hoveredPointIndex].aiPredicted}</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ==================================================================
-              B. BẢNG DANH SÁCH ĐỘC GIẢ CÓ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH)
-              ================================================================== */}
-          <div className="revenue-table-card">
-            <div className="revenue-table-header">
-              <div className="revenue-table-title-group">
-                <h3 className="revenue-table-title">
-                  Danh sách độc giả có nguy cơ trễ hạn cao (AI phân tích)
-                </h3>
-                <span className="ai-engine-chip">
-                  <Sparkles size={13} />
-                  <span>XGBoost & Random Forest v2.4 (Độ chính xác: 91.8%)</span>
-                </span>
-              </div>
-
-              <div className="revenue-table-actions">
-                {/* Lọc theo mức độ rủi ro */}
-                <div className="filter-pills">
-                  <button
-                    className={`filter-pill-btn ${filterRisk === 'all' ? 'active' : ''}`}
-                    onClick={() => setFilterRisk('all')}
-                  >
-                    Tất cả ({readers.length})
-                  </button>
-                  <button
-                    className={`filter-pill-btn ${filterRisk === 'very_high' ? 'active' : ''}`}
-                    onClick={() => setFilterRisk('very_high')}
-                  >
-                    Nguy cơ rất cao (≥80%)
-                  </button>
-                  <button
-                    className={`filter-pill-btn ${filterRisk === 'high' ? 'active' : ''}`}
-                    onClick={() => setFilterRisk('high')}
-                  >
-                    Nguy cơ cao (50-79%)
-                  </button>
-                  <button
-                    className={`filter-pill-btn ${filterRisk === 'medium' ? 'active' : ''}`}
-                    onClick={() => setFilterRisk('medium')}
-                  >
-                    Nguy cơ thấp (&lt;50%)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Bảng dữ liệu tương tác */}
-            <div style={{ overflowX: 'auto' }}>
-              <table className="revenue-table">
-                <thead>
-                  <tr>
-                    <th>Mã phiếu mượn</th>
-                    <th>Họ tên độc giả (MSSV)</th>
-                    <th>Tên sách đang mượn</th>
-                    <th>Hạn trả sách</th>
-                    <th>Xác suất trễ (AI Score)</th>
-                    <th style={{ textAlign: 'center' }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReaders.map((row) => (
-                    <tr key={row.id}>
-                      {/* Mã phiếu mượn */}
-                      <td>
-                        <span
-                          className="borrow-code-cell"
-                          onClick={() => setSelectedReader(row)}
-                          title="Nhấp để xem chi tiết phiếu & phân tích AI"
-                        >
-                          {row.id}
-                        </span>
-                      </td>
-
-                      {/* Họ tên độc giả */}
-                      <td>
-                        <div className="reader-cell-main">
-                          <span className="reader-cell-name">
-                            {row.name}{' '}
-                            <span className="reader-cell-code">({row.studentCode})</span>
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Tên sách đang mượn */}
-                      <td>
-                        <div className="book-title-cell" title={row.bookTitle}>
-                          {row.bookTitle}
-                        </div>
-                      </td>
-
-                      {/* Hạn trả sách */}
-                      <td>
-                        <span className="due-date-cell">{row.dueDate}</span>
-                      </td>
-
-                      {/* Xác suất trễ (AI Score) */}
-                      <td>
-                        <div className="ai-score-cell">
-                          <div className="ai-score-bar-bg">
-                            <div
-                              className="ai-score-bar-fill"
-                              style={{
-                                width: `${row.score}%`,
-                                backgroundColor: row.scoreColor
-                              }}
-                            ></div>
-                          </div>
-                          <span
-                            className="ai-score-value"
-                            style={{ color: row.scoreColor }}
-                          >
-                            {row.score}%
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Nút thao tác: Gửi nhắc nhở */}
-                      <td style={{ textAlign: 'center' }}>
-                        {row.reminderSent ? (
-                          <span className="btn-send-reminder sent">
-                            <CheckCircle2 size={13} />
-                            <span>Đã gửi nhắc nhở</span>
-                          </span>
-                        ) : (
-                          <button
-                            className="btn-send-reminder"
-                            type="button"
-                            onClick={() => setRemindReader(row)}
-                            title="Gửi email và thông báo Zalo cảnh báo sắp đến hạn"
-                          >
-                            <Bell size={13} />
-                            <span>Gửi nhắc nhở</span>
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-
-                  {filteredReaders.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '36px' }}>
-                        <div style={{ color: '#64748b' }}>
-                          Không tìm thấy độc giả nào phù hợp với bộ lọc hiện tại.
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
+      {currentSubTab === 'ai-forecast' && (
+        <RevenueAiForecastTab
+          readers={readers}
+          filteredReaders={filteredReaders}
+          filterRisk={filterRisk}
+          setFilterRisk={setFilterRisk}
+          showExpected={showExpected}
+          setShowExpected={setShowExpected}
+          showPredicted={showPredicted}
+          setShowPredicted={setShowPredicted}
+          hoveredPointIndex={hoveredPointIndex}
+          setHoveredPointIndex={setHoveredPointIndex}
+          onSelectReader={setSelectedReader}
+          onRemindReader={setRemindReader}
+        />
       )}
 
-      {/* ----------------------------------------------------------------------
-          TAB PHỤ: SỔ NỢ ĐỌNG & XỬ LÝ SÁCH HƯ HỎNG (47 LƯỢT QUÁ HẠN)
-          ---------------------------------------------------------------------- */}
-      {subTab === 'arrears' && (
-        <div className="arrears-grid">
-          <div className="arrears-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>
-                Danh sách các trường hợp quá hạn & nợ phạt tích lũy ({backendPendingFines.length > 0 ? backendPendingFines.length : 47})
-              </h3>
-              <button
-                type="button"
-                onClick={fetchPendingFines}
-                style={{ fontSize: '12px', background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}
-              >
-                {isLoadingFines ? 'Đang tải...' : '↻ Làm mới'}
-              </button>
-            </div>
-
-            <div className="arrears-list">
-              {(backendPendingFines.length > 0
-                ? backendPendingFines
-                : [
-                    {
-                      receiptId: 1,
-                      borrowCode: 'PM-9920',
-                      readerName: 'Nguyễn Văn Minh',
-                      readerCode: '102220184',
-                      bookTitle: 'Nhập môn Machine Learning',
-                      daysOverdue: 5,
-                      finalAmount: 25000
-                    },
-                    {
-                      receiptId: 2,
-                      borrowCode: 'PM-9915',
-                      readerName: 'Đặng Tuấn Anh',
-                      readerCode: '102210443',
-                      bookTitle: 'Giải tích 2 Nâng cao',
-                      daysOverdue: 14,
-                      finalAmount: 70000
-                    },
-                    {
-                      receiptId: 3,
-                      borrowCode: 'PM-9908',
-                      readerName: 'Lê Thùy Dung',
-                      readerCode: '102220912',
-                      bookTitle: 'Xác suất Thống kê ứng dụng',
-                      daysOverdue: 8,
-                      finalAmount: 40000
-                    },
-                    {
-                      receiptId: 4,
-                      borrowCode: 'PM-9892',
-                      readerName: 'Hoàng Minh Quân',
-                      readerCode: '102230556',
-                      bookTitle: 'Kiến trúc máy tính hiện đại',
-                      daysOverdue: 22,
-                      finalAmount: 110000
-                    }
-                  ]
-              ).map((item, idx) => (
-                <div key={idx} className="arrears-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
-                      {item.readerName} ({item.readerCode})
-                    </div>
-                    <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '3px' }}>
-                      Sách: {item.bookTitle} • Phiếu: <strong>{item.borrowCode}</strong>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                    <div>
-                      <span style={{ color: '#ef4444', fontWeight: 800, fontSize: '15px' }}>
-                        {item.finalAmount?.toLocaleString('vi-VN')} đ
-                      </span>
-                      <span style={{ fontSize: '11.5px', color: '#dc2626', marginLeft: '6px' }}>
-                        (Quá hạn {item.daysOverdue || 5} ngày)
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-primary-action"
-                      style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '5px' }}
-                      onClick={() => handleOpenPayModal(item)}
-                      title="Thu tiền và xuất biên lai kế toán K80/A5 (LOLRA-19)"
-                    >
-                      <Receipt size={13} />
-                      <span>Thu tiền ngay</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="arrears-card">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#0f172a' }}>
-              12 Trường hợp bồi hoàn sách mất / hư hại
-            </h3>
-            <div className="arrears-list">
-              {[
-                {
-                  reader: 'Trần Văn Tùng (102210882)',
-                  book: 'Deep Learning with Python',
-                  status: 'Mất sách',
-                  penalty: '240.000 đ'
-                },
-                {
-                  reader: 'Lê Thị Khánh Huyền (102230045)',
-                  book: 'Cấu trúc dữ liệu và giải thuật',
-                  status: 'Rách trang 14-18',
-                  penalty: '20.000 đ'
-                },
-                {
-                  reader: 'Bùi Đức Huy (102220199)',
-                  book: 'Nguyên lý hệ điều hành',
-                  status: 'Mất bìa sách',
-                  penalty: '35.000 đ'
-                }
-              ].map((c, i) => (
-                <div key={i} className="arrears-item">
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '13px' }}>{c.reader}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>{c.book}</div>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        fontSize: '11px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        marginTop: '4px',
-                        backgroundColor: '#fef2f2',
-                        color: '#ef4444',
-                        fontWeight: 600
-                      }}
-                    >
-                      {c.status}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight: 800, color: '#0f172a' }}>{c.penalty}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {currentSubTab === 'arrears' && (
+        <RevenueArrearsTab
+          backendPendingFines={backendPendingFines}
+          isLoadingFines={isLoadingFines}
+          fetchPendingFines={fetchPendingFines}
+          onOpenPayModal={handleOpenPayModal}
+        />
       )}
 
-      {/* ----------------------------------------------------------------------
-          TAB PHỤ: LỊCH SỬ BIÊN LAI ĐÃ THU (15.450.000 Đ)
-          ---------------------------------------------------------------------- */}
-      {subTab === 'receipts' && (
-        <div className="revenue-table-card">
-          <div className="receipts-summary-box">
-            <div>
-              <div style={{ fontSize: '13px', opacity: 0.8 }}>Tổng tích lũy biên lai đã thu</div>
-              <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '4px' }}>
-                15.450.000 VNĐ
-              </div>
-              <div style={{ fontSize: '13px', color: '#86efac', marginTop: '4px' }}>
-                ✓ Đã đối soát tài chính ngân hàng ngày 28/09/2026
-              </div>
-            </div>
-            <button
-              className="btn-secondary-action"
-              style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
-              onClick={() => triggerToast('Đang kết xuất tất cả biên lai sang file PDF...')}
-            >
-              <Printer size={15} />
-              <span>In bảng kê biên lai</span>
-            </button>
-          </div>
-
-          <div style={{ overflowX: 'auto', marginTop: '16px' }}>
-            <table className="revenue-table">
-              <thead>
-                <tr>
-                  <th>Mã biên lai</th>
-                  <th>Thời gian thu</th>
-                  <th>Độc giả nộp phạt</th>
-                  <th>Lý do thu phạt</th>
-                  <th>Phương thức</th>
-                  <th>Số tiền</th>
-                  <th>Thủ thư tiếp nhận</th>
-                  <th style={{ textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {RECENT_RECEIPTS.map((r, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <strong style={{ color: '#2563eb' }}>{r.code}</strong>
-                    </td>
-                    <td>{r.date}</td>
-                    <td>{r.reader}</td>
-                    <td>{r.type}</td>
-                    <td>
-                      <span
-                        className={`receipt-method-badge ${
-                          r.isQr ? 'receipt-method-qr' : 'receipt-method-cash'
-                        }`}
-                      >
-                        {r.isQr ? <CreditCard size={12} /> : <Banknote size={12} />}
-                        {r.method}
-                      </span>
-                    </td>
-                    <td>
-                      <strong style={{ color: '#0f172a' }}>{r.amount}</strong>
-                    </td>
-                    <td>{r.cashier}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn-secondary-action"
-                        style={{ padding: '3px 8px', fontSize: '11.5px', borderRadius: '4px' }}
-                        onClick={() => {
-                          const numAmount = parseInt(r.amount.replace(/[^0-9]/g, ''), 10) || 0;
-                          setActiveReceiptData({
-                            invoiceCode: r.code,
-                            readerName: r.reader.split('(')[0]?.trim() || r.reader,
-                            readerCode: r.reader.match(/\(([^)]+)\)/)?.[1] || 'N/A',
-                            reason: r.type,
-                            amountPaid: numAmount,
-                            totalAmount: numAmount,
-                            paymentMethod: r.method,
-                            cashierName: r.cashier,
-                            paymentDate: new Date()
-                          });
-                          setIsReceiptModalOpen(true);
-                        }}
-                        title="Xem chi tiết & In biên lai K80 / A5"
-                      >
-                        <Printer size={12} />
-                        <span>In phiếu</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {currentSubTab === 'receipts' && (
+        <RevenueReceiptsTab
+          receipts={INITIAL_RECENT_RECEIPTS}
+          onPrintReceipt={handlePrintPastReceipt}
+          triggerToast={triggerToast}
+        />
       )}
 
-      {/* ----------------------------------------------------------------------
-          TAB PHỤ: CƠ CẤU DOANH THU & NGUỒN THU
-          ---------------------------------------------------------------------- */}
-      {subTab === 'breakdown' && (
-        <div className="arrears-grid">
-          <div className="arrears-card">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#0f172a' }}>
-              Phân bổ dòng tiền thu phạt Tháng 09/2026
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {[
-                {
-                  label: 'Phạt trễ hạn theo ngày (5.000đ/ngày)',
-                  amount: '10.042.500 đ',
-                  percent: 65,
-                  color: '#3b82f6'
-                },
-                {
-                  label: 'Bồi hoàn sách hỏng / rách / mất sách',
-                  amount: '3.862.500 đ',
-                  percent: 25,
-                  color: '#f97316'
-                },
-                {
-                  label: 'Phí cấp lại thẻ bạn đọc & dịch vụ thư viện',
-                  amount: '1.545.000 đ',
-                  percent: 10,
-                  color: '#8b5cf6'
-                }
-              ].map((item, idx) => (
-                <div key={idx}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '6px',
-                      fontSize: '13.5px'
-                    }}
-                  >
-                    <span>
-                      <strong style={{ color: item.color }}>●</strong> {item.label}
-                    </span>
-                    <strong>
-                      {item.amount} ({item.percent}%)
-                    </strong>
-                  </div>
-                  <div
-                    style={{
-                      height: '8px',
-                      backgroundColor: '#f1f5f9',
-                      borderRadius: '999px',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${item.percent}%`,
-                        backgroundColor: item.color
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="arrears-card">
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#0f172a' }}>
-              Tỷ lệ thanh toán
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '6px',
-                    fontSize: '13.5px'
-                  }}
-                >
-                  <span>Chuyển khoản QR (VietQR / VNPay / MoMo)</span>
-                  <strong>58% (8.961.000 đ)</strong>
-                </div>
-                <div
-                  style={{
-                    height: '8px',
-                    backgroundColor: '#f1f5f9',
-                    borderRadius: '999px',
-                    overflow: 'hidden'
-                  }}
-                >
-                  <div
-                    style={{ height: '100%', width: '58%', backgroundColor: '#2563eb' }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '6px',
-                    fontSize: '13.5px'
-                  }}
-                >
-                  <span>Tiền mặt trực tiếp tại quầy lưu thông</span>
-                  <strong>42% (6.489.000 đ)</strong>
-                </div>
-                <div
-                  style={{
-                    height: '8px',
-                    backgroundColor: '#f1f5f9',
-                    borderRadius: '999px',
-                    overflow: 'hidden'
-                  }}
-                >
-                  <div
-                    style={{ height: '100%', width: '42%', backgroundColor: '#10b981' }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {currentSubTab === 'breakdown' && <RevenueBreakdownTab />}
 
       {/* ----------------------------------------------------------------------
           MODAL 1: CHI TIẾT PHÂN TÍCH NGUY CƠ AI CỦA ĐỘC GIẢ
@@ -1288,7 +592,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
             </div>
 
             <div className="fine-modal-body">
-              {/* Thẻ tóm tắt thông tin */}
               <div
                 style={{
                   display: 'grid',
@@ -1321,7 +624,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                 </div>
               </div>
 
-              {/* Sách đang mượn */}
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
                   Tác phẩm đang giữ:
@@ -1349,7 +651,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                 </div>
               </div>
 
-              {/* Trọng số phân tích AI (Feature Importance) */}
               <div className="ai-factors-box">
                 <div
                   style={{
@@ -1359,29 +660,59 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                     marginBottom: '12px'
                   }}
                 >
-                  <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13.5px' }}>
-                    Yếu tố AI đánh giá ({selectedReader.score}% nguy cơ trễ hạn)
+                  <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#0f172a' }}>
+                    Trọng số các yếu tố ảnh hưởng rủi ro (AI Explanation):
                   </span>
                   <span
                     style={{
-                      backgroundColor: selectedReader.scoreColor,
-                      color: '#ffffff',
-                      fontSize: '11px',
-                      fontWeight: 700,
+                      fontSize: '12px',
                       padding: '2px 8px',
-                      borderRadius: '999px'
+                      borderRadius: '6px',
+                      backgroundColor: `${selectedReader.scoreColor}15`,
+                      color: selectedReader.scoreColor,
+                      fontWeight: 700
                     }}
                   >
-                    {selectedReader.riskLabel}
+                    {selectedReader.riskLabel} ({selectedReader.score}%)
                   </span>
                 </div>
 
-                {selectedReader.factors.map((factor, idx) => (
-                  <div key={idx} className="ai-factor-item">
-                    <span style={{ color: '#475569' }}>{factor.label}</span>
-                    <strong style={{ color: '#ef4444' }}>{factor.weight}</strong>
-                  </div>
-                ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedReader.factors.map((f, i) => (
+                    <div key={i} className="ai-factor-item">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ChevronRight size={14} color="#64748b" />
+                        <span style={{ fontSize: '13px', color: '#334155' }}>{f.label}</span>
+                      </div>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          color: f.weight.startsWith('+') ? '#ef4444' : '#10b981'
+                        }}
+                      >
+                        {f.weight}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '10px',
+                  padding: '12px'
+                }}
+              >
+                <Clock size={16} color="#2563eb" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div style={{ fontSize: '12.5px', color: '#1e40af', lineHeight: '1.5' }}>
+                  <strong>Đề xuất can thiệp sớm:</strong> Nên gửi nhắc nhở trước 2 ngày qua tin nhắn Zalo ZNS và thông báo ứng dụng SmartLib Mobile để giảm 73% nguy cơ phát sinh nợ xấu.
+                </div>
               </div>
             </div>
 
@@ -1393,18 +724,17 @@ export default function FineRevenue({ user, externalSearch = '' }) {
               >
                 Đóng
               </button>
-
               <button
                 className="btn-primary-action"
-                type="button"
                 onClick={() => {
                   const target = selectedReader;
                   setSelectedReader(null);
                   setRemindReader(target);
                 }}
+                type="button"
               >
                 <Bell size={14} />
-                <span>Gửi thông báo nhắc nhở ngay</span>
+                <span>Gửi nhắc nhở cho bạn đọc này</span>
               </button>
             </div>
           </div>
@@ -1412,15 +742,15 @@ export default function FineRevenue({ user, externalSearch = '' }) {
       )}
 
       {/* ----------------------------------------------------------------------
-          MODAL 2: GỬI NHẮC NHỞ TRỄ HẠN CHO ĐỘC GIẢ
+          MODAL 2: GỬI NHẮC NHỞ CẢNH BÁO SỚM CHO ĐỘC GIẢ
           ---------------------------------------------------------------------- */}
       {remindReader && (
         <div className="fine-modal-overlay" onClick={() => setRemindReader(null)}>
           <div className="fine-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="fine-modal-header">
               <h3 className="fine-modal-title">
-                <Bell size={18} color="#ef4444" />
-                <span>Gửi nhắc nhở hạn trả sách</span>
+                <Bell size={18} color="#2563eb" />
+                <span>Gửi thông báo nhắc nhở sắp đến hạn trả sách</span>
               </h3>
               <button
                 className="fine-modal-close"
@@ -1433,10 +763,9 @@ export default function FineRevenue({ user, externalSearch = '' }) {
 
             <div className="fine-modal-body">
               <div>
-                <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#475569' }}>
-                  Hệ thống sẽ gửi thông báo cảnh báo sớm đến độc giả qua các kênh liên lạc sau:
-                </p>
-
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+                  Các kênh gửi thông báo tự động:
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label
                     style={{
@@ -1448,9 +777,7 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                     }}
                   >
                     <input type="checkbox" defaultChecked />
-                    <span>
-                      Email sinh viên: <strong>{remindReader.studentCode}@sv.edu.vn</strong>
-                    </span>
+                    <span>Email sinh viên ({remindReader.studentCode}@smartlib.edu.vn)</span>
                   </label>
 
                   <label
@@ -1481,7 +808,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
                 </div>
               </div>
 
-              {/* Nội dung thông báo mẫu */}
               <div
                 style={{
                   backgroundColor: '#f8fafc',
@@ -1534,7 +860,6 @@ export default function FineRevenue({ user, externalSearch = '' }) {
 
       {/* ----------------------------------------------------------------------
           MODAL BIÊN LAI THU PHẠT KẾ TOÁN BẤT BIẾN K80 / A5 (Story LOLRA-19)
-          Hỗ trợ: XEM TRƯỚC BIÊN LAI -> CHỌN PHƯƠNG THỨC -> XÁC NHẬN THU TIỀN -> IN BIÊN LAI
           ---------------------------------------------------------------------- */}
       {activeReceiptData && (
         <ReceiptModal

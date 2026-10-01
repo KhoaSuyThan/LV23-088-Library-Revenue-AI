@@ -84,6 +84,7 @@ function AppContent() {
       <Route path="/catalog" element={<ProtectedLayout />} />
       <Route path="/circulation" element={<ProtectedLayout />} />
       <Route path="/revenue" element={<ProtectedLayout />} />
+      <Route path="/revenue/*" element={<ProtectedLayout />} />
       <Route path="/readers" element={<ProtectedLayout />} />
       <Route path="/settings" element={<ProtectedLayout />} />
       <Route path="/settings/*" element={<ProtectedLayout />} />

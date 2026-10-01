@@ -6,6 +6,25 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-10-01] - Phân Chia 4 Tab Thành URL Sub-Routes & Tái Cấu Trúc Mô-đun Hóa Phân Hệ Thu Phạt (`/revenue`)
+
+- **Định Tuyến URL Sub-Routes Phân Hệ Báo Cáo Thu Phạt:**
+  - **Cấu hình Route (`App.jsx` & `DashboardPage.jsx`):** Bổ sung `<Route path="/revenue/*" ... />` và chuyển giao `subTab` xuống component [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) để hỗ trợ điều hướng URL cấp 2.
+  - **URL Chuẩn RESTful:**
+    - `http://localhost:5173/revenue` hoặc `/revenue/ai-forecast`: Tab AI Dự báo & Xu hướng (mặc định).
+    - `http://localhost:5173/revenue/arrears`: Tab Sổ nợ đọng & Sách hư hỏng (Story LOLRA-19).
+    - `http://localhost:5173/revenue/receipts`: Tab Biên lai đã thu.
+    - `http://localhost:5173/revenue/breakdown`: Tab Cơ cấu doanh thu.
+  - **Đồng bộ hóa 2 chiều:** Khi click tab trên giao diện, URL tự động thay đổi tương ứng; khi nhập trực tiếp URL hoặc nhấn F5, hệ thống mở chính xác tab tương ứng.
+
+- **Tái Cấu Trúc Mô-đun Hóa Component:**
+  - Phân tách file đơn khối `FineRevenue.jsx` thành 4 component độc lập trong `frontend/src/components/revenue/`:
+    - [`RevenueAiForecastTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueAiForecastTab.jsx): Đồ thị SVG dự báo 30 ngày & danh sách độc giả rủi ro AI.
+    - [`RevenueArrearsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx): Quản lý nợ phạt CSDL thực tế, nút "Thu tiền ngay" và 12 ca bồi hoàn sách.
+    - [`RevenueReceiptsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx): Bảng lịch sử biên lai đã thu & nút xem lại/in phiếu K80/A5.
+    - [`RevenueBreakdownTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx): Tỷ trọng phân bổ dòng tiền vi phạm và phương thức thanh toán.
+  - [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) đóng vai trò Orchestrator tinh gọn: quản lý 3 thẻ KPI tổng quan, thanh điều hướng 4 tab URL sync và các modal dùng chung.
+
 ## [2026-10-01] - Cập Nhật Dữ Liệu Phạt Vi Phạm Chờ Thu (Pending) & Hoàn Thiện Luồng Kiểm Thử LOLRA-19
 
 - **Cơ Sở Dữ Liệu & Seeding Dữ Liệu Kiểm Thử:**
