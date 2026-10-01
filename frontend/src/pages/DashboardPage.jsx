@@ -687,7 +687,7 @@ export default function DashboardPage({
             /* ----------------------------------------------------------------
                 PHÂN HỆ BÁO CÁO THU PHẠT (FINE REVENUE) KHỚP 100% ẢNH MOCKUP FIGMA
                 ---------------------------------------------------------------- */
-            <FineRevenue user={user} externalSearch={revenueSearch} />
+            <FineRevenue user={user} externalSearch={revenueSearch} subTab={subTab} />
           ) : activeTab === 'settings' ? (
             /* ----------------------------------------------------------------
                 PHÂN HỆ CÀI ĐẶT QUY ĐỊNH THƯ VIỆN (US-03 - LOLRA-11)
