@@ -193,21 +193,27 @@
   flex-shrink: 0;
 }
 
-/* Grid các tùy chọn tình trạng vật lý (2 cột gọn gàng) */
+/* Grid các tùy chọn tình trạng vật lý (4 ô 1 hàng) */
 .compact-conditions-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
+  .compact-conditions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .compact-conditions-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .compact-cond-card {
-  padding: 9px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: 1.5px solid #e2e8f0;
   background: #ffffff;
@@ -215,7 +221,10 @@
   transition: all 0.18s ease;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 4px;
+  min-height: 68px;
+  user-select: none;
 }
 
 .compact-cond-card:hover {
@@ -245,7 +254,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .compact-card-left {
@@ -338,3 +347,615 @@
   border-color: #ea580c;
   color: #ffffff;
 }
+
+/* Mô tả ngắn luôn hiển thị trong 4 ô tình trạng */
+.compact-cond-desc {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.compact-cond-card.selected-green .compact-cond-desc {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.compact-cond-card.selected-orange .compact-cond-desc {
+  color: #c2410c;
+  font-weight: 500;
+}
+
+.compact-cond-card.selected-red .compact-cond-desc {
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+/* ==========================================
+   DANH SÁCH SÁCH MƯỢN CẦN TRẢ (TÂM ĐIỂM TÊN SÁCH & THANH TRƯỢT 3 MỨC)
+   ========================================== */
+.return-books-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.book-item-return-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.book-item-return-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.book-item-return-card.card-has-violation {
+  border-color: #fdba74;
+  background: #fffcf9;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.08);
+}
+
+/* 1. Khu vực hiển thị thông tin sách (Nổi bật tên sách hàng đầu) */
+.book-headline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.book-main-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.book-number-badge {
+  font-size: 11.5px;
+  font-weight: 800;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.book-titles-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.book-primary-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.book-author-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.book-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.book-chip-barcode {
+  font-family: monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  padding: 3px 8px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.book-chip-price {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+.book-chip-returned {
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+/* 2. Chia 3 ô tình trạng vật lý trên 1 hàng (Nguyên vẹn - Hư hỏng - Thất lạc/Mất) */
+.book-conditions-tri-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+@media (max-width: 992px) {
+  .book-conditions-tri-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tri-cond-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  user-select: none;
+}
+
+.tri-cond-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+/* Khi được chọn: Xanh lá (Nguyên vẹn) */
+.tri-cond-card.card-good.is-selected {
+  border-color: #10b981;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 1px #10b981;
+}
+
+/* Khi được chọn: Cam (Hư hỏng) */
+.tri-cond-card.card-damaged.is-selected {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 0 0 1px #f59e0b;
+}
+
+/* Khi được chọn: Đỏ (Thất lạc / Mất) */
+.tri-cond-card.card-lost.is-selected {
+  border-color: #ef4444;
+  background: #fef2f2;
+  box-shadow: 0 0 0 1px #ef4444;
+}
+
+.tri-cond-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tri-cond-radio-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tri-radio-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tri-radio-circle.checked-good {
+  border-color: #10b981;
+  background: #10b981;
+  color: #ffffff;
+}
+
+.tri-radio-circle.checked-damaged {
+  border-color: #f59e0b;
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.tri-radio-circle.checked-lost {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.tri-cond-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tri-cond-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.tri-cond-badge.badge-good {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tri-cond-badge.badge-damaged {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.tri-cond-badge.badge-lost {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tri-cond-body {
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.tri-cond-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* Khối slider trong ô Hư hỏng */
+.slider-cond-body {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.tri-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.tri-slider-track-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: 14px;
+}
+
+.tri-slider-input {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #fed7aa;
+  accent-color: #ea580c;
+  cursor: pointer;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* 3 Nút tròn định vị đầu (20%), giữa (40%) và cuối (110%) của thanh trượt */
+.tri-slider-dots {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.slider-dot-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: 2px solid #fdba74;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.slider-dot-mark:hover {
+  transform: scale(1.25);
+  border-color: #ea580c;
+}
+
+.slider-dot-mark.dot-active {
+  background-color: #ea580c;
+  border-color: #c2410c;
+}
+
+/* Chip barcode có thể click để xem hình Barcode */
+.clickable-barcode-chip {
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.clickable-barcode-chip:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Bố cục chia tỉ lệ 3/7 trong ô Hư hỏng */
+.damaged-card-split-37 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.damaged-col-left-3 {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.damaged-col-right-7 {
+  flex: 7;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.damaged-col-left-3 .tri-cond-radio-title {
+  margin-bottom: 0;
+}
+
+.damaged-col-left-3 .tri-cond-badge {
+  align-self: flex-start;
+}
+
+.tri-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* Các nút Nhẹ, Vừa, Nặng hạ chiều cao còn 60% và chữ hạ 2px (còn 9px) */
+.tri-tick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid #fed7aa;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  flex: 1;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.tri-tick-btn:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
+.tri-tick-btn.tick-active {
+  background: #ea580c;
+  border-color: #c2410c;
+  box-shadow: 0 1px 2px rgba(234, 88, 12, 0.2);
+}
+
+.tri-tick-btn .tick-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: #7c2d12;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.tri-tick-btn.tick-active .tick-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Modal xem Barcode chi tiết khi click vào mã sách */
+.barcode-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 16px;
+  animation: fadeInOverlay 0.2s ease-out;
+}
+
+.barcode-preview-box {
+  background: #ffffff;
+  border-radius: 12px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: scaleUpDialog 0.2s ease-out;
+}
+
+.barcode-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.barcode-preview-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barcode-preview-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+.barcode-preview-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.barcode-preview-close:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.barcode-preview-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.barcode-preview-meta {
+  width: 100%;
+  text-align: center;
+}
+
+.barcode-meta-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.barcode-meta-author {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.barcode-meta-code {
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.barcode-meta-code strong {
+  font-family: monospace;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.barcode-preview-svg-wrap {
+  background: #ffffff;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.barcode-preview-footer {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-barcode-copy {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-barcode-copy:hover {
+  background: #1d4ed8;
+}
+
+.btn-barcode-dismiss {
+  padding: 8px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-barcode-dismiss:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+

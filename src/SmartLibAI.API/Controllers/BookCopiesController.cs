@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Books;
 using SmartLibAI.Core.DTOs.Common;
@@ -7,8 +8,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller quản lý bản sao sách vật lý, sinh mã vạch và tra cứu máy quét (AC1 - AC5).
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền quản trị bản sao và quét mã kiểm kê.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class BookCopiesController : ControllerBase
 {

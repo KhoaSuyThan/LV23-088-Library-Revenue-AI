@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
 import { invoiceApi } from '../api/invoiceApi';
-import { playScannerBeep } from '../utils/barcodeGenerator';
+import { playScannerBeep, generateBarcodeSvg } from '../utils/barcodeGenerator';
+import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
 import BarcodeCameraModal from './BarcodeCameraModal';
 import ReceiptModal from './ReceiptModal';
 import './ReturnProcessing.css';
@@ -47,16 +48,18 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   // State dữ liệu sách đang được tra cứu để trả
   const [lookupData, setLookupData] = useState(null);
 
-  // Modal máy quét Barcode camera
+  // Modal máy quét Barcode camera & Modal xem mã vạch Barcode cuốn sách
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [barcodePreviewItem, setBarcodePreviewItem] = useState(null);
 
   // Tình trạng vật lý thực tế khi kiểm tra sách (Quy tắc 10.3 - Tùy chọn)
   // 'good': Nguyên vẹn/bình thường (0đ)
   // 'damaged_light': Hư hỏng nhẹ hoặc vừa (sửa chữa, gia cố bìa) - 30% đến 50% giá bìa
   // 'damaged_severe': Hư hỏng nặng (ngấm nước, mất trang nội dung chính) - 110% giá bìa
   // 'lost': Thất lạc / Mất sách hoàn toàn - 110% giá bìa
-  const [physicalCondition, setPhysicalCondition] = useState('good');
-  const [damagePercent, setDamagePercent] = useState(40); // 30, 40, 50% cho hư hỏng nhẹ/vừa
+  // Quản lý tình trạng vật lý cho từng cuốn sách độc lập: { [barcode]: { isDamaged: boolean, damageLevel: 1 | 2 | 3 } }
+  // damageLevel: 1 = Nhẹ (20%), 2 = Vừa (40%), 3 = Nặng (110%)
+  const [bookConditions, setBookConditions] = useState({});
   const [showOverdueFormula, setShowOverdueFormula] = useState(false);
 
   // Miễn giảm tiền phạt
@@ -72,50 +75,112 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const [paidInvoiceData, setPaidInvoiceData] = useState(null);
   const [showPaidReceiptModal, setShowPaidReceiptModal] = useState(false);
 
-  // Khi có dữ liệu tra cứu mới, tự động reset tình trạng vật lý & miễn giảm
+  // Danh sách toàn bộ các cuốn sách trong phiếu mượn
+  const bookList = React.useMemo(() => {
+    if (!lookupData) return [];
+    if (Array.isArray(lookupData.items) && lookupData.items.length > 0) {
+      return lookupData.items;
+    }
+    return [
+      {
+        detailId: lookupData.detailId,
+        copyId: lookupData.copyId,
+        barcode: lookupData.barcode,
+        bookTitle: lookupData.bookTitle,
+        author: lookupData.author,
+        basePrice: lookupData.basePrice || 50000,
+        isReturned: lookupData.currentItemStatus !== 'Borrowed'
+      }
+    ];
+  }, [lookupData]);
+
+  // Các cuốn sách đang cần hoàn trả (chưa trả)
+  const activeBooksToReturn = React.useMemo(() => {
+    return bookList.filter((b) => !b.isReturned);
+  }, [bookList]);
+
+  // Khi có dữ liệu tra cứu mới, tự động khởi tạo tình trạng vật lý cho từng cuốn & reset miễn giảm
   useEffect(() => {
-    if (lookupData) {
-      setPhysicalCondition('good');
-      setDamagePercent(40);
+    if (lookupData && bookList.length > 0) {
+      const initConds = {};
+      bookList.forEach((b) => {
+        initConds[b.barcode] = {
+          status: 'good', // 'good' | 'damaged' | 'lost'
+          damageLevel: 1 // Mặc định mức 1 (Nhẹ 20%) khi chuyển sang hư hỏng
+        };
+      });
+      setBookConditions(initConds);
       setWaiverDiscountPercent(0);
       setWaiverReason('');
       setShowOverdueFormula(false);
     }
-  }, [lookupData]);
+  }, [lookupData, bookList]);
+
+  // Helper đọc và cập nhật tình trạng cho một cuốn sách cụ thể
+  const getBookCondition = (barcode) => {
+    return bookConditions[barcode] || { status: 'good', damageLevel: 1 };
+  };
+
+  const handleUpdateBookCondition = (barcode, status, damageLevel) => {
+    setBookConditions((prev) => {
+      const current = prev[barcode] || { status: 'good', damageLevel: 1 };
+      return {
+        ...prev,
+        [barcode]: {
+          status: status !== undefined ? status : current.status,
+          damageLevel: damageLevel !== undefined ? damageLevel : (current.damageLevel || 1)
+        }
+      };
+    });
+  };
 
   // 1. Dữ liệu cơ sở từ Backend và bảng FineRules
   const finePerDay = lookupData?.finePerDay || 5000;
   const overdueDays = lookupData?.overdueDays ?? 0;
   const isOverdue = overdueDays > 0;
   const isOnTime = overdueDays === 0;
-  const basePrice = lookupData?.basePrice || 50000;
 
-  // 2. Quy tắc 10.1 & 10.2: Tự động tính tiền phạt trễ hạn theo ngày và áp trần giá bìa gốc
-  const rawOverdueFine = isOverdue ? overdueDays * finePerDay : 0;
-  const isFineCapped = isOverdue && rawOverdueFine > basePrice;
-  // Tiền phạt trễ hạn thực tế = Nhỏ hơn giữa (Số ngày trễ x 5.000đ) và (Giá bìa gốc của cuốn sách)
-  const overdueFine = isOverdue ? Math.min(rawOverdueFine, basePrice) : 0;
+  // 2. Tính toán tiền phạt trễ hạn và bồi thường trên tất cả các cuốn sách cần trả
+  // Nguyên vẹn: 0đ
+  // Hư hỏng 3 mức: Nhẹ 20%, Vừa 40%, Nặng 110% giá bìa
+  // Thất lạc / Mất sách: 110% giá bìa (100% bồi hoàn + 10% phụ thu nghiệp vụ)
+  let totalOverdueFine = 0;
+  let rawOverdueFineSum = 0;
+  let totalDamageFee = 0;
+  let totalLostFee = 0;
+  let isAnyFineCapped = false;
 
-  // 3. Quy tắc 10.3: Phí bồi thường hư hỏng và thất lạc tài liệu (Tùy chọn thủ thư)
-  let damageFee = 0;
-  let lostFee = 0;
+  activeBooksToReturn.forEach((b) => {
+    const bPrice = b.basePrice || 50000;
+    if (isOverdue) {
+      const rawFine = overdueDays * finePerDay;
+      rawOverdueFineSum += rawFine;
+      if (rawFine > bPrice) isAnyFineCapped = true;
+      const bFine = Math.min(rawFine, bPrice);
+      totalOverdueFine += Math.round(bFine / 1000) * 1000;
+    }
 
-  if (physicalCondition === 'damaged_light') {
-    // Hư hỏng nhẹ hoặc vừa (có thể sửa chữa, gia cố bìa): Phí khắc phục = Giá bìa gốc x Tỷ lệ đền bù hư hỏng (30% - 50%)
-    damageFee = Math.round((basePrice * (damagePercent / 100)) / 1000) * 1000;
-  } else if (physicalCondition === 'damaged_severe') {
-    // Hư hỏng nặng: 1.0 lần giá bìa + 10% phụ thu = 110% giá bìa gốc
-    damageFee = Math.round((basePrice * 1.1) / 1000) * 1000;
-  } else if (physicalCondition === 'lost') {
-    // Thất lạc hoàn toàn: 1.0 lần giá bìa + 10% phụ thu = 110% giá bìa gốc
-    lostFee = Math.round((basePrice * 1.1) / 1000) * 1000;
-  }
+    const cond = getBookCondition(b.barcode);
+    if (cond.status === 'damaged') {
+      if (cond.damageLevel === 1) {
+        // Nhẹ: 20% giá bìa
+        totalDamageFee += Math.round((bPrice * 0.20) / 1000) * 1000;
+      } else if (cond.damageLevel === 2) {
+        // Vừa: 40% giá bìa
+        totalDamageFee += Math.round((bPrice * 0.40) / 1000) * 1000;
+      } else if (cond.damageLevel === 3) {
+        // Nặng: 110% giá bìa
+        totalDamageFee += Math.round((bPrice * 1.10) / 1000) * 1000;
+      }
+    } else if (cond.status === 'lost') {
+      // Thất lạc / Mất: 110% giá bìa (100% bồi hoàn + 10% phụ thu)
+      totalLostFee += Math.round((bPrice * 1.10) / 1000) * 1000;
+    }
+  });
 
-  // 4. Nếu sách vừa trễ hạn vừa bị mất/hỏng: Tổng nghĩa vụ = Tiền phạt trễ hạn (có áp trần) + Tổng phí bồi thường
-  const rawTotalFine = overdueFine + damageFee + lostFee;
-  // Áp dụng tỷ lệ chiết khấu giảm trừ
+  // 3. Tổng nghĩa vụ tài chính
+  const rawTotalFine = totalOverdueFine + totalDamageFee + totalLostFee;
   const discountAmount = Math.round(((rawTotalFine * waiverDiscountPercent) / 100) / 1000) * 1000;
-  // Tất cả các khoản tiền sau khi áp dụng chiết khấu đều được làm tròn chẵn đến hàng nghìn đồng
   const finalFine = Math.max(0, Math.round((rawTotalFine - discountAmount) / 1000) * 1000);
 
   // Tra cứu thông tin sách đang mượn qua API Backend
@@ -132,7 +197,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
       if (res.success && res.data) {
         setLookupData(res.data);
         playScannerBeep?.(true);
-        showToast?.(`🔍 Đã tìm thấy: Phiếu ${res.data.borrowCode} - ${res.data.bookTitle} của bạn đọc ${res.data.readerName}`);
+        const countMsg = res.data.items?.length ? ` (${res.data.items.length} cuốn)` : '';
+        showToast?.(`🔍 Đã tìm thấy: Phiếu ${res.data.borrowCode}${countMsg} của bạn đọc ${res.data.readerName}`);
       } else {
         playScannerBeep?.(false);
         showToast?.(`⚠️ ${res.message || 'Không tìm thấy sách đang mượn khớp với mã đã nhập.'}`);
@@ -148,6 +214,43 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     }
   };
 
+  // Xử lý dán mã hoặc hình ảnh barcode khi trả sách (Ctrl + V)
+  const handleReturnPaste = async (e) => {
+    const imageFile = getImageFileFromClipboard(e);
+    if (imageFile) {
+      e.preventDefault();
+      showToast?.('📷 Đang quét mã vạch từ ảnh dán (Ctrl + V)...');
+      setIsSearching(true);
+      try {
+        const res = await decodeBarcodeFromImage(imageFile);
+        if (res && res.success && res.barcode) {
+          const detected = res.barcode.trim().toUpperCase();
+          showToast?.(`🎯 Nhận diện thành công mã: ${detected}`);
+          setReturnQuery(detected);
+          await handleLookup(detected);
+        } else {
+          showToast?.('⚠️ Không tìm thấy mã vạch hợp lệ trong ảnh.');
+        }
+      } catch (err) {
+        showToast?.('❌ Lỗi khi đọc ảnh mã vạch: ' + (err.message || ''));
+      } finally {
+        setIsSearching(false);
+      }
+      return;
+    }
+
+    const pastedText = e.clipboardData?.getData('text');
+    if (pastedText) {
+      const clean = pastedText.trim().toUpperCase();
+      if (clean) {
+        e.preventDefault();
+        setReturnQuery(clean);
+        showToast?.(`📋 Đã dán mã tra cứu: ${clean}`);
+        await handleLookup(clean);
+      }
+    }
+  };
+
   // Áp dụng tỷ lệ miễn giảm phạt
   const handleApplyWaiver = (discountPct, reasonText) => {
     setWaiverDiscountPercent(discountPct);
@@ -156,97 +259,146 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     showToast?.(`🎉 Đã áp dụng miễn giảm ${discountPct}% (${reasonText})`);
   };
 
-  // Xác nhận xử lý trả sách qua API Backend (POST /api/returns/process-item)
+  // Tạo danh sách các cuốn sách hoàn chỉnh kèm ghi chú tình trạng để đưa vào Phiếu trả A4
+  const buildSlipItems = () => {
+    const targetBooks = activeBooksToReturn.length > 0 ? activeBooksToReturn : bookList;
+    return targetBooks.map((b) => {
+      const cond = getBookCondition(b.barcode);
+      let note = 'Nguyên vẹn';
+      if (b.isReturned) {
+        note = 'Đã trả trước';
+      } else if (cond.status === 'damaged') {
+        if (cond.damageLevel === 1) note = 'Hư hỏng nhẹ (20%)';
+        else if (cond.damageLevel === 2) note = 'Hư hỏng vừa (40%)';
+        else if (cond.damageLevel === 3) note = 'Hư hỏng nặng (110%)';
+      } else if (cond.status === 'lost') {
+        note = 'Thất lạc / Báo mất (110%)';
+      } else if (isOverdue) {
+        note = `Trễ ${overdueDays} ngày`;
+      }
+
+      return {
+        title: b.bookTitle,
+        author: b.author || 'Nhiều tác giả',
+        barcode: b.barcode,
+        dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
+        returnDate: new Date().toLocaleDateString('vi-VN'),
+        note: note
+      };
+    });
+  };
+
+  // Xác nhận xử lý trả toàn bộ sách qua API Backend (POST /api/returns/process-item)
   const handleExecuteReturn = async (isPaidFine = false) => {
-    if (!lookupData) return;
-
-    // Xác định condition và mức bồi thường gửi lên Backend
-    let condition = 'Good';
-    let damagePct = undefined;
-    let noteText = 'Sách hoàn trả nguyên vẹn';
-
-    if (physicalCondition === 'damaged_light') {
-      condition = 'DamagedLight';
-      damagePct = damagePercent;
-      noteText = `Hư hỏng nhẹ/vừa (Đền bù ${damagePercent}% giá bìa)`;
-    } else if (physicalCondition === 'damaged_severe') {
-      condition = 'DamagedSevere';
-      noteText = 'Hư hỏng nặng (110% giá bìa: 100% bồi hoàn + 10% phụ thu mua sắm)';
-    } else if (physicalCondition === 'lost') {
-      condition = 'Lost';
-      noteText = 'Báo mất sách (110% giá bìa: 100% bồi hoàn + 10% phụ thu mua sắm)';
-    }
+    if (!lookupData || activeBooksToReturn.length === 0) return;
 
     setIsSubmitting(true);
+    let lastResult = null;
+    let anyReceiptId = null;
+
     try {
-      const payload = {
-        barcode: lookupData.barcode,
-        condition: condition,
-        damagePercent: damagePct,
-        note: noteText,
-        waiverDiscountPercent: waiverDiscountPercent,
-        waiverReason: waiverReason || undefined
-      };
+      // Xử lý hoàn trả lần lượt từng cuốn sách chưa trả
+      for (const item of activeBooksToReturn) {
+        const cond = getBookCondition(item.barcode);
+        let condition = 'Good';
+        let damagePct = undefined;
+        let noteText = 'Sách hoàn trả nguyên vẹn';
 
-      const res = await returnApi.processReturn(payload);
-      if (res.success && res.data) {
-        playScannerBeep?.(true);
-        const result = res.data;
-
-        showToast?.(`✅ ${result.message}`);
-        setShowReceiptModal(false);
-
-        // Nếu có phát sinh phạt và thủ thư bấm "Xác nhận thu & Xuất biên lai" (Story LOLRA-19)
-        if (isPaidFine && result.receiptId) {
-          try {
-            const invRes = await invoiceApi.createInvoice({
-              receiptId: result.receiptId,
-              paymentMethod: paymentMethod === 'transfer' ? 'Transfer' : 'Cash',
-              note: `Thu tiền phạt tại quầy lưu thông (${lookupData.borrowCode})`
-            });
-
-            if (invRes.success && invRes.data) {
-              setPaidInvoiceData(invRes.data);
-              setShowPaidReceiptModal(true);
-              showToast?.(`🎉 Đã lập hóa đơn ${invRes.data.invoiceCode} và tự động mở lại quyền mượn sách!`);
-            }
-          } catch (invErr) {
-            console.error('Lỗi khi lập hóa đơn thu phạt:', invErr);
-            const errDetail = invErr.response?.data?.message || invErr.message || '';
-            showToast?.(`⚠️ Tiếp nhận trả thành công nhưng chưa lập được hóa đơn: ${errDetail}`);
+        if (cond.status === 'damaged') {
+          if (cond.damageLevel === 1) {
+            condition = 'DamagedLight';
+            damagePct = 20;
+            noteText = 'Hư hỏng nhẹ (Đền bù 20% giá bìa)';
+          } else if (cond.damageLevel === 2) {
+            condition = 'DamagedLight';
+            damagePct = 40;
+            noteText = 'Hư hỏng vừa (Đền bù 40% giá bìa)';
+          } else if (cond.damageLevel === 3) {
+            condition = 'DamagedSevere';
+            damagePct = 110;
+            noteText = 'Hư hỏng nặng (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
           }
+        } else if (cond.status === 'lost') {
+          condition = 'Lost';
+          damagePct = 110;
+          noteText = 'Báo mất tài liệu (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
         }
 
-        // Gọi callback báo cho trang cha cập nhật bảng giao dịch và mở Modal Phiếu trả
-        onReturnSuccess?.({
-          ...result,
-          paymentMethod: isPaidFine ? paymentMethod : null,
+        const payload = {
+          barcode: item.barcode,
+          condition: condition,
+          damagePercent: damagePct,
+          note: noteText,
           waiverDiscountPercent: waiverDiscountPercent,
-          readerName: lookupData.readerName,
-          readerCode: lookupData.readerCode,
-          department: lookupData.memberType || 'Khoa Công nghệ Thông tin',
-          bookTitle: lookupData.bookTitle,
-          author: lookupData.author,
-          borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
-          dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
-          returnDate: new Date().toLocaleDateString('vi-VN'),
-          finalFine: finalFine,
-          isOverdue: isOverdue,
-          overdueDays: overdueDays,
-          overdueFine: overdueFine,
-          damageFee: damageFee,
-          lostFee: lostFee,
-          isFineCapped: isFineCapped,
-          physicalCondition: physicalCondition
-        });
+          waiverReason: waiverReason || undefined
+        };
 
-        // Xóa trắng form sau khi trả thành công
-        setLookupData(null);
-        setReturnQuery('');
-      } else {
-        playScannerBeep?.(false);
-        showToast?.(`❌ Lỗi tiếp nhận trả sách: ${res.message}`);
+        const res = await returnApi.processReturn(payload);
+        if (res.success && res.data) {
+          lastResult = res.data;
+          if (res.data.receiptId) {
+            anyReceiptId = res.data.receiptId;
+          }
+        }
       }
+
+      playScannerBeep?.(true);
+      showToast?.(`✅ Đã hoàn tất tiếp nhận trả ${activeBooksToReturn.length} cuốn sách.`);
+      setShowReceiptModal(false);
+
+      // Nếu có phát sinh phạt và thủ thư bấm "Xác nhận thu & Xuất biên lai"
+      if (isPaidFine && anyReceiptId) {
+        try {
+          const invRes = await invoiceApi.createInvoice({
+            receiptId: anyReceiptId,
+            paymentMethod: paymentMethod === 'transfer' ? 'Transfer' : 'Cash',
+            note: `Thu tiền phạt tại quầy lưu thông (${lookupData.borrowCode})`
+          });
+
+          if (invRes.success && invRes.data) {
+            setPaidInvoiceData(invRes.data);
+            setShowPaidReceiptModal(true);
+            showToast?.(`🎉 Đã lập hóa đơn ${invRes.data.invoiceCode} và tự động mở lại quyền mượn sách!`);
+          }
+        } catch (invErr) {
+          console.error('Lỗi khi lập hóa đơn thu phạt:', invErr);
+          const errDetail = invErr.response?.data?.message || invErr.message || '';
+          showToast?.(`⚠️ Tiếp nhận trả thành công nhưng chưa lập được hóa đơn: ${errDetail}`);
+        }
+      }
+
+      // Chuẩn bị danh sách đầy đủ toàn bộ sách để in trên phiếu trả
+      const slipItems = buildSlipItems();
+
+      // Gọi callback báo cho trang cha cập nhật bảng giao dịch và mở Modal Phiếu trả
+      onReturnSuccess?.({
+        ...(lastResult || {}),
+        borrowCode: lookupData.borrowCode,
+        paymentMethod: isPaidFine ? paymentMethod : null,
+        waiverDiscountPercent: waiverDiscountPercent,
+        readerName: lookupData.readerName,
+        readerCode: lookupData.readerCode,
+        department: (lookupData.department && lookupData.department !== 'Standard')
+          ? lookupData.department
+          : (lookupData.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
+        bookTitle: activeBooksToReturn[0]?.bookTitle || lookupData.bookTitle,
+        barcode: activeBooksToReturn[0]?.barcode || lookupData.barcode,
+        borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
+        dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
+        returnDate: new Date().toLocaleDateString('vi-VN'),
+        totalFine: finalFine,
+        finalFine: finalFine,
+        isOverdue: isOverdue,
+        overdueDays: overdueDays,
+        overdueFine: totalOverdueFine,
+        damageFee: totalDamageFee,
+        lostFee: totalLostFee,
+        items: slipItems
+      });
+
+      // Xóa trắng form sau khi hoàn tất trả
+      setLookupData(null);
+      setReturnQuery('');
     } catch (err) {
       playScannerBeep?.(false);
       const errMsg = err.response?.data?.message || err.message || 'Lỗi khi xử lý tiếp nhận trả sách.';
@@ -290,9 +442,10 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 id={returnInputId}
                 type="text"
                 className="form-control"
-                placeholder="Nhập mã vạch (BC000001-A), mã phiếu (PM-0005)..."
+                placeholder="Nhập mã vạch (BC000001-A), mã phiếu (PM-0005)... (Ctrl+V để dán)"
                 value={returnQuery}
                 onChange={(e) => setReturnQuery(e.target.value)}
+                onPaste={handleReturnPaste}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -393,27 +546,16 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             </div>
 
             <div className="meta-item">
-              <span className="meta-label">TÊN SÁCH & MÃ VẠCH</span>
+              <span className="meta-label">SÁCH MƯỢN TRONG PHIẾU</span>
               <span className="meta-value">
-                {lookupData.bookTitle}
+                {bookList.length} cuốn tài liệu ({activeBooksToReturn.length} chưa trả)
                 <div style={{ display: 'flex', gap: '6px', marginTop: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span className="barcode-tag" title="Mã vạch cuốn sách">
-                    <Barcode size={14} className="barcode-inline-icon" />
-                    <span>Mã vạch: {lookupData.barcode}</span>
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: '#f1f5f9',
-                      color: '#475569',
-                      border: '1px solid #cbd5e1'
-                    }}
-                  >
-                    Giá gốc: {lookupData.basePrice.toLocaleString('vi-VN')}đ
-                  </span>
+                  {bookList.map((b, bIdx) => (
+                    <span key={b.barcode || bIdx} className="barcode-tag" title={b.bookTitle}>
+                      <Barcode size={13} className="barcode-inline-icon" />
+                      <span>{b.barcode}</span>
+                    </span>
+                  ))}
                 </div>
               </span>
             </div>
@@ -433,10 +575,9 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             </div>
           </div>
 
-          {/* PHẦN 1: HẠN TRẢ SÁCH */}
+          {/* PHẦN: HẠN TRẢ SÁCH (Bỏ số 1) */}
           <div className="compact-section-wrap">
             <div className="compact-header-row">
-              <span className="compact-badge-index">1</span>
               <span className="compact-title-text">Hạn trả sách</span>
             </div>
 
@@ -468,17 +609,17 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                       {showOverdueFormula ? 'Ẩn công thức' : 'Xem công thức'}
                     </span>
                   </div>
-                  <span className="compact-tag-warn">+{overdueFine.toLocaleString('vi-VN')}đ</span>
+                  <span className="compact-tag-warn">+{totalOverdueFine.toLocaleString('vi-VN')}đ</span>
                 </div>
 
                 {showOverdueFormula && (
                   <div className="compact-formula-drawer" onClick={(e) => e.stopPropagation()}>
                     <span>
-                      Công thức: <strong>{overdueDays} ngày × {finePerDay.toLocaleString('vi-VN')}đ = {rawOverdueFine.toLocaleString('vi-VN')}đ</strong>
+                      Công thức: <strong>{overdueDays} ngày × {finePerDay.toLocaleString('vi-VN')}đ/ngày (tính cho từng cuốn chưa trả)</strong>
                     </span>
-                    {isFineCapped && (
+                    {isAnyFineCapped && (
                       <span className="capped-text-note">
-                        • Áp trần tối đa 100% giá bìa: <strong>{basePrice.toLocaleString('vi-VN')}đ</strong>
+                        • Đã áp trần tối đa không quá 100% giá bìa gốc từng cuốn sách
                       </span>
                     )}
                   </div>
@@ -487,112 +628,220 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             )}
           </div>
 
-          {/* PHẦN 2: TÌNH TRẠNG VẬT LÝ */}
+          {/* PHẦN: TÌNH TRẠNG VẬT LÝ TỪNG CUỐN SÁCH (Chia 3 ô trên 1 hàng) */}
           <div className="compact-section-wrap">
             <div className="compact-header-row">
-              <span className="compact-badge-index">2</span>
-              <span className="compact-title-text">Tình trạng vật lý</span>
+              <span className="compact-title-text">
+                Tình trạng vật lý từng cuốn sách ({bookList.length} cuốn)
+              </span>
             </div>
 
-            <div className="compact-conditions-grid">
-              {/* Option 1: Nguyên vẹn */}
-              <div
-                className={`compact-cond-card ${physicalCondition === 'good' ? 'selected-green' : ''}`}
-                onClick={() => setPhysicalCondition('good')}
-              >
-                <div className="compact-card-header">
-                  <div className="compact-card-left">
-                    <div className={`compact-dot ${physicalCondition === 'good' ? 'dot-green' : ''}`}>
-                      {physicalCondition === 'good' && <Check size={11} strokeWidth={3.5} />}
-                    </div>
-                    <strong className="compact-cond-title">Nguyên vẹn</strong>
-                  </div>
-                  <span className="compact-tag-free">0đ</span>
-                </div>
-                {physicalCondition === 'good' && (
-                  <div className="compact-formula-sub text-emerald-700">
-                    Sách nguyên vẹn, sẵn sàng nhập lại kho khả dụng (0đ).
-                  </div>
-                )}
-              </div>
+            <div className="return-books-list">
+              {bookList.map((item, bIndex) => {
+                const bPrice = item.basePrice || 50000;
+                const cond = getBookCondition(item.barcode);
+                const isDamaged = cond.status === 'damaged';
+                const isLost = cond.status === 'lost';
+                const level = cond.damageLevel || 1; // 1: 20%, 2: 40%, 3: 110%
 
-              {/* Option 2: Hư hỏng nhẹ / vừa */}
-              <div
-                className={`compact-cond-card ${physicalCondition === 'damaged_light' ? 'selected-orange' : ''}`}
-                onClick={() => setPhysicalCondition('damaged_light')}
-              >
-                <div className="compact-card-header">
-                  <div className="compact-card-left">
-                    <div className={`compact-dot ${physicalCondition === 'damaged_light' ? 'dot-orange' : ''}`}>
-                      {physicalCondition === 'damaged_light' && <Check size={11} strokeWidth={3.5} />}
-                    </div>
-                    <strong className="compact-cond-title">Hư hỏng nhẹ / vừa</strong>
-                  </div>
-                  <span className="compact-tag-warn">+{damageFee.toLocaleString('vi-VN')}đ</span>
-                </div>
-                {physicalCondition === 'damaged_light' && (
-                  <div className="compact-formula-sub" onClick={(e) => e.stopPropagation()}>
-                    <div className="formula-line">
-                      Sửa chữa, gia cố bìa: <strong>{basePrice.toLocaleString('vi-VN')}đ × {damagePercent}% = {damageFee.toLocaleString('vi-VN')}đ</strong>
-                    </div>
-                    <div className="compact-pct-selector">
-                      <span className="selector-lbl">Mức đền bù:</span>
-                      {[30, 40, 50].map((pct) => (
+                const fee20 = Math.round((bPrice * 0.20) / 1000) * 1000;
+                const fee40 = Math.round((bPrice * 0.40) / 1000) * 1000;
+                const fee110 = Math.round((bPrice * 1.10) / 1000) * 1000;
+
+                let currentDamageFee = fee20;
+                let currentDamagePct = '20%';
+                if (level === 2) {
+                  currentDamageFee = fee40;
+                  currentDamagePct = '40%';
+                } else if (level === 3) {
+                  currentDamageFee = fee110;
+                  currentDamagePct = '110%';
+                }
+
+                return (
+                  <div
+                    key={item.barcode || bIndex}
+                    className={`book-item-return-card ${isDamaged || isLost ? 'card-has-violation' : ''}`}
+                  >
+                    {/* 1. KHU VỰC THÔNG TIN SÁCH NỔI BẬT HÀNG ĐẦU (TÂM ĐIỂM THỊ GIÁC) */}
+                    <div className="book-headline-row">
+                      <div className="book-main-identity">
+                        <div className="book-titles-col">
+                          <h3 className="book-primary-title">{item.bookTitle}</h3>
+                          {item.author && (
+                            <span className="book-author-subtitle">Tác giả: {item.author}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="book-chips-group">
                         <button
-                          key={pct}
                           type="button"
-                          className={`pct-chip ${damagePercent === pct ? 'active' : ''}`}
-                          onClick={() => setDamagePercent(pct)}
+                          className="book-chip-barcode clickable-barcode-chip"
+                          title="Nhấn để xem Barcode mã vạch của cuốn sách này"
+                          onClick={() => setBarcodePreviewItem(item)}
                         >
-                          {pct}%
+                          <Barcode size={13} />
+                          <span>{item.barcode}</span>
                         </button>
-                      ))}
+                        <span className="book-chip-price">
+                          Giá gốc: {bPrice.toLocaleString('vi-VN')}đ
+                        </span>
+                        {item.isReturned && (
+                          <span className="book-chip-returned">
+                            ✓ Đã hoàn trả trước
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Option 3: Hư hỏng nặng */}
-              <div
-                className={`compact-cond-card ${physicalCondition === 'damaged_severe' ? 'selected-orange' : ''}`}
-                onClick={() => setPhysicalCondition('damaged_severe')}
-              >
-                <div className="compact-card-header">
-                  <div className="compact-card-left">
-                    <div className={`compact-dot ${physicalCondition === 'damaged_severe' ? 'dot-orange' : ''}`}>
-                      {physicalCondition === 'damaged_severe' && <Check size={11} strokeWidth={3.5} />}
-                    </div>
-                    <strong className="compact-cond-title">Hư hỏng nặng</strong>
-                  </div>
-                  <span className="compact-tag-warn">+{damageFee.toLocaleString('vi-VN')}đ</span>
-                </div>
-                {physicalCondition === 'damaged_severe' && (
-                  <div className="compact-formula-sub">
-                    Rách nát, ngấm nước: <strong>110% giá bìa ({basePrice.toLocaleString('vi-VN')}đ × 1.1) = {damageFee.toLocaleString('vi-VN')}đ</strong> (100% bồi hoàn + 10% phụ thu).
-                  </div>
-                )}
-              </div>
+                    {/* 2. CHIA 3 Ô TÌNH TRẠNG VẬT LÝ TRÊN 1 HÀNG: NGUYÊN VẸN - HƯ HỎNG - THẤT LẠC / MẤT */}
+                    {!item.isReturned && (
+                      <div className="book-conditions-tri-grid">
+                        {/* Ô 1: NGUYÊN VẸN */}
+                        <div
+                          className={`tri-cond-card card-good ${cond.status === 'good' ? 'is-selected' : ''}`}
+                          onClick={() => handleUpdateBookCondition(item.barcode, 'good')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="tri-cond-header">
+                            <div className="tri-cond-radio-title">
+                              <span className={`tri-radio-circle ${cond.status === 'good' ? 'checked-good' : ''}`}>
+                                {cond.status === 'good' && <Check size={11} strokeWidth={3.5} />}
+                              </span>
+                              <span className="tri-cond-label">Nguyên vẹn</span>
+                            </div>
+                            <span className="tri-cond-badge badge-good">0đ</span>
+                          </div>
+                          <div className="tri-cond-body">
+                            <p className="tri-cond-desc">
+                              Sách tốt, sẵn sàng nhập lại kho khả dụng (0đ)
+                            </p>
+                          </div>
+                        </div>
 
-              {/* Option 4: Thất lạc / Mất sách */}
-              <div
-                className={`compact-cond-card ${physicalCondition === 'lost' ? 'selected-red' : ''}`}
-                onClick={() => setPhysicalCondition('lost')}
-              >
-                <div className="compact-card-header">
-                  <div className="compact-card-left">
-                    <div className={`compact-dot ${physicalCondition === 'lost' ? 'dot-red' : ''}`}>
-                      {physicalCondition === 'lost' && <Check size={11} strokeWidth={3.5} />}
-                    </div>
-                    <strong className="compact-cond-title">Thất lạc / Mất sách</strong>
+                        {/* Ô 2: HƯ HỎNG (TỈ LỆ 3/7: TRÁI 3 PHẦN TIÊU ĐỀ & CHỈ ĐỂ TIỀN, PHẢI 7 PHẦN THANH TRƯỢT CHỈ ĐỂ %) */}
+                        <div
+                          className={`tri-cond-card card-damaged ${cond.status === 'damaged' ? 'is-selected' : ''}`}
+                          onClick={() => {
+                            if (cond.status !== 'damaged') {
+                              handleUpdateBookCondition(item.barcode, 'damaged', level);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="damaged-card-split-37">
+                            {/* Bên trái: 3/10 (Tiêu đề và CHỈ ĐỂ TIỀN) */}
+                            <div className="damaged-col-left-3">
+                              <div className="tri-cond-radio-title">
+                                <span className={`tri-radio-circle ${cond.status === 'damaged' ? 'checked-damaged' : ''}`}>
+                                  {cond.status === 'damaged' && <AlertTriangle size={10} strokeWidth={3} />}
+                                </span>
+                                <span className="tri-cond-label">Hư hỏng</span>
+                              </div>
+                              <span className="tri-cond-badge badge-damaged">
+                                {cond.status === 'damaged'
+                                  ? `+${currentDamageFee.toLocaleString('vi-VN')}đ`
+                                  : `+${fee20.toLocaleString('vi-VN')}đ`}
+                              </span>
+                            </div>
+
+                            {/* Bên phải: 7/10 (Thanh trượt có 3 nút tròn đầu/giữa/cuối và 3 nút bấm chỉ để %) */}
+                            <div className="damaged-col-right-7" onClick={(e) => e.stopPropagation()}>
+                              <div className="tri-slider-wrap">
+                                <div className="tri-slider-track-container">
+                                  <input
+                                    type="range"
+                                    min="1"
+                                    max="3"
+                                    step="1"
+                                    value={level}
+                                    onChange={(e) =>
+                                      handleUpdateBookCondition(item.barcode, 'damaged', Number(e.target.value))
+                                    }
+                                    className="tri-slider-input"
+                                    aria-label="Mức độ hư hỏng sách"
+                                  />
+                                  <div className="tri-slider-dots">
+                                    <span
+                                      className={`slider-dot-mark dot-start ${level >= 1 ? 'dot-active' : ''}`}
+                                      onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 1)}
+                                      title="Mức nhẹ (20%)"
+                                    />
+                                    <span
+                                      className={`slider-dot-mark dot-middle ${level >= 2 ? 'dot-active' : ''}`}
+                                      onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 2)}
+                                      title="Mức vừa (40%)"
+                                    />
+                                    <span
+                                      className={`slider-dot-mark dot-end ${level >= 3 ? 'dot-active' : ''}`}
+                                      onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 3)}
+                                      title="Mức nặng (110%)"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="tri-slider-ticks">
+                                  <button
+                                    type="button"
+                                    className={`tri-tick-btn ${level === 1 ? 'tick-active' : ''}`}
+                                    onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 1)}
+                                    title="Mức nhẹ: 20% giá bìa"
+                                  >
+                                    <span className="tick-name">Nhẹ (20%)</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`tri-tick-btn ${level === 2 ? 'tick-active' : ''}`}
+                                    onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 2)}
+                                    title="Mức vừa: 40% giá bìa"
+                                  >
+                                    <span className="tick-name">Vừa (40%)</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`tri-tick-btn ${level === 3 ? 'tick-active' : ''}`}
+                                    onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 3)}
+                                    title="Mức nặng: 110% giá bìa"
+                                  >
+                                    <span className="tick-name">Nặng (110%)</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ô 3: THẤT LẠC / MẤT */}
+                        <div
+                          className={`tri-cond-card card-lost ${cond.status === 'lost' ? 'is-selected' : ''}`}
+                          onClick={() => handleUpdateBookCondition(item.barcode, 'lost')}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="tri-cond-header">
+                            <div className="tri-cond-radio-title">
+                              <span className={`tri-radio-circle ${cond.status === 'lost' ? 'checked-lost' : ''}`}>
+                                {cond.status === 'lost' && <X size={10} strokeWidth={3.5} />}
+                              </span>
+                              <span className="tri-cond-label">Thất lạc / Mất</span>
+                            </div>
+                            <span className="tri-cond-badge badge-lost">
+                              +{fee110.toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                          <div className="tri-cond-body">
+                            <p className="tri-cond-desc">
+                              110% giá bìa (100% bồi hoàn + 10% phụ thu tài liệu)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="compact-tag-danger">+{lostFee.toLocaleString('vi-VN')}đ</span>
-                </div>
-                {physicalCondition === 'lost' && (
-                  <div className="compact-formula-sub">
-                    Báo mất tài liệu: <strong>110% giá bìa ({basePrice.toLocaleString('vi-VN')}đ × 1.1) = {lostFee.toLocaleString('vi-VN')}đ</strong> (100% bồi hoàn + 10% phụ thu).
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
           </div>
 
@@ -615,20 +864,19 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                     (Chi tiết:{' '}
                     {isOverdue ? (
                       <span>
-                        Phạt trễ {overdueDays} ngày = <strong>{overdueFine.toLocaleString('vi-VN')}đ</strong>
-                        {isFineCapped ? ' (Áp trần 100% giá bìa)' : ''}
+                        Phạt trễ {overdueDays} ngày = <strong>{totalOverdueFine.toLocaleString('vi-VN')}đ</strong>
+                        {isAnyFineCapped ? ' (Có áp trần)' : ''}
                       </span>
                     ) : ''}
-                    {isOverdue && (damageFee > 0 || lostFee > 0) ? ' + ' : ''}
-                    {damageFee > 0 ? (
+                    {isOverdue && (totalDamageFee > 0 || totalLostFee > 0) ? ' + ' : ''}
+                    {totalDamageFee > 0 ? (
                       <span>
-                        Bồi thường hư hỏng = <strong>{damageFee.toLocaleString('vi-VN')}đ</strong>
-                        {physicalCondition === 'damaged_light' ? ` (${damagePercent}%)` : ' (110%)'}
+                        Bồi thường hư hỏng = <strong>{totalDamageFee.toLocaleString('vi-VN')}đ</strong>
                       </span>
                     ) : ''}
-                    {lostFee > 0 ? (
+                    {totalLostFee > 0 ? (
                       <span>
-                        Bồi hoàn mất sách = <strong>{lostFee.toLocaleString('vi-VN')}đ</strong> (110%)
+                        Bồi hoàn mất sách = <strong>{totalLostFee.toLocaleString('vi-VN')}đ</strong> (110%)
                       </span>
                     ) : ''}
                     {waiverDiscountPercent > 0 ? (
@@ -647,20 +895,23 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 className="btn-preview-slip"
                 title="Xem trước mẫu phiếu trả sách A4 PDF"
                 onClick={() => {
+                  const slipItems = buildSlipItems();
                   onReturnSuccess?.({
                     isPreviewOnly: true,
                     borrowCode: lookupData.borrowCode,
                     readerName: lookupData.readerName,
                     readerCode: lookupData.readerCode,
-                    department: lookupData.memberType || 'Khoa Công nghệ Thông tin',
-                    bookTitle: lookupData.bookTitle,
-                    author: lookupData.author,
-                    barcode: lookupData.barcode,
+                    department: (lookupData.department && lookupData.department !== 'Standard')
+                      ? lookupData.department
+                      : (lookupData.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
+                    bookTitle: activeBooksToReturn[0]?.bookTitle || lookupData.bookTitle,
+                    barcode: activeBooksToReturn[0]?.barcode || lookupData.barcode,
                     borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
                     dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
                     returnDate: new Date().toLocaleDateString('vi-VN'),
                     finalFine: finalFine,
-                    statusText: finalFine === 0 ? 'Trả đúng hạn' : `Phát sinh tiền phạt ${finalFine.toLocaleString('vi-VN')}đ`
+                    statusText: finalFine === 0 ? 'Trả đúng hạn' : `Phát sinh tiền phạt ${finalFine.toLocaleString('vi-VN')}đ`,
+                    items: slipItems
                   });
                 }}
               >
@@ -918,6 +1169,80 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
           invoiceData={paidInvoiceData}
           defaultFormat="k80"
         />
+      )}
+
+      {/* MODAL XEM MÃ VẠCH (BARCODE) CỦA CUỐN SÁCH KHI CLICK MÃ SÁCH */}
+      {barcodePreviewItem && (
+        <div
+          className="barcode-preview-overlay"
+          onClick={() => setBarcodePreviewItem(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="barcode-preview-box" onClick={(e) => e.stopPropagation()}>
+            <div className="barcode-preview-header">
+              <div className="barcode-preview-header-left">
+                <Barcode size={20} className="text-blue-600" />
+                <h3 className="barcode-preview-title">MÃ VẠCH BẢN SAO SÁCH</h3>
+              </div>
+              <button
+                type="button"
+                className="barcode-preview-close"
+                onClick={() => setBarcodePreviewItem(null)}
+                title="Đóng xem mã vạch"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="barcode-preview-content">
+              <div className="barcode-preview-meta">
+                <div className="barcode-meta-title">{barcodePreviewItem.bookTitle}</div>
+                {barcodePreviewItem.author && (
+                  <div className="barcode-meta-author">Tác giả: {barcodePreviewItem.author}</div>
+                )}
+                <div className="barcode-meta-code">
+                  Mã bản sao: <strong>{barcodePreviewItem.barcode}</strong>
+                </div>
+              </div>
+
+              <div
+                className="barcode-preview-svg-wrap"
+                dangerouslySetInnerHTML={{
+                  __html: generateBarcodeSvg(barcodePreviewItem.barcode, {
+                    width: 320,
+                    height: 90,
+                    showText: true,
+                    fontSize: 14,
+                    bgColor: '#ffffff',
+                    barColor: '#0f172a',
+                    margin: 8
+                  })
+                }}
+              />
+
+              <div className="barcode-preview-footer">
+                <button
+                  type="button"
+                  className="btn-barcode-copy"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(barcodePreviewItem.barcode);
+                    showToast?.(`📋 Đã sao chép mã: ${barcodePreviewItem.barcode}`);
+                  }}
+                >
+                  Sao chép mã ({barcodePreviewItem.barcode})
+                </button>
+                <button
+                  type="button"
+                  className="btn-barcode-dismiss"
+                  onClick={() => setBarcodePreviewItem(null)}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

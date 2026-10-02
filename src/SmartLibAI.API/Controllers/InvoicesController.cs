@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Invoices;
@@ -8,8 +9,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller xử lý thu tiền phạt và xuất biên lai kế toán bất biến (Story LOLRA-19).
+/// Chỉ Thủ thư / Kế toán (Admin, Staff) mới có quyền thu tiền và xuất hóa đơn.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class InvoicesController : ControllerBase
 {

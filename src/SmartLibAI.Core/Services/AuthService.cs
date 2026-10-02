@@ -99,8 +99,8 @@ public class AuthService : IAuthService
         var secretKey = _configuration["JwtSettings:Key"]
             ?? _configuration["JwtSettings:SecretKey"]
             ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
-        var issuer = _configuration["JwtSettings:Issuer"] ?? "SmartLibServer";
-        var audience = _configuration["JwtSettings:Audience"] ?? "SmartLibClient";
+        var issuer = _configuration["JwtSettings:Issuer"] ?? "SmartLibAI";
+        var audience = _configuration["JwtSettings:Audience"] ?? "SmartLibAIUser";
         var durationInHours = Convert.ToDouble(
             _configuration["JwtSettings:ExpiryHours"] 
             ?? _configuration["JwtSettings:DurationInHours"] 

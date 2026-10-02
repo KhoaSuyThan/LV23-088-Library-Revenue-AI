@@ -78,4 +78,38 @@ public class ReturnLookupResponseDto
     public int TotalItemsInBorrowing { get; set; }
 
     public int ReturnedItemsCount { get; set; }
+
+    /// <summary>
+    /// Danh sách chi tiết toàn bộ các cuốn sách thuộc phiếu mượn này (phục vụ trả sách nhiều cuốn).
+    /// </summary>
+    public List<ReturnLookupItemDto> Items { get; set; } = new();
 }
+
+/// <summary>
+/// DTO biểu diễn một cuốn sách cụ thể trong phiếu mượn khi tra cứu hoàn trả.
+/// </summary>
+public class ReturnLookupItemDto
+{
+    public int DetailId { get; set; }
+
+    public int CopyId { get; set; }
+
+    public string Barcode { get; set; } = string.Empty;
+
+    public int BookId { get; set; }
+
+    public string BookTitle { get; set; } = string.Empty;
+
+    public string Author { get; set; } = string.Empty;
+
+    public decimal BasePrice { get; set; }
+
+    public string CurrentItemStatus { get; set; } = "Borrowed";
+
+    public DateTime? ReturnDate { get; set; }
+
+    public bool IsReturned { get; set; }
+
+    public decimal OverdueFine { get; set; }
+}
+

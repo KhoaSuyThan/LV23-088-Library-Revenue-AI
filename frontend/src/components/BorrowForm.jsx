@@ -8,10 +8,12 @@ import {
   Loader2,
   BookOpen,
   CheckCircle2,
-  Trash2
+  Trash2,
+  FileText
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
 import BarcodeCameraModal from './BarcodeCameraModal';
+import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
 import './BorrowForm.css';
 
 /**
@@ -22,7 +24,7 @@ import './BorrowForm.css';
  * - Scenario 2: Từ chối mượn sách khi có nợ phạt quá hạn hoặc quá 5 cuốn, hiển thị cảnh báo đỏ và giữ nguyên kho sách.
  * - Sub-task Huy (TH): Kết nối Camera Scanner trực tiếp và phím tắt F2.
  */
-export default function BorrowForm({ onBorrowSuccess, showToast }) {
+export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast }) {
   // Input IDs duy nhất
   const readerInputId = useId();
   const bookCodeInputId = useId();
@@ -267,7 +269,15 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
         const errMsg = `Bản sao [${code}] ("${copyData.bookTitle}") đang ở trạng thái [${statusDesc}], không thể mượn!`;
         setBorrowError(errMsg);
         if (showToast) showToast(`⚠️ ${errMsg}`);
-        setCurrentBookBarcode('');
+        // BUG-04: Giữ nguyên mã và bôi đen để thủ thư sửa nhanh
+        setCurrentBookBarcode(code);
+        setTimeout(() => {
+          const input = document.getElementById(bookCodeInputId);
+          if (input) {
+            input.focus();
+            input.select?.();
+          }
+        }, 50);
         return;
       }
 
@@ -296,7 +306,16 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
         `Mã vạch [${code}] không tồn tại trên hệ thống thư viện! Vui lòng kiểm tra lại.`;
       setBorrowError(notFoundMsg);
       if (showToast) showToast(`❌ ${notFoundMsg}`);
-      setCurrentBookBarcode('');
+      
+      // BUG-04: Giữ nguyên chuỗi mã vạch vừa gõ và bôi đen toàn bộ (select) để người dùng sửa nhanh thay vì xóa trắng
+      setCurrentBookBarcode(code);
+      setTimeout(() => {
+        const input = document.getElementById(bookCodeInputId);
+        if (input) {
+          input.focus();
+          input.select?.();
+        }
+      }, 50);
     } finally {
       setIsCheckingBarcode(false);
     }
@@ -307,6 +326,81 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
     setSelectedBarcodes((prev) =>
       prev.filter((b) => (typeof b === 'string' ? b : b.barcode) !== codeToRemove)
     );
+  };
+
+  // Xử lý phím tắt dán mã vạch sách (Ctrl + V): Hỗ trợ cả dán chuỗi văn bản và dán ảnh chụp Barcode
+  const handleBarcodePaste = async (e) => {
+    // 1. Kiểm tra nếu clipboard chứa file ảnh (ảnh chụp màn hình, ảnh Barcode)
+    const imageFile = getImageFileFromClipboard(e);
+    if (imageFile) {
+      e.preventDefault();
+      if (showToast) showToast('📷 Đang quét mã vạch từ hình ảnh vừa dán (Ctrl + V)...');
+      setIsCheckingBarcode(true);
+      try {
+        const res = await decodeBarcodeFromImage(imageFile);
+        if (res && res.success && res.barcode) {
+          const detected = res.barcode.trim().toUpperCase();
+          if (showToast) showToast(`🎯 Nhận diện thành công mã: ${detected}`);
+          setCurrentBookBarcode(detected);
+          await handleAddBarcodeToList(detected);
+        } else {
+          if (showToast) showToast('⚠️ Không tìm thấy mã vạch hợp lệ trong ảnh vừa dán.');
+        }
+      } catch (err) {
+        if (showToast) showToast('❌ Lỗi giải mã hình ảnh barcode: ' + (err.message || ''));
+      } finally {
+        setIsCheckingBarcode(false);
+      }
+      return;
+    }
+
+    // 2. Nếu là văn bản dán thông thường
+    const pastedText = e.clipboardData?.getData('text');
+    if (pastedText) {
+      const clean = pastedText.trim().toUpperCase();
+      if (clean) {
+        e.preventDefault();
+        setCurrentBookBarcode(clean);
+        if (showToast) showToast(`📋 Đã dán mã sách: ${clean}`);
+        if (/^BC\d+/i.test(clean)) {
+          await handleAddBarcodeToList(clean);
+        }
+      }
+    }
+  };
+
+  // Xử lý dán mã độc giả (Ctrl + V)
+  const handleReaderPaste = async (e) => {
+    const imageFile = getImageFileFromClipboard(e);
+    if (imageFile) {
+      e.preventDefault();
+      if (showToast) showToast('📷 Đang quét mã thẻ từ ảnh dán (Ctrl + V)...');
+      setIsLoadingReader(true);
+      try {
+        const res = await decodeBarcodeFromImage(imageFile);
+        if (res && res.success && res.barcode) {
+          const detected = res.barcode.trim().toUpperCase();
+          setReaderCode(detected);
+          await checkReaderEligibility(detected);
+          if (showToast) showToast(`🎯 Quét mã thẻ bạn đọc: ${detected}`);
+        }
+      } catch (err) {
+        console.warn('Lỗi quét mã thẻ:', err);
+      } finally {
+        setIsLoadingReader(false);
+      }
+      return;
+    }
+
+    const pastedText = e.clipboardData?.getData('text');
+    if (pastedText) {
+      const clean = pastedText.trim().toUpperCase();
+      if (clean) {
+        e.preventDefault();
+        setReaderCode(clean);
+        await checkReaderEligibility(clean);
+      }
+    }
   };
 
   // Mở modal Camera Scanner
@@ -354,9 +448,8 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
     return dateStr;
   };
 
-  // Gửi yêu cầu tạo phiếu mượn lên Backend (POST /api/borrows)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Thực thi gửi yêu cầu tạo phiếu mượn lên Backend (POST /api/borrows)
+  const executeSubmitBorrow = async () => {
     setBorrowError('');
 
     const cleanReader = readerCode.trim();
@@ -433,6 +526,86 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
     }
   };
 
+  // Submit từ form khi người dùng nhấn Enter hoặc bấm Xác nhận
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    executeSubmitBorrow();
+  };
+
+  // Xem trước biểu mẫu Phiếu mượn sách A4 trước khi tạo chính thức
+  const handlePreviewBorrow = (e) => {
+    e?.preventDefault?.();
+    setBorrowError('');
+
+    const cleanReader = readerCode.trim();
+    if (!cleanReader) {
+      if (showToast) showToast('⚠️ Vui lòng nhập hoặc quét Mã độc giả / MSSV trước khi xem trước!');
+      document.getElementById(readerInputId)?.focus();
+      return;
+    }
+
+    const dateErr = validateDueDate(dueDate);
+    if (dateErr) {
+      setDueDateError(dateErr);
+      setBorrowError(dateErr);
+      if (showToast) showToast(`❌ ${dateErr}`);
+      document.getElementById(dueDateInputId)?.focus();
+      return;
+    }
+
+    let barcodesToSubmit = selectedBarcodes.map((b) => (typeof b === 'string' ? b : b.barcode));
+    if (barcodesToSubmit.length === 0) {
+      if (showToast) showToast('⚠️ Vui lòng nhập hoặc quét ít nhất một cuốn sách vào phiếu mượn trước khi xem trước!');
+      document.getElementById(bookCodeInputId)?.focus();
+      return;
+    }
+
+    if (barcodesToSubmit.length > maxBorrowLimit) {
+      const limitErr = `Số sách yêu cầu (${barcodesToSubmit.length}) vượt quá hạn mức tối đa ${maxBorrowLimit} cuốn (${memberType === 'Lecturer' ? 'Giảng viên' : 'Sinh viên'}).`;
+      setBorrowError(limitErr);
+      if (showToast) showToast(`❌ ${limitErr}`);
+      return;
+    }
+
+    // Chuẩn bị danh sách sách đầy đủ để đưa vào bản in A4 xem trước
+    const previewItems = selectedBarcodes.map((b, idx) => {
+      const code = typeof b === 'string' ? b : b.barcode;
+      const title = typeof b === 'string' ? `Tài liệu Thư viện [${code}]` : (b.title || 'Tài liệu Thư viện');
+      const author = typeof b === 'string' ? 'Nhiều tác giả' : (b.author || 'Nhiều tác giả');
+      return {
+        title,
+        author,
+        barcode: code,
+        dueDate: dueDate,
+        note: 'Sách mượn mới (Tình trạng tốt)'
+      };
+    });
+
+    const deptDisplay = (readerInfo?.department && readerInfo?.department !== 'Standard')
+      ? readerInfo?.department
+      : (memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin');
+
+    // Mở Modal xem trước chuẩn A4 và cung cấp callback xác nhận tạo phiếu
+    onPreviewBorrow?.({
+      isPreviewOnly: true,
+      id: 'PM-DRAFT',
+      borrowCode: 'PM-DRAFT',
+      readerName: readerInfo?.fullName || `Độc giả (${cleanReader})`,
+      readerCode: cleanReader,
+      studentCode: cleanReader,
+      department: deptDisplay,
+      rawBorrowDate: todayIso,
+      rawDueDate: parseDueDate(dueDate),
+      borrowDate: todayStr,
+      dueDate: dueDate,
+      items: previewItems,
+      // Nút xác nhận tạo phiếu mượn trực tiếp từ trong Modal xem trước
+      onConfirmCreate: () => {
+        executeSubmitBorrow();
+      }
+    });
+  };
+
   return (
     <section className="circulation-card borrow-form-card" aria-label="Tạo phiếu mượn mới">
       <div className="card-header-row">
@@ -481,6 +654,7 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
                   setMemberType('Student');
                 }
               }}
+              onPaste={handleReaderPaste}
               onBlur={() => checkReaderEligibility(readerCode)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -527,10 +701,11 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
                 id={bookCodeInputId}
                 type="text"
                 className="form-control"
-                placeholder={isCheckingBarcode ? 'Đang so khớp với CSDL...' : 'BC000001-A... (Enter để kiểm tra)'}
+                placeholder={isCheckingBarcode ? 'Đang so khớp với CSDL...' : 'BC000001-A... (Ctrl+V dán, Enter để kiểm tra)'}
                 value={currentBookBarcode}
                 disabled={isCheckingBarcode}
                 onChange={(e) => setCurrentBookBarcode(e.target.value)}
+                onPaste={handleBarcodePaste}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -646,17 +821,17 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
                 type="button"
                 className={`quick-due-chip ${activeQuickDays === 14 ? 'chip-active' : ''}`}
                 onClick={() => handleQuickDueDate(14)}
-                title="Mượn 14 ngày (Chuẩn sinh viên 2 tuần)"
+                title="Mượn 14 ngày (2 tuần)"
               >
-                +14 ngày {memberType !== 'Lecturer' ? '(Chuẩn)' : ''}
+                +14 ngày
               </button>
               <button
                 type="button"
                 className={`quick-due-chip ${activeQuickDays === 30 ? 'chip-active' : ''}`}
                 onClick={() => handleQuickDueDate(30)}
-                title="Mượn 30 ngày (1 tháng - Chuẩn giảng viên)"
+                title="Mượn 30 ngày (1 tháng)"
               >
-                +30 ngày {memberType === 'Lecturer' ? '(Chuẩn)' : ''}
+                +30 ngày
               </button>
             </div>
           </div>
@@ -797,17 +972,38 @@ export default function BorrowForm({ onBorrowSuccess, showToast }) {
           </div>
         )}
 
-        {/* Nút xác nhận mượn sách */}
-        <button type="submit" className="btn-confirm-borrow" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 size={16} className="spin-icon" style={{ display: 'inline-block', marginRight: '6px' }} />
-              Đang ghi nhận vào SQL Server...
-            </>
-          ) : (
-            'XÁC NHẬN TẠO PHIẾU MƯỢN'
-          )}
-        </button>
+        {/* Nhóm 2 nút hành động: Xem trước phiếu mượn & Xác nhận tạo phiếu mượn */}
+        <div className="borrow-actions-row">
+          <button
+            type="button"
+            className="btn-preview-borrow"
+            onClick={handlePreviewBorrow}
+            disabled={isSubmitting}
+            title="Xem trước mẫu biểu Phiếu mượn sách chuẩn A4 PDF trước khi ghi nhận"
+          >
+            <FileText size={16} />
+            <span>Xem trước phiếu mượn</span>
+          </button>
+
+          <button
+            type="submit"
+            className="btn-confirm-borrow-flex"
+            disabled={isSubmitting}
+            title="Ghi nhận giao dịch mượn sách chính thức vào CSDL"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="spin-icon" />
+                <span>Đang ghi nhận...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={16} />
+                <span>XÁC NHẬN TẠO PHIẾU MƯỢN</span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
 
       {/* Modal Camera Scanner thời gian thực hỗ trợ Webcam rời & Lật ngang */}
