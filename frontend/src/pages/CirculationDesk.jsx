@@ -163,7 +163,10 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           const daysLate = calculateOverdueDays(null, item.dueDate);
           const isOverdue = item.status === 'Overdue' || (daysLate > 0 && item.status !== 'Returned');
           const isReturned = item.status === 'Returned';
-          const feeAmount = isOverdue ? daysLate * 5000 : 0;
+          const itemBasePrice = firstItem?.basePrice || 50000;
+          // Quy tắc 10.1 & 10.2: Tính phạt 5.000đ/ngày và áp mức trần 100% giá bìa gốc
+          const rawFine = isOverdue ? daysLate * 5000 : 0;
+          const feeAmount = isOverdue ? Math.min(rawFine, itemBasePrice) : 0;
 
           return {
             id: item.borrowCode || `PM-${item.borrowingID}`,

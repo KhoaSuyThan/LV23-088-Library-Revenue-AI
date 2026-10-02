@@ -17,6 +17,8 @@ public class BorrowItemDto
 
     public string CategoryName { get; set; } = string.Empty;
 
+    public decimal BasePrice { get; set; }
+
     public string ItemStatus { get; set; } = "Borrowed";
 
     public DateTime? ReturnDate { get; set; }

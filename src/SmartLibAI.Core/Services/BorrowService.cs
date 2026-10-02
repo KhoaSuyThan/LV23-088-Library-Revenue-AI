@@ -269,6 +269,7 @@ public class BorrowService : IBorrowService
                 Title = d.BookCopy?.Book?.Title ?? string.Empty,
                 Author = d.BookCopy?.Book?.Author ?? string.Empty,
                 CategoryName = d.BookCopy?.Book?.Category?.CategoryName ?? string.Empty,
+                BasePrice = d.BookCopy?.Book?.BasePrice ?? 0m,
                 ItemStatus = d.ItemStatus,
                 ReturnDate = d.ReturnDate
             }).ToList()

@@ -13,7 +13,12 @@ import {
   Receipt,
   Banknote,
   QrCode,
-  Loader2
+  Loader2,
+  Clock,
+  AlertTriangle,
+  Scale,
+  ShieldCheck,
+  HelpCircle
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
 import { invoiceApi } from '../api/invoiceApi';
@@ -23,7 +28,7 @@ import ReceiptModal from './ReceiptModal';
 import './ReturnProcessing.css';
 
 /**
- * Component Tiếp nhận trả sách rải rác & Kiểm tra vi phạm (Story LOLRA-17 - Sub-task 2).
+ * Component Tiếp nhận trả sách rải rác & Tự động tính tiền phạt trễ hạn theo FineRules (Story US-10).
  * Tích hợp gọi API Backend POST /api/returns/process-item và GET /api/returns/lookup.
  *
  * @param {object} props
@@ -45,13 +50,14 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   // Modal máy quét Barcode camera
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
 
-  // State các checkbox kiểm tra vi phạm
-  const [checks, setChecks] = useState({
-    isOnTime: true,
-    isOverdue: false,
-    isDamaged: false,
-    isLost: false
-  });
+  // Tình trạng vật lý thực tế khi kiểm tra sách (Quy tắc 10.3 - Tùy chọn)
+  // 'good': Nguyên vẹn/bình thường (0đ)
+  // 'damaged_light': Hư hỏng nhẹ hoặc vừa (sửa chữa, gia cố bìa) - 30% đến 50% giá bìa
+  // 'damaged_severe': Hư hỏng nặng (ngấm nước, mất trang nội dung chính) - 110% giá bìa
+  // 'lost': Thất lạc / Mất sách hoàn toàn - 110% giá bìa
+  const [physicalCondition, setPhysicalCondition] = useState('good');
+  const [damagePercent, setDamagePercent] = useState(40); // 30, 40, 50% cho hư hỏng nhẹ/vừa
+  const [showOverdueFormula, setShowOverdueFormula] = useState(false);
 
   // Miễn giảm tiền phạt
   const [waiverDiscountPercent, setWaiverDiscountPercent] = useState(0);
@@ -66,53 +72,51 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const [paidInvoiceData, setPaidInvoiceData] = useState(null);
   const [showPaidReceiptModal, setShowPaidReceiptModal] = useState(false);
 
-  // Khi có dữ liệu tra cứu mới, tự động đồng bộ trạng thái quá hạn
+  // Khi có dữ liệu tra cứu mới, tự động reset tình trạng vật lý & miễn giảm
   useEffect(() => {
     if (lookupData) {
-      const isLate = lookupData.isOverdue || lookupData.overdueDays > 0;
-      setChecks({
-        isOnTime: !isLate,
-        isOverdue: isLate,
-        isDamaged: false,
-        isLost: false
-      });
+      setPhysicalCondition('good');
+      setDamagePercent(40);
       setWaiverDiscountPercent(0);
       setWaiverReason('');
+      setShowOverdueFormula(false);
     }
   }, [lookupData]);
 
-  // Tính toán số tiền phạt động dựa trên thông tin tra cứu và các checkbox
+  // 1. Dữ liệu cơ sở từ Backend và bảng FineRules
   const finePerDay = lookupData?.finePerDay || 5000;
-  const overdueDays = lookupData?.overdueDays || 0;
+  const overdueDays = lookupData?.overdueDays ?? 0;
+  const isOverdue = overdueDays > 0;
+  const isOnTime = overdueDays === 0;
   const basePrice = lookupData?.basePrice || 50000;
 
-  const overdueFine = checks.isOverdue ? overdueDays * finePerDay : 0;
-  const damageFee = checks.isDamaged ? Math.max(20000, Math.round(basePrice * 0.4)) : 0;
-  const lostFee = checks.isLost ? Math.round(basePrice * 1.1) : 0;
+  // 2. Quy tắc 10.1 & 10.2: Tự động tính tiền phạt trễ hạn theo ngày và áp trần giá bìa gốc
+  const rawOverdueFine = isOverdue ? overdueDays * finePerDay : 0;
+  const isFineCapped = isOverdue && rawOverdueFine > basePrice;
+  // Tiền phạt trễ hạn thực tế = Nhỏ hơn giữa (Số ngày trễ x 5.000đ) và (Giá bìa gốc của cuốn sách)
+  const overdueFine = isOverdue ? Math.min(rawOverdueFine, basePrice) : 0;
 
-  const rawTotalFine = checks.isOnTime ? 0 : overdueFine + damageFee + lostFee;
-  const discountAmount = Math.round((rawTotalFine * waiverDiscountPercent) / 100);
-  const finalFine = Math.max(0, rawTotalFine - discountAmount);
+  // 3. Quy tắc 10.3: Phí bồi thường hư hỏng và thất lạc tài liệu (Tùy chọn thủ thư)
+  let damageFee = 0;
+  let lostFee = 0;
 
-  // Xử lý thay đổi checkbox kiểm tra vi phạm
-  const handleCheckChange = (type) => {
-    if (type === 'isOnTime') {
-      setChecks({
-        isOnTime: true,
-        isOverdue: false,
-        isDamaged: false,
-        isLost: false
-      });
-    } else {
-      setChecks((prev) => {
-        const next = { ...prev, isOnTime: false, [type]: !prev[type] };
-        if (!next.isOverdue && !next.isDamaged && !next.isLost) {
-          next.isOnTime = true;
-        }
-        return next;
-      });
-    }
-  };
+  if (physicalCondition === 'damaged_light') {
+    // Hư hỏng nhẹ hoặc vừa (có thể sửa chữa, gia cố bìa): Phí khắc phục = Giá bìa gốc x Tỷ lệ đền bù hư hỏng (30% - 50%)
+    damageFee = Math.round((basePrice * (damagePercent / 100)) / 1000) * 1000;
+  } else if (physicalCondition === 'damaged_severe') {
+    // Hư hỏng nặng: 1.0 lần giá bìa + 10% phụ thu = 110% giá bìa gốc
+    damageFee = Math.round((basePrice * 1.1) / 1000) * 1000;
+  } else if (physicalCondition === 'lost') {
+    // Thất lạc hoàn toàn: 1.0 lần giá bìa + 10% phụ thu = 110% giá bìa gốc
+    lostFee = Math.round((basePrice * 1.1) / 1000) * 1000;
+  }
+
+  // 4. Nếu sách vừa trễ hạn vừa bị mất/hỏng: Tổng nghĩa vụ = Tiền phạt trễ hạn (có áp trần) + Tổng phí bồi thường
+  const rawTotalFine = overdueFine + damageFee + lostFee;
+  // Áp dụng tỷ lệ chiết khấu giảm trừ
+  const discountAmount = Math.round(((rawTotalFine * waiverDiscountPercent) / 100) / 1000) * 1000;
+  // Tất cả các khoản tiền sau khi áp dụng chiết khấu đều được làm tròn chẵn đến hàng nghìn đồng
+  const finalFine = Math.max(0, Math.round((rawTotalFine - discountAmount) / 1000) * 1000);
 
   // Tra cứu thông tin sách đang mượn qua API Backend
   const handleLookup = async (codeToSearch) => {
@@ -156,17 +160,30 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const handleExecuteReturn = async (isPaidFine = false) => {
     if (!lookupData) return;
 
-    // Xác định condition gửi lên Backend
+    // Xác định condition và mức bồi thường gửi lên Backend
     let condition = 'Good';
-    if (checks.isLost) condition = 'Lost';
-    else if (checks.isDamaged) condition = 'Damaged';
+    let damagePct = undefined;
+    let noteText = 'Sách hoàn trả nguyên vẹn';
+
+    if (physicalCondition === 'damaged_light') {
+      condition = 'DamagedLight';
+      damagePct = damagePercent;
+      noteText = `Hư hỏng nhẹ/vừa (Đền bù ${damagePercent}% giá bìa)`;
+    } else if (physicalCondition === 'damaged_severe') {
+      condition = 'DamagedSevere';
+      noteText = 'Hư hỏng nặng (110% giá bìa: 100% bồi hoàn + 10% phụ thu mua sắm)';
+    } else if (physicalCondition === 'lost') {
+      condition = 'Lost';
+      noteText = 'Báo mất sách (110% giá bìa: 100% bồi hoàn + 10% phụ thu mua sắm)';
+    }
 
     setIsSubmitting(true);
     try {
       const payload = {
         barcode: lookupData.barcode,
         condition: condition,
-        note: checks.isDamaged ? 'Hỏng bìa/rách sách' : checks.isLost ? 'Mất sách' : 'Nguyên vẹn',
+        damagePercent: damagePct,
+        note: noteText,
         waiverDiscountPercent: waiverDiscountPercent,
         waiverReason: waiverReason || undefined
       };
@@ -213,7 +230,14 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
           borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
           dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
           returnDate: new Date().toLocaleDateString('vi-VN'),
-          finalFine: finalFine
+          finalFine: finalFine,
+          isOverdue: isOverdue,
+          overdueDays: overdueDays,
+          overdueFine: overdueFine,
+          damageFee: damageFee,
+          lostFee: lostFee,
+          isFineCapped: isFineCapped,
+          physicalCondition: physicalCondition
         });
 
         // Xóa trắng form sau khi trả thành công
@@ -299,35 +323,24 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             <button
               type="button"
               className="test-chip chip-success"
-              title="Thử trả cuốn BC000001-A"
+              title="Thử trả cuốn BC000017-B (Bill Bryson)"
               onClick={() => {
-                setReturnQuery('BC000001-A');
-                handleLookup('BC000001-A');
+                setReturnQuery('BC000017-B');
+                handleLookup('BC000017-B');
               }}
             >
-              🏷️ BC000001-A (Harry Potter)
-            </button>
-            <button
-              type="button"
-              className="test-chip chip-success"
-              title="Thử trả cuốn BC000001-B"
-              onClick={() => {
-                setReturnQuery('BC000001-B');
-                handleLookup('BC000001-B');
-              }}
-            >
-              🏷️ BC000001-B (Harry Potter)
+              🏷️ BC000017-B (Quá hạn)
             </button>
             <button
               type="button"
               className="test-chip chip-neutral"
-              title="Thử tra cứu phiếu PM-0005"
+              title="Thử tra cứu phiếu PM-0031"
               onClick={() => {
-                setReturnQuery('PM-0005');
-                handleLookup('PM-0005');
+                setReturnQuery('PM-0031');
+                handleLookup('PM-0031');
               }}
             >
-              📋 PM-0005
+              📋 PM-0031
             </button>
           </div>
 
@@ -420,48 +433,174 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             </div>
           </div>
 
-          {/* Danh sách các ô tích chọn kiểm tra vi phạm (Scenario 1 & 2) */}
-          <div className="violation-checks-row">
-            {/* Đúng hạn */}
-            <label className="checkbox-item" onClick={() => handleCheckChange('isOnTime')}>
-              <div className={`custom-checkbox ${checks.isOnTime ? 'checked-green' : ''}`}>
-                {checks.isOnTime && <Check size={14} strokeWidth={3} />}
-              </div>
-              <span className="checkbox-text">Đúng hạn</span>
-            </label>
+          {/* PHẦN 1: HẠN TRẢ SÁCH */}
+          <div className="compact-section-wrap">
+            <div className="compact-header-row">
+              <span className="compact-badge-index">1</span>
+              <span className="compact-title-text">Hạn trả sách</span>
+            </div>
 
-            {/* Quá hạn */}
-            <label className="checkbox-item" onClick={() => handleCheckChange('isOverdue')}>
-              <div className={`custom-checkbox ${checks.isOverdue ? 'checked-orange' : ''}`}>
-                {checks.isOverdue && <Check size={14} strokeWidth={3} />}
+            {isOnTime ? (
+              <div className="compact-status-card ontime">
+                <div className="status-left">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <strong className="status-bold-text text-emerald-800">Trả đúng hạn</strong>
+                  <span className="status-date-hint">
+                    (Hạn: {new Date(lookupData.dueDate).toLocaleDateString('vi-VN')} - Trả: {new Date().toLocaleDateString('vi-VN')})
+                  </span>
+                </div>
+                <span className="compact-tag-free">0đ</span>
               </div>
-              <span className="checkbox-text">
-                Quá hạn {overdueDays > 0 ? `(Trễ ${overdueDays} ngày)` : ''}
-              </span>
-            </label>
+            ) : (
+              <div
+                className={`compact-status-card overdue ${showOverdueFormula ? 'expanded' : ''}`}
+                onClick={() => setShowOverdueFormula(!showOverdueFormula)}
+                title="Nhấn để xem / ẩn công thức tính phạt"
+              >
+                <div className="status-top-bar">
+                  <div className="status-left">
+                    <Clock size={16} className="text-amber-600" />
+                    <strong className="status-bold-text text-amber-900">Quá hạn {overdueDays} ngày</strong>
+                    <span className="status-date-hint">
+                      (Hạn: {new Date(lookupData.dueDate).toLocaleDateString('vi-VN')} - Trả: {new Date().toLocaleDateString('vi-VN')})
+                    </span>
+                    <span className="toggle-btn-hint">
+                      {showOverdueFormula ? 'Ẩn công thức' : 'Xem công thức'}
+                    </span>
+                  </div>
+                  <span className="compact-tag-warn">+{overdueFine.toLocaleString('vi-VN')}đ</span>
+                </div>
 
-            {/* Sách rách/hỏng bìa */}
-            <label className="checkbox-item" onClick={() => handleCheckChange('isDamaged')}>
-              <div className={`custom-checkbox ${checks.isDamaged ? 'checked-orange' : ''}`}>
-                {checks.isDamaged && <Check size={14} strokeWidth={3} />}
+                {showOverdueFormula && (
+                  <div className="compact-formula-drawer" onClick={(e) => e.stopPropagation()}>
+                    <span>
+                      Công thức: <strong>{overdueDays} ngày × {finePerDay.toLocaleString('vi-VN')}đ = {rawOverdueFine.toLocaleString('vi-VN')}đ</strong>
+                    </span>
+                    {isFineCapped && (
+                      <span className="capped-text-note">
+                        • Áp trần tối đa 100% giá bìa: <strong>{basePrice.toLocaleString('vi-VN')}đ</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <span className="checkbox-text">Sách rách/hỏng bìa</span>
-            </label>
+            )}
+          </div>
 
-            {/* Mất sách */}
-            <label className="checkbox-item" onClick={() => handleCheckChange('isLost')}>
-              <div className={`custom-checkbox ${checks.isLost ? 'checked-orange' : ''}`}>
-                {checks.isLost && <Check size={14} strokeWidth={3} />}
+          {/* PHẦN 2: TÌNH TRẠNG VẬT LÝ */}
+          <div className="compact-section-wrap">
+            <div className="compact-header-row">
+              <span className="compact-badge-index">2</span>
+              <span className="compact-title-text">Tình trạng vật lý</span>
+            </div>
+
+            <div className="compact-conditions-grid">
+              {/* Option 1: Nguyên vẹn */}
+              <div
+                className={`compact-cond-card ${physicalCondition === 'good' ? 'selected-green' : ''}`}
+                onClick={() => setPhysicalCondition('good')}
+              >
+                <div className="compact-card-header">
+                  <div className="compact-card-left">
+                    <div className={`compact-dot ${physicalCondition === 'good' ? 'dot-green' : ''}`}>
+                      {physicalCondition === 'good' && <Check size={11} strokeWidth={3.5} />}
+                    </div>
+                    <strong className="compact-cond-title">Nguyên vẹn</strong>
+                  </div>
+                  <span className="compact-tag-free">0đ</span>
+                </div>
+                {physicalCondition === 'good' && (
+                  <div className="compact-formula-sub text-emerald-700">
+                    Sách nguyên vẹn, sẵn sàng nhập lại kho khả dụng (0đ).
+                  </div>
+                )}
               </div>
-              <span className="checkbox-text">Mất sách</span>
-            </label>
+
+              {/* Option 2: Hư hỏng nhẹ / vừa */}
+              <div
+                className={`compact-cond-card ${physicalCondition === 'damaged_light' ? 'selected-orange' : ''}`}
+                onClick={() => setPhysicalCondition('damaged_light')}
+              >
+                <div className="compact-card-header">
+                  <div className="compact-card-left">
+                    <div className={`compact-dot ${physicalCondition === 'damaged_light' ? 'dot-orange' : ''}`}>
+                      {physicalCondition === 'damaged_light' && <Check size={11} strokeWidth={3.5} />}
+                    </div>
+                    <strong className="compact-cond-title">Hư hỏng nhẹ / vừa</strong>
+                  </div>
+                  <span className="compact-tag-warn">+{damageFee.toLocaleString('vi-VN')}đ</span>
+                </div>
+                {physicalCondition === 'damaged_light' && (
+                  <div className="compact-formula-sub" onClick={(e) => e.stopPropagation()}>
+                    <div className="formula-line">
+                      Sửa chữa, gia cố bìa: <strong>{basePrice.toLocaleString('vi-VN')}đ × {damagePercent}% = {damageFee.toLocaleString('vi-VN')}đ</strong>
+                    </div>
+                    <div className="compact-pct-selector">
+                      <span className="selector-lbl">Mức đền bù:</span>
+                      {[30, 40, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          className={`pct-chip ${damagePercent === pct ? 'active' : ''}`}
+                          onClick={() => setDamagePercent(pct)}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option 3: Hư hỏng nặng */}
+              <div
+                className={`compact-cond-card ${physicalCondition === 'damaged_severe' ? 'selected-orange' : ''}`}
+                onClick={() => setPhysicalCondition('damaged_severe')}
+              >
+                <div className="compact-card-header">
+                  <div className="compact-card-left">
+                    <div className={`compact-dot ${physicalCondition === 'damaged_severe' ? 'dot-orange' : ''}`}>
+                      {physicalCondition === 'damaged_severe' && <Check size={11} strokeWidth={3.5} />}
+                    </div>
+                    <strong className="compact-cond-title">Hư hỏng nặng</strong>
+                  </div>
+                  <span className="compact-tag-warn">+{damageFee.toLocaleString('vi-VN')}đ</span>
+                </div>
+                {physicalCondition === 'damaged_severe' && (
+                  <div className="compact-formula-sub">
+                    Rách nát, ngấm nước: <strong>110% giá bìa ({basePrice.toLocaleString('vi-VN')}đ × 1.1) = {damageFee.toLocaleString('vi-VN')}đ</strong> (100% bồi hoàn + 10% phụ thu).
+                  </div>
+                )}
+              </div>
+
+              {/* Option 4: Thất lạc / Mất sách */}
+              <div
+                className={`compact-cond-card ${physicalCondition === 'lost' ? 'selected-red' : ''}`}
+                onClick={() => setPhysicalCondition('lost')}
+              >
+                <div className="compact-card-header">
+                  <div className="compact-card-left">
+                    <div className={`compact-dot ${physicalCondition === 'lost' ? 'dot-red' : ''}`}>
+                      {physicalCondition === 'lost' && <Check size={11} strokeWidth={3.5} />}
+                    </div>
+                    <strong className="compact-cond-title">Thất lạc / Mất sách</strong>
+                  </div>
+                  <span className="compact-tag-danger">+{lostFee.toLocaleString('vi-VN')}đ</span>
+                </div>
+                {physicalCondition === 'lost' && (
+                  <div className="compact-formula-sub">
+                    Báo mất tài liệu: <strong>110% giá bìa ({basePrice.toLocaleString('vi-VN')}đ × 1.1) = {lostFee.toLocaleString('vi-VN')}đ</strong> (100% bồi hoàn + 10% phụ thu).
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Khung tổng kết tiền phạt dự kiến & các nút hành động */}
           <div className="fine-summary-banner">
             <div className="fine-info-left">
               <div className="fine-total-title">
-                Tổng tiền phạt dự kiến: {finalFine.toLocaleString('vi-VN')} VNĐ
+                Tổng nghĩa vụ tài chính: {finalFine.toLocaleString('vi-VN')} VNĐ
                 {waiverDiscountPercent > 0 && (
                   <span className="waiver-badge-applied">
                     (Đã giảm {waiverDiscountPercent}%)
@@ -469,18 +608,32 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 )}
               </div>
               <div className="fine-breakdown-subtext">
-                {checks.isOnTime ? (
-                  <span>(Sách hoàn trả đúng hạn, nguyên vẹn - Sẵn sàng nhập kho khả dụng)</span>
+                {finalFine === 0 ? (
+                  <span>(Sách hoàn trả đúng hạn, nguyên vẹn - Sẵn sàng nhập lại kho khả dụng)</span>
                 ) : (
                   <span>
                     (Chi tiết:{' '}
-                    {checks.isOverdue
-                      ? `Phạt trễ hạn ${overdueDays} ngày x ${finePerDay.toLocaleString('vi-VN')}đ = ${overdueFine.toLocaleString('vi-VN')}đ`
-                      : ''}
-                    {checks.isOverdue && checks.isDamaged ? ' + ' : ''}
-                    {checks.isDamaged ? `Phụ phí hỏng bìa = ${damageFee.toLocaleString('vi-VN')}đ` : ''}
-                    {checks.isLost ? `Bồi hoàn sách mất = ${lostFee.toLocaleString('vi-VN')}đ` : ''}
-                    {waiverDiscountPercent > 0 ? ` - Miễn giảm = ${discountAmount.toLocaleString('vi-VN')}đ` : ''}
+                    {isOverdue ? (
+                      <span>
+                        Phạt trễ {overdueDays} ngày = <strong>{overdueFine.toLocaleString('vi-VN')}đ</strong>
+                        {isFineCapped ? ' (Áp trần 100% giá bìa)' : ''}
+                      </span>
+                    ) : ''}
+                    {isOverdue && (damageFee > 0 || lostFee > 0) ? ' + ' : ''}
+                    {damageFee > 0 ? (
+                      <span>
+                        Bồi thường hư hỏng = <strong>{damageFee.toLocaleString('vi-VN')}đ</strong>
+                        {physicalCondition === 'damaged_light' ? ` (${damagePercent}%)` : ' (110%)'}
+                      </span>
+                    ) : ''}
+                    {lostFee > 0 ? (
+                      <span>
+                        Bồi hoàn mất sách = <strong>{lostFee.toLocaleString('vi-VN')}đ</strong> (110%)
+                      </span>
+                    ) : ''}
+                    {waiverDiscountPercent > 0 ? (
+                      <span> - Miễn giảm = <strong>{discountAmount.toLocaleString('vi-VN')}đ</strong></span>
+                    ) : ''}
                     )
                   </span>
                 )}
@@ -684,10 +837,11 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                   <div className="receipt-line">
                     <span className="lbl">Lý do xử phạt:</span>
                     <span className="val">
-                      {checks.isOverdue ? `Trễ hạn ${overdueDays} ngày` : ''}
-                      {checks.isOverdue && checks.isDamaged ? ', ' : ''}
-                      {checks.isDamaged ? 'Hỏng rách bìa' : ''}
-                      {checks.isLost ? 'Mất sách' : ''}
+                      {isOverdue ? `Trễ hạn ${overdueDays} ngày (${overdueFine.toLocaleString('vi-VN')}đ)` : ''}
+                      {isOverdue && (damageFee > 0 || lostFee > 0) ? ', ' : ''}
+                      {physicalCondition === 'damaged_light' ? `Hỏng bìa/rách sách (${damagePercent}% = ${damageFee.toLocaleString('vi-VN')}đ)` : ''}
+                      {physicalCondition === 'damaged_severe' ? `Hư hỏng nặng 110% (${damageFee.toLocaleString('vi-VN')}đ)` : ''}
+                      {physicalCondition === 'lost' ? `Mất sách 110% (${lostFee.toLocaleString('vi-VN')}đ)` : ''}
                     </span>
                   </div>
                   <div className="receipt-divider"></div>

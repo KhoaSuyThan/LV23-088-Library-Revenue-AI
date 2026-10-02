@@ -52,11 +52,11 @@ public class ReturnService : IReturnService
         var borrowing = detail.Borrowing;
         var reader = borrowing?.Reader;
 
-        // Tính toán số ngày quá hạn
+        // Tính toán số ngày quá hạn tự động theo Quy tắc 10.1
         var now = DateTime.Now;
         var dueDate = borrowing!.DueDate;
         var overdueDays = 0;
-        if (now > dueDate)
+        if (now.Date > dueDate.Date)
         {
             overdueDays = (now.Date - dueDate.Date).Days;
             if (overdueDays < 0) overdueDays = 0;
@@ -64,7 +64,17 @@ public class ReturnService : IReturnService
 
         var rule = await _returnRepository.GetActiveFineRuleAsync();
         decimal finePerDay = rule?.FinePerDay ?? 5000m;
-        decimal estimatedFine = overdueDays * finePerDay;
+        decimal basePrice = book?.BasePrice ?? 50000m;
+
+        // Quy tắc 10.1: Tiền phạt trễ hạn = Số ngày trễ hạn x Mức phạt trễ hạn quy định
+        decimal rawOverdueFine = overdueDays * finePerDay;
+
+        // Quy tắc 10.2: Ràng buộc mức trần: không bao giờ vượt quá 100% giá bìa gốc của cuốn sách
+        decimal overdueFine = Math.Min(rawOverdueFine, basePrice);
+        bool isFineCapped = rawOverdueFine > basePrice;
+
+        // Làm tròn chẵn đến hàng nghìn đồng theo đúng quy tắc tài chính kế toán hiện hành của Việt Nam
+        decimal roundedOverdueFine = Math.Round(overdueFine / 1000m, MidpointRounding.AwayFromZero) * 1000m;
 
         var allDetails = borrowing.BorrowingDetails ?? new List<Entities.BorrowingDetail>();
         var totalItems = allDetails.Count;
@@ -80,7 +90,7 @@ public class ReturnService : IReturnService
             BookId = book?.BookID ?? 0,
             BookTitle = book?.Title ?? "Tài liệu thư viện",
             Author = book?.Author ?? "Nhiều tác giả",
-            BasePrice = book?.BasePrice ?? 50000m,
+            BasePrice = basePrice,
             ReaderId = reader?.ReaderID ?? 0,
             ReaderName = reader?.User?.FullName ?? "Bạn đọc",
             ReaderCode = reader?.ReaderCode ?? string.Empty,
@@ -89,8 +99,14 @@ public class ReturnService : IReturnService
             DueDate = borrowing.DueDate,
             OverdueDays = overdueDays,
             IsOverdue = overdueDays > 0,
-            EstimatedOverdueFine = estimatedFine,
+            EstimatedOverdueFine = roundedOverdueFine,
+            RawOverdueFine = rawOverdueFine,
+            OverdueFine = roundedOverdueFine,
+            OverdueFineCap = basePrice,
+            IsFineCapped = isFineCapped,
             FinePerDay = finePerDay,
+            DamageMultiplier = rule?.DamageMultiplier ?? 1.0m,
+            DamageFeePercent = rule?.DamageFeePercent ?? 10.0m,
             CurrentItemStatus = detail.ItemStatus,
             TotalItemsInBorrowing = totalItems,
             ReturnedItemsCount = returnedItems
@@ -100,7 +116,7 @@ public class ReturnService : IReturnService
     }
 
     /// <summary>
-    /// Xử lý tiếp nhận trả một bản sao sách cụ thể theo Barcode, cập nhật tình trạng vật lý và tính phạt.
+    /// Xử lý tiếp nhận trả một bản sao sách cụ thể theo Barcode, cập nhật tình trạng vật lý và tính phạt (US-10).
     /// </summary>
     public async Task<ApiResponse<ReturnBookResponseDto>> ProcessReturnItemAsync(ReturnBookRequestDto request, int? librarianId = null)
     {
@@ -125,9 +141,9 @@ public class ReturnService : IReturnService
         var now = DateTime.Now;
         var dueDate = borrowing!.DueDate;
 
-        // 2. Tính số ngày quá hạn và tiền phạt quá hạn
+        // 2. Tính số ngày quá hạn tự động theo Quy tắc 10.1
         var overdueDays = 0;
-        if (now > dueDate)
+        if (now.Date > dueDate.Date)
         {
             overdueDays = (now.Date - dueDate.Date).Days;
             if (overdueDays < 0) overdueDays = 0;
@@ -135,25 +151,64 @@ public class ReturnService : IReturnService
 
         var rule = await _returnRepository.GetActiveFineRuleAsync();
         decimal finePerDay = rule?.FinePerDay ?? 5000m;
-        decimal overdueFine = overdueDays * finePerDay;
+        decimal basePrice = book?.BasePrice ?? 50000m;
 
-        // 3. Tính phụ phí theo tình trạng kiểm tra thực tế (Scenario 2: Hư hỏng / Mất sách)
+        // Quy tắc 10.1: Tiền phạt trễ hạn = Số ngày trễ hạn x Mức phạt trễ hạn quy định
+        decimal rawOverdueFine = overdueDays * finePerDay;
+
+        // Quy tắc 10.2: Ràng buộc mức trần tiền phạt trễ hạn: không vượt quá 100% giá bìa gốc
+        decimal overdueFine = Math.Min(rawOverdueFine, basePrice);
+        bool isFineCapped = rawOverdueFine > basePrice;
+
+        // 3. Tính phụ phí theo tình trạng kiểm tra thực tế theo Quy tắc 10.3
         var condition = string.IsNullOrWhiteSpace(request.Condition) ? "Good" : request.Condition.Trim();
         decimal damageFee = 0m;
         decimal lostFee = 0m;
-        decimal basePrice = book?.BasePrice ?? 50000m;
 
-        if (condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
+        decimal damageMultiplier = rule?.DamageMultiplier ?? 1.0m;
+        decimal damageFeePercent = rule?.DamageFeePercent ?? 10.0m;
+
+        if (condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase) ||
+            condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase))
         {
-            // Phụ phí hỏng bìa/rách sách: tối thiểu 20.000đ hoặc tỷ lệ quy định
-            damageFee = Math.Max(20000m, basePrice * (rule?.DamageMultiplier ?? 0.4m));
+            // Trường hợp sách hư hỏng nhẹ hoặc vừa (có thể sửa chữa, gia cố bìa):
+            // Phí khắc phục = Giá bìa gốc x Tỷ lệ đền bù hư hỏng (mặc định từ 30% đến 50% tùy mức độ)
+            decimal damageRate = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
+                ? (request.DamagePercent.Value / 100m)
+                : 0.4m; // Mặc định 40%
+
+            if (damageRate < 0.3m) damageRate = 0.3m;
+            if (damageRate > 0.5m && condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase)) damageRate = 0.5m;
+
+            damageFee = basePrice * damageRate;
+        }
+        else if (condition.Equals("DamagedSevere", StringComparison.OrdinalIgnoreCase))
+        {
+            // Trường hợp sách hư hỏng nặng (mất trang nội dung chính, ngấm nước rách nát):
+            // Tiền bồi hoàn tài liệu = Giá bìa gốc x Hệ số đền bù sách mất (1.0 lần giá bìa)
+            // Phụ thu chi phí nghiệp vụ mua sắm thay thế = Giá bìa gốc x Mức phụ thu (10%)
+            // Tổng phí bồi thường mất sách/hư hỏng nặng = 110% giá bìa gốc
+            damageFee = (basePrice * damageMultiplier) + (basePrice * damageFeePercent / 100m);
         }
         else if (condition.Equals("Lost", StringComparison.OrdinalIgnoreCase))
         {
-            // Đền bù 100% giá sách gốc + phụ thu đền bù theo quy định
-            var damagePct = rule?.DamageFeePercent ?? 10m;
-            lostFee = basePrice + (basePrice * damagePct / 100m);
+            // Thất lạc hoàn toàn:
+            // Tiền bồi hoàn tài liệu (1.0 lần giá bìa) + Phụ thu mua sắm thay thế (10% giá bìa) = 110% giá bìa
+            lostFee = (basePrice * damageMultiplier) + (basePrice * damageFeePercent / 100m);
         }
+
+        // Quy tắc: Nếu sách vừa trễ hạn vừa bị mất/hỏng:
+        // Tổng nghĩa vụ = Tiền phạt trễ hạn tính đến ngày trả/báo mất (có áp trần) + Tổng phí bồi thường
+        decimal rawTotal = overdueFine + damageFee + lostFee;
+        decimal discountAmt = (rawTotal * request.WaiverDiscountPercent) / 100m;
+        decimal finalTotalBeforeRound = Math.Max(0m, rawTotal - discountAmt);
+
+        // Làm tròn chẵn đến hàng nghìn đồng theo đúng quy tắc tài chính kế toán hiện hành của Việt Nam
+        decimal roundedOverdueFine = Math.Round(overdueFine / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal roundedDamageFee = Math.Round(damageFee / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal roundedLostFee = Math.Round(lostFee / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal roundedDiscountAmt = Math.Round(discountAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal finalTotal = Math.Max(0m, Math.Round(finalTotalBeforeRound / 1000m, MidpointRounding.AwayFromZero) * 1000m);
 
         // 4. Thực thi Transaction SQL an toàn
         var result = await _returnRepository.ProcessReturnWithTransactionAsync(
@@ -161,9 +216,9 @@ public class ReturnService : IReturnService
             condition,
             request.Note,
             request.WaiverDiscountPercent,
-            overdueFine,
-            damageFee,
-            lostFee,
+            roundedOverdueFine,
+            roundedDamageFee,
+            roundedLostFee,
             librarianId
         );
 
@@ -172,11 +227,10 @@ public class ReturnService : IReturnService
             return ApiResponse<ReturnBookResponseDto>.ErrorResult(result.Message);
         }
 
-        var rawTotal = overdueFine + damageFee + lostFee;
-        var discountAmt = Math.Round((rawTotal * request.WaiverDiscountPercent) / 100m, 2);
-        var finalTotal = Math.Max(0m, rawTotal - discountAmt);
-
         var borrowCode = $"PM-{borrowing.BorrowingID:D4}";
+
+        var isDamagedBool = condition.StartsWith("Damaged", StringComparison.OrdinalIgnoreCase);
+        var isLostBool = condition.Equals("Lost", StringComparison.OrdinalIgnoreCase);
 
         var response = new ReturnBookResponseDto
         {
@@ -188,30 +242,23 @@ public class ReturnService : IReturnService
             BookTitle = book?.Title ?? "Tài liệu",
             ReaderName = reader?.User?.FullName ?? "Độc giả",
             ReaderCode = reader?.ReaderCode ?? string.Empty,
+            BasePrice = basePrice,
             BorrowDate = borrowing.BorrowDate,
             DueDate = borrowing.DueDate,
             ReturnDate = now,
-            ItemStatus = condition switch
-            {
-                "Damaged" => "Damaged",
-                "Lost" => "Lost",
-                _ => "Returned"
-            },
-            CopyStatus = condition switch
-            {
-                "Damaged" => "Damaged",
-                "Lost" => "Lost",
-                _ => "Available"
-            },
+            ItemStatus = isDamagedBool ? "Damaged" : (isLostBool ? "Lost" : "Returned"),
+            CopyStatus = isDamagedBool ? "Damaged" : (isLostBool ? "Lost" : "Available"),
             OverdueDays = overdueDays,
-            OverdueFine = overdueFine,
-            DamageFee = damageFee,
-            LostFee = lostFee,
-            DiscountAmount = discountAmt,
+            RawOverdueFine = rawOverdueFine,
+            OverdueFine = roundedOverdueFine,
+            IsFineCapped = isFineCapped,
+            DamageFee = roundedDamageFee,
+            LostFee = roundedLostFee,
+            DiscountAmount = roundedDiscountAmt,
             TotalFine = finalTotal,
             IsOverdue = overdueDays > 0,
-            IsDamaged = condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase),
-            IsLost = condition.Equals("Lost", StringComparison.OrdinalIgnoreCase),
+            IsDamaged = isDamagedBool,
+            IsLost = isLostBool,
             IsOnTime = overdueDays == 0 && condition.Equals("Good", StringComparison.OrdinalIgnoreCase),
             IsBorrowingCompleted = result.IsBorrowingCompleted,
             ReceiptId = result.FineReceipt?.ReceiptID,
