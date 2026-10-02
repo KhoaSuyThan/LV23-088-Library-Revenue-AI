@@ -1,22 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { User, Eye, EyeOff, BookOpen, AlertCircle, Loader2, KeyRound } from 'lucide-react';
 import { authApi } from '../api/authApi';
 import './LoginPage.css';
 
 export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
+  const location = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(sessionExpiredMessage || '');
+  const [errorMessage, setErrorMessage] = useState(
+    location.state?.error || sessionExpiredMessage || ''
+  );
 
-  // Lắng nghe khi có thông báo hết hạn phiên từ App
-  React.useEffect(() => {
+  // Lắng nghe khi có thông báo hết hạn phiên hoặc bị chặn quyền từ Router
+  useEffect(() => {
     if (sessionExpiredMessage) {
       setErrorMessage(sessionExpiredMessage);
+    } else if (location.state?.error) {
+      setErrorMessage(location.state.error);
     }
-  }, [sessionExpiredMessage]);
+  }, [sessionExpiredMessage, location.state]);
 
   // Hàm xử lý gửi form đăng nhập
   const handleSubmit = async (e) => {
@@ -43,11 +49,29 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
         setErrorMessage(res.message || 'Đăng nhập không thành công.');
       }
     } catch (err) {
-      console.warn('Backend chưa sẵn sàng hoặc lỗi kết nối, kích hoạt phiên đăng nhập Thử nghiệm (Demo):', err);
+      // 1. Nếu máy chủ Backend phản hồi lỗi nghiệp vụ (403 Forbidden, 401 Unauthorized, 400 BadRequest)
+      if (err.response) {
+        const serverMsg =
+          err.response.data?.message ||
+          (err.response.status === 403
+            ? 'Tài khoản bạn đọc không có quyền truy cập Cổng quản trị thư viện.'
+            : 'Đăng nhập không thành công. Vui lòng kiểm tra lại tên đăng nhập hoặc mật khẩu.');
+        setErrorMessage(serverMsg);
+        return;
+      }
+
+      // 2. Chỉ khi ngắt kết nối mạng hoàn toàn tới máy chủ Backend mới kích hoạt chế độ Demo dự phòng
+      console.warn('Backend chưa sẵn sàng hoặc lỗi kết nối mạng, kiểm tra chế độ Thử nghiệm (Demo):', err);
+      const isReader = username.toLowerCase().includes('huy') || username.toLowerCase().includes('reader');
+      if (isReader) {
+        setErrorMessage('Tài khoản bạn đọc không có quyền truy cập Cổng quản trị thư viện.');
+        return;
+      }
+
       const isStaff = username.toLowerCase().includes('nam') || username.toLowerCase().includes('staff');
       const demoUser = {
         userId: 1,
-        fullName: 'Nguyễn Văn A',
+        fullName: isStaff ? 'Nguyễn Thành Nhất Nam' : 'Nguyễn Võ Lê Khoa',
         email: username.trim(),
         role: isStaff ? 'Staff' : 'Admin',
         token: 'demo_smartlib_token_jwt_preview'
