@@ -20,6 +20,7 @@ import {
 } from '@zxing/library';
 import { playScannerBeep } from '../utils/barcodeGenerator';
 import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
+import './BarcodeCameraModal.css';
 
 /**
  * Component Modal Máy Quét Mã Vạch (Barcode Scanner) - Đồng bộ 100% giao diện Catalog.
@@ -548,15 +549,15 @@ export default function BarcodeCameraModal({
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="modal-dialog scanner-dialog-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Tiêu đề Modal (Chuẩn giao diện Catalog) */}
-        <div className="modal-header">
-          <div className="modal-title-wrap">
+        {/* Tiêu đề Modal chuẩn mực, cách ly CSS với icon thẳng hàng */}
+        <div className="scanner-modal-header">
+          <div className="scanner-modal-title-box">
             <ScanLine size={20} className="scanner-header-icon" />
-            <h3 className="modal-title">{title}</h3>
+            <h3 className="scanner-modal-title">{title}</h3>
           </div>
           <button
             type="button"
-            className="modal-close"
+            className="scanner-modal-close-btn"
             onClick={() => {
               stopCamera();
               onClose();
@@ -664,9 +665,54 @@ export default function BarcodeCameraModal({
             </div>
           )}
 
-          {/* Thanh công cụ: Nút Tải ảnh, Lật ngang, Chọn camera và Bật lại nếu tắt */}
+          {/* Thanh công cụ: Chọn camera, Lật ngang, Zoom, Tải ảnh và Phím tắt gọn trên 1 hàng */}
           <div className="scanner-toolbar-row">
             <div className="scanner-toolbar-buttons">
+              {/* Dropdown chọn Camera (Hiện khi có từ 1 thiết bị) */}
+              {videoDevices.length > 0 && (
+                <div className="camera-select-wrap" title={`Thiết bị camera hiện tại: ${selectedDeviceId}`}>
+                  <Video size={13} className="control-icon" />
+                  <select
+                    className="camera-device-select"
+                    value={selectedDeviceId}
+                    onChange={(e) => handleDeviceChange(e.target.value)}
+                    title="Chọn thiết bị camera quét mã"
+                  >
+                    {videoDevices.map((dev, idx) => (
+                      <option key={dev.deviceId || idx} value={dev.deviceId}>
+                        {dev.label || `Camera ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Nút lật ngang camera cho webcam rời */}
+              <button
+                type="button"
+                className={`btn-flip-camera ${isFlippedHorizontal ? 'active' : ''}`}
+                onClick={() => setIsFlippedHorizontal((prev) => !prev)}
+                title="Lật ngang camera nếu camera của bạn bị ngược chiều"
+              >
+                <FlipHorizontal size={14} />
+                <span>{isFlippedHorizontal ? 'Đã lật' : 'Lật ngang'}</span>
+              </button>
+
+              {/* Nút Thu phóng Zoom kỹ thuật số (1x, 1.5x, 2x) để lấy nét tốt hơn */}
+              <div className="scanner-zoom-box" title="Thu phóng kỹ thuật số giúp để điện thoại xa mà vẫn nét">
+                <span className="scanner-zoom-label">Zoom:</span>
+                {[1.0, 1.5, 2.0].map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setZoomLevel(lvl)}
+                    className={`scanner-zoom-btn ${zoomLevel === lvl ? 'active' : ''}`}
+                  >
+                    {lvl}x
+                  </button>
+                ))}
+              </div>
+
               {/* Nút Tải tệp PDF hoặc ảnh mã vạch / QR */}
               <button
                 type="button"
@@ -675,59 +721,9 @@ export default function BarcodeCameraModal({
                 disabled={isDecodingImage}
                 title="Tải tệp PDF phiếu mượn/trả hoặc ảnh chứa mã vạch (Code128) từ máy tính"
               >
-                <ImageUp size={15} />
-                <span>{isDecodingImage ? 'Đang giải mã...' : 'Tải tệp PDF / Ảnh phiếu'}</span>
+                <ImageUp size={14} />
+                <span>{isDecodingImage ? 'Đang giải mã...' : 'Tải PDF / Ảnh'}</span>
               </button>
-
-              {/* Nút lật ngang camera cho webcam rời */}
-              <button
-                type="button"
-                className={`btn-flip-camera ${isFlippedHorizontal ? 'active' : ''}`}
-                onClick={() => setIsFlippedHorizontal((prev) => !prev)}
-                title="Lật ngang camera nếu camera rời của bạn bị ngược chiều"
-              >
-                <FlipHorizontal size={14} />
-                <span>{isFlippedHorizontal ? 'Đã lật ngang' : 'Lật ngang'}</span>
-              </button>
-
-              {/* Nút Thu phóng Zoom kỹ thuật số (1x, 1.5x, 2x) để lấy nét tốt hơn */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '2px 4px',
-                  height: '32px'
-                }}
-                title="Thu phóng kỹ thuật số giúp để điện thoại xa mà vẫn nét"
-              >
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, paddingLeft: '2px' }}>
-                  Zoom:
-                </span>
-                {[1.0, 1.5, 2.0].map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setZoomLevel(lvl)}
-                    style={{
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      background: zoomLevel === lvl ? '#2563eb' : 'transparent',
-                      color: zoomLevel === lvl ? '#ffffff' : '#475569',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {lvl}x
-                  </button>
-                ))}
-              </div>
 
               {/* Nút Bật lại Camera: Chỉ hiển thị khi camera chưa bật hoặc gặp lỗi */}
               {(!isCameraActive || cameraError) && (
@@ -743,29 +739,9 @@ export default function BarcodeCameraModal({
                     color: '#047857'
                   }}
                 >
-                  <RefreshCw size={14} className={isConnecting ? 'spin-icon' : ''} />
+                  <RefreshCw size={13} className={isConnecting ? 'spin-icon' : ''} />
                   <span>{isConnecting ? 'Đang kết nối...' : 'Bật lại Camera'}</span>
                 </button>
-              )}
-
-
-              {/* Dropdown chọn Camera (Hiện khi có từ 1 thiết bị) */}
-              {videoDevices.length > 0 && (
-                <div className="camera-select-wrap">
-                  <Video size={13} className="control-icon" />
-                  <select
-                    className="camera-device-select"
-                    value={selectedDeviceId}
-                    onChange={(e) => handleDeviceChange(e.target.value)}
-                    title="Chọn thiết bị camera"
-                  >
-                    {videoDevices.map((dev, idx) => (
-                      <option key={dev.deviceId || idx} value={dev.deviceId}>
-                        {dev.label || `Camera ${idx + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               )}
 
               {/* Nút Đặt lại khi xem ảnh */}
@@ -776,7 +752,7 @@ export default function BarcodeCameraModal({
                   onClick={handleResetImage}
                   title="Xóa ảnh hiện tại và mở lại camera"
                 >
-                  <RotateCcw size={14} />
+                  <RotateCcw size={13} />
                   <span>Đặt lại</span>
                 </button>
               )}
@@ -794,7 +770,10 @@ export default function BarcodeCameraModal({
                 }
               }}
             />
+          </div>
 
+          {/* Dòng gợi ý phím tắt dán ảnh nằm ở hàng riêng bên dưới */}
+          <div className="scanner-paste-hint-row">
             <span className="scanner-paste-hint">
               Dán ảnh bằng <kbd>Ctrl + V</kbd>
             </span>
@@ -809,6 +788,8 @@ export default function BarcodeCameraModal({
               placeholder={
                 targetField === 'reader'
                   ? 'Quét thẻ sinh viên bằng đầu đọc hoặc gõ MSSV rồi nhấn Enter...'
+                  : targetField === 'catalog'
+                  ? 'Quét mã bằng đầu đọc hoặc gõ mã bản sao / barcode rồi nhấn Enter...'
                   : 'Quét mã bằng đầu đọc hoặc gõ mã vạch rồi nhấn Enter...'
               }
               value={inputValue}
@@ -833,6 +814,27 @@ export default function BarcodeCameraModal({
                     { label: '✗ 102220184 (Nợ phạt)', code: '102220184' },
                     { label: '✗ 102230045 (Khóa thẻ)', code: '102230045' },
                     { label: '✗ 102220412 (Max 5 cuốn)', code: '102220412' }
+                  ].map((item) => (
+                    <button
+                      key={item.code}
+                      type="button"
+                      className="btn-quick-chip"
+                      onClick={() => {
+                        playScannerBeep(true);
+                        stopCamera();
+                        onScanSuccess(item.code);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))
+                : targetField === 'catalog'
+                ? [
+                    { code: 'BC000001-A', label: 'BC000001-A' },
+                    { code: 'BC000001-B', label: 'BC000001-B' },
+                    { code: 'BC000001-C', label: 'BC000001-C' },
+                    { code: 'BC000002-A', label: 'BC000002-A' },
+                    { code: 'BC000003-A', label: 'BC000003-A' }
                   ].map((item) => (
                     <button
                       key={item.code}

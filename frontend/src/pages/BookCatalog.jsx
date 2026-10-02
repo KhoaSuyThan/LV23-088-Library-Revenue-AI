@@ -36,7 +36,7 @@ import {
 import { apiClient } from '../api/authApi';
 import { generateBarcodeSvg, generateQrCodeSvg, playScannerBeep } from '../utils/barcodeGenerator';
 import { exportBarcodeLabelsPdf, openPrintDialog } from '../utils/barcodePdfPrinter';
-import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
+import BarcodeCameraModal from '../components/BarcodeCameraModal';
 import './BookCatalog.css';
 
 /**
@@ -329,12 +329,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   const [isViewBarcodeModalOpen, setIsViewBarcodeModalOpen] = useState(false);
   const [viewBarcodeCopy, setViewBarcodeCopy] = useState(null);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
-  const [scannerInputValue, setScannerInputValue] = useState('');
   const [highlightedBarcode, setHighlightedBarcode] = useState('');
-  const [isDecodingImage, setIsDecodingImage] = useState(false);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const scannerImageInputRef = useRef(null);
 
   // State Modal Xóa mềm & Chặn xóa
   const [deleteBookTarget, setDeleteBookTarget] = useState(null);
@@ -667,7 +662,6 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'F2') {
         e.preventDefault();
-        setScannerInputValue('');
         setIsScannerModalOpen(true);
       }
     };
@@ -1095,70 +1089,6 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     }
   };
 
-  // Xử lý tệp hình ảnh chứa mã vạch (Tải lên, Kéo thả hoặc Dán Clipboard Ctrl+V)
-  const handleProcessBarcodeImage = async (file) => {
-    if (!file) return;
-    if (!file.type || !file.type.startsWith('image/')) {
-      showToast('Vui lòng chọn hoặc dán tệp định dạng hình ảnh (PNG, JPG, WEBP,...)!');
-      return;
-    }
-
-    setIsDecodingImage(true);
-    const preview = URL.createObjectURL(file);
-    setImagePreviewUrl(preview);
-
-    try {
-      showToast('Đang giải mã mã vạch / QR từ hình ảnh...');
-      const result = await decodeBarcodeFromImage(file);
-      if (result.success && result.barcode) {
-        setScannerInputValue(result.barcode);
-        playScannerBeep(true);
-        showToast(`Đã nhận diện mã: [${result.barcode}] (${result.format || 'Barcode'})! Đang tra cứu...`);
-        await handleBarcodeScanLookup(result.barcode);
-      } else {
-        playScannerBeep(false);
-        showToast(result.message || 'Không tìm thấy mã vạch hợp lệ trong ảnh.');
-      }
-    } catch (err) {
-      playScannerBeep(false);
-      showToast('Lỗi khi giải mã ảnh: ' + (err.message || 'Không xác định'));
-    } finally {
-      setIsDecodingImage(false);
-    }
-  };
-
-  // Đặt lại khung quét ảnh về trạng thái ban đầu (xóa ảnh xem trước)
-  const handleResetScannerImage = (e) => {
-    if (e) e.stopPropagation();
-    setImagePreviewUrl(null);
-    setIsDraggingImage(false);
-    setIsDecodingImage(false);
-    if (scannerImageInputRef.current) {
-      scannerImageInputRef.current.value = '';
-    }
-  };
-
-  // Lắng nghe sự kiện Paste (Ctrl + V) khi Modal Máy quét đang mở
-  useEffect(() => {
-    if (!isScannerModalOpen) {
-      handleResetScannerImage();
-      return;
-    }
-
-    const handleWindowPaste = (e) => {
-      const imgFile = getImageFileFromClipboard(e);
-      if (imgFile) {
-        e.preventDefault();
-        handleProcessBarcodeImage(imgFile);
-      }
-    };
-
-    window.addEventListener('paste', handleWindowPaste);
-    return () => {
-      window.removeEventListener('paste', handleWindowPaste);
-    };
-  }, [isScannerModalOpen]);
-
   // Xử lý mở modal Sửa
   const handleOpenEdit = (book) => {
     setEditingBook({ ...book });
@@ -1378,7 +1308,6 @@ export default function BookCatalog({ user, externalSearch = '' }) {
             type="button"
             className="filter-standalone-scanner-btn"
             onClick={() => {
-              setScannerInputValue('');
               setIsScannerModalOpen(true);
             }}
             title="Mở máy quét mã vạch [F2]"
@@ -1456,23 +1385,6 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               <option value="out_of_stock">Hết sách (Đang mượn hết)</option>
             </select>
           </div>
-
-          {/* AC2: Tùy chọn chỉ hiển thị những sách đang có sẵn trong kho */}
-          <label
-            className="filter-item filter-checkbox-item"
-            title="Chỉ hiển thị những sách đang có sẵn trong kho (số bản sao sẵn sàng cho mượn > 0) (AC2)"
-          >
-            <input
-              type="checkbox"
-              className="filter-checkbox-input"
-              checked={filterStatus === 'available'}
-              onChange={(e) => {
-                setFilterStatus(e.target.checked ? 'available' : 'all');
-                setCurrentPage(1);
-              }}
-            />
-            <span className="filter-checkbox-text">Chỉ sách có sẵn (&gt; 0)</span>
-          </label>
 
           {/* Nút Đặt lại bộ lọc */}
           {(filterKeyword || filterCategory || filterMinPrice || filterMaxPrice || filterStatus !== 'all') && (
@@ -2427,181 +2339,18 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       )}
 
       {/* ====================================================================
-          MODAL CON 4: MÁY QUÉT MÃ VẠCH (BARCODE SCANNER - AC5)
+          MODAL CON 4: MÁY QUÉT MÃ VẠCH (BARCODE SCANNER) DÙNG CHUNG
           ==================================================================== */}
-      {isScannerModalOpen && (
-        <div className="catalog-modal-overlay" onClick={() => setIsScannerModalOpen(false)}>
-          <div className="catalog-modal-content scanner-dialog-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-box">
-                <ScanLine size={20} className="scanner-header-icon" />
-                <h3 className="modal-title">Máy Quét Mã Vạch (Barcode Scanner)</h3>
-              </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => {
-                  handleResetScannerImage();
-                  setIsScannerModalOpen(false);
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body scanner-dialog-body">
-              {/* Hiệu ứng quét laser đồ họa & Vùng Drop-zone kéo thả ảnh */}
-              <div
-                className={`scanner-viewport-box ${isDraggingImage ? 'is-dragover' : ''} ${isDecodingImage ? 'is-decoding' : ''}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingImage(true);
-                }}
-                onDragLeave={() => setIsDraggingImage(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDraggingImage(false);
-                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    handleProcessBarcodeImage(e.dataTransfer.files[0]);
-                  }
-                }}
-                onClick={() => scannerImageInputRef.current?.click()}
-                title="Bấm để chọn file ảnh, hoặc kéo thả ảnh mã vạch vào đây"
-              >
-                {imagePreviewUrl && (
-                  <>
-                    <img
-                      src={imagePreviewUrl}
-                      alt="Barcode preview"
-                      className="scanner-preview-image"
-                    />
-                    <button
-                      type="button"
-                      className="btn-clear-scanner-preview"
-                      onClick={handleResetScannerImage}
-                      title="Xóa ảnh này / Đặt lại khung quét"
-                    >
-                      <X size={14} />
-                    </button>
-                  </>
-                )}
-                <div className="scanner-target-reticle">
-                  <div className="reticle-corner corner-tl"></div>
-                  <div className="reticle-corner corner-tr"></div>
-                  <div className="reticle-corner corner-bl"></div>
-                  <div className="reticle-corner corner-br"></div>
-                  <div className="laser-scan-line"></div>
-                </div>
-                <span className="scanner-status-text">
-                  {isDecodingImage
-                    ? 'Đang giải mã mã vạch / QR từ ảnh...'
-                    : isDraggingImage
-                    ? 'Thả tệp ảnh vào đây để quét mã...'
-                    : imagePreviewUrl
-                    ? 'Đang xem ảnh tải lên. Bấm nút [✕] hoặc [Đặt lại] để chọn ảnh khác'
-                    : 'Kéo thả ảnh vào đây, nhấn Ctrl+V để dán, hoặc quét bằng súng đọc'}
-                </span>
-              </div>
-
-              {/* Thanh công cụ: Nút tải ảnh mã vạch, nút Đặt lại và gợi ý dán ảnh Clipboard */}
-              <div className="scanner-toolbar-row">
-                <div className="scanner-toolbar-buttons">
-                  <button
-                    type="button"
-                    className="btn-upload-scanner-img"
-                    onClick={() => scannerImageInputRef.current?.click()}
-                    disabled={isDecodingImage}
-                    title="Tải ảnh chứa mã vạch (Code128) hoặc QR Code từ máy tính"
-                  >
-                    <ImageUp size={15} />
-                    <span>{isDecodingImage ? 'Đang giải mã ảnh...' : 'Tải ảnh mã vạch / QR'}</span>
-                  </button>
-                  {imagePreviewUrl && (
-                    <button
-                      type="button"
-                      className="btn-reset-scanner-img"
-                      onClick={handleResetScannerImage}
-                      title="Xóa ảnh hiện tại và đặt lại khung quét"
-                    >
-                      <RotateCcw size={14} />
-                      <span>Đặt lại</span>
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={scannerImageInputRef}
-                  style={{ display: 'none' }}
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleProcessBarcodeImage(e.target.files[0]);
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                <span className="scanner-paste-hint">
-                  Dán nhanh ảnh chụp màn hình bằng <kbd>Ctrl + V</kbd>
-                </span>
-              </div>
-
-              {/* Ô nhập liệu mã vạch (kết nối máy quét USB/Bluetooth tự động gõ vào đây) */}
-              <div className="scanner-input-group">
-                <input
-                  type="text"
-                  autoFocus
-                  className="scanner-text-field"
-                  placeholder="Quét mã bằng đầu đọc hoặc gõ mã vạch rồi nhấn Enter..."
-                  value={scannerInputValue}
-                  onChange={(e) => setScannerInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && scannerInputValue.trim()) {
-                      handleBarcodeScanLookup(scannerInputValue.trim());
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn-scanner-submit"
-                  onClick={() => scannerInputValue.trim() && handleBarcodeScanLookup(scannerInputValue.trim())}
-                >
-                  Tra cứu
-                </button>
-              </div>
-
-              {/* Danh sách các mã vạch mẫu để thủ thư kiểm thử nhanh */}
-              <div className="quick-test-barcodes">
-                <span className="quick-test-label">Bấm mã mẫu để kiểm thử quét nhanh:</span>
-                <div className="quick-chips-row">
-                  {['BC000001-A', 'BC000001-B', 'BC000001-C', 'BC000002-A', 'BC000003-A'].map((code) => (
-                    <button
-                      key={code}
-                      type="button"
-                      className="btn-quick-chip"
-                      onClick={() => handleBarcodeScanLookup(code)}
-                    >
-                      {code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-modal-cancel"
-                onClick={() => {
-                  handleResetScannerImage();
-                  setIsScannerModalOpen(false);
-                }}
-              >
-                Hủy bỏ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BarcodeCameraModal
+        isOpen={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        onScanSuccess={async (code) => {
+          setIsScannerModalOpen(false);
+          await handleBarcodeScanLookup(code);
+        }}
+        targetField="catalog"
+        title="Máy Quét Mã Vạch (Barcode Scanner)"
+      />
 
       {/* ====================================================================
           MODAL 2: CHỈNH SỬA ĐẦU SÁCH

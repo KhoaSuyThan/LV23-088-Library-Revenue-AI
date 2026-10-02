@@ -1,0 +1,544 @@
+/* ==========================================================================
+   BARCODE CAMERA MODAL CSS - MÁY QUÉT MÃ VẠCH CHUYÊN DỤNG CHO SMARTLIB AI
+   Độc lập, cách ly hoàn toàn để tránh xung đột CSS từ các modal khác
+   ========================================================================== */
+
+/* Hộp thoại Modal quét mã vạch */
+.scanner-dialog-modal {
+  max-width: 680px !important;
+  width: 95% !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  background: #ffffff;
+}
+
+/* Header Modal: Luôn nằm trên 1 hàng ngang thẳng thớm */
+.scanner-modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 14px 20px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+}
+
+.scanner-modal-title-box {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.scanner-header-icon {
+  color: #ef4444 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.scanner-modal-title {
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+}
+
+.scanner-modal-close-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+  padding: 5px !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+.scanner-modal-close-btn:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Thân Modal */
+.scanner-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 22px;
+}
+
+/* Khung Camera Viewport */
+.scanner-viewport-box {
+  position: relative;
+  height: 250px;
+  background-color: #0f172a;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.scanner-viewport-box:hover {
+  border-color: #3b82f6;
+  background-color: #0d1527;
+}
+
+.scanner-viewport-box.is-dragover {
+  border-color: #3b82f6 !important;
+  background-color: #1e293b !important;
+}
+
+.camera-video-elem {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-flipped {
+  transform: scaleX(-1);
+}
+
+.scanner-preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.btn-clear-scanner-preview {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-scanner-preview:hover {
+  background-color: #ef4444;
+  border-color: #ef4444;
+  transform: scale(1.1);
+}
+
+/* Tâm ngắm và tia quét Laser */
+.scanner-target-reticle {
+  position: absolute;
+  width: 200px;
+  height: 110px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.reticle-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: #ef4444;
+  border-style: solid;
+}
+
+.corner-tl {
+  top: 0;
+  left: 0;
+  border-width: 3px 0 0 3px;
+  border-top-left-radius: 4px;
+}
+
+.corner-tr {
+  top: 0;
+  right: 0;
+  border-width: 3px 3px 0 0;
+  border-top-right-radius: 4px;
+}
+
+.corner-bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 3px 3px;
+  border-bottom-left-radius: 4px;
+}
+
+.corner-br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 3px 3px 0;
+  border-bottom-right-radius: 4px;
+}
+
+.laser-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ef4444, #f87171, #ef4444, transparent);
+  box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.6);
+  animation: laserScan 2s ease-in-out infinite;
+}
+
+@keyframes laserScan {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 95%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+}
+
+.scanner-status-text {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  margin-top: 10px;
+  z-index: 3;
+  text-align: center;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+/* Banner lỗi Camera */
+.camera-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   THANH CÔNG CỤ SCANNER TOOLBAR - GỌN GÀNG TRÊN 1 HÀNG DUY NHẤT
+   ========================================================================== */
+.scanner-toolbar-row {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.scanner-toolbar-buttons {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+
+/* Nút tải ảnh / PDF */
+.btn-upload-scanner-img {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+}
+
+.btn-upload-scanner-img:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border-color: #60a5fa;
+  transform: translateY(-1px);
+}
+
+.btn-upload-scanner-img:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Nút lật ngang camera */
+.btn-flip-camera {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-flip-camera:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn-flip-camera.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
+/* Khối Zoom kỹ thuật số */
+.scanner-zoom-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 4px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.scanner-zoom-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  padding-left: 2px;
+  user-select: none;
+}
+
+.scanner-zoom-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 5px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.scanner-zoom-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Dropdown chọn Camera: Dài ra co dãn theo phần diện tích trống, hiển thị trọn vẹn tên thiết bị */
+.camera-select-wrap {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 0 10px !important;
+  height: 32px !important;
+  flex: 1 1 auto !important;
+  min-width: 160px !important;
+  box-sizing: border-box !important;
+}
+
+.camera-select-wrap .control-icon {
+  color: #64748b !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.camera-device-select {
+  border: none !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
+  outline: none !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  line-height: normal !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Nút đặt lại khi xem ảnh */
+.btn-reset-scanner-img {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 9px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-reset-scanner-img:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Gợi ý dán ảnh bằng phím tắt ở hàng riêng bên dưới */
+.scanner-paste-hint-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  margin-top: -6px;
+  margin-bottom: 2px;
+}
+
+.scanner-paste-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.scanner-paste-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: ui-monospace, Consolas, monospace;
+  background: #f8fafc;
+  color: #1e40af;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* ==========================================================================
+   Ô NHẬP LIỆU MÃ VẠCH VÀ CHIP MẪU KIỂM THỬ
+   ========================================================================== */
+.scanner-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.scanner-text-field {
+  flex: 1;
+  padding: 9px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+}
+
+.scanner-text-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.btn-scanner-submit {
+  padding: 9px 16px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-scanner-submit:hover {
+  background-color: #1d4ed8;
+}
+
+.quick-test-barcodes {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 9px 12px;
+}
+
+.quick-test-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.quick-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-quick-chip {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, Consolas, monospace;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #1e40af;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-chip:hover {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

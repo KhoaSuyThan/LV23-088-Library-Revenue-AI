@@ -5,25 +5,20 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-02] - Chuẩn Hóa Phân Trang, Máy Quét Mã Vạch & Tối Ưu Nghiệp Vụ Mượn/Trả Sách
 
-## [2026-10-02] - Tối Ưu Toàn Diện Quầy Lưu Thông: Xem Trước Phiếu Mượn/Trả A4, Quy Trình Hoàn Trả 3 Ô & Popup Barcode
+- **Quản Lý Sách (BookCatalog):**
+  - Xóa nút lọc trùng lặp `Chỉ sách có sẵn (> 0)`, đưa toàn bộ thanh lọc lên 1 hàng ngang duy nhất.
+  - Đồng bộ modal quét mã vạch/QR sang component dùng chung [`BarcodeCameraModal`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx); sửa lỗi click nút Quét mã và phím `F2`.
 
-- **Tạo Phiếu Mượn (`BorrowForm`):**
-  - Bổ sung nút **"Xem trước phiếu mượn"** (A4) song song với nút **"Xác nhận tạo phiếu mượn"**, tích hợp nút xác nhận trực tiếp từ modal xem trước.
-  - Chuẩn hóa các nút chọn nhanh thời hạn `+7 ngày`, `+14 ngày`, `+30 ngày` trên 1 hàng ngang duy nhất (loại bỏ chữ `(Chuẩn)`).
+- **Máy Quét Mã Vạch Dùng Chung (`BarcodeCameraModal`):**
+  - Khắc phục lỗi lệch icon tiêu đề modal; cách ly kiểu dáng độc lập vào [`BarcodeCameraModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.css).
+  - Tối ưu thanh công cụ: Nút chọn Camera co dãn dài rộng theo khoảng trống, dàn đều các nút (`Lật ngang`, `Zoom 1x-2x`, `Tải PDF/Ảnh`) sang 2 bên và đưa dòng phím tắt `Ctrl + V` xuống hàng riêng biệt.
 
-- **Tiếp Nhận Trả Sách (`ReturnProcessing`):**
-  - Hiển thị đầy đủ danh sách sách trong phiếu mượn; hỗ trợ kiểm tra và đánh giá tình trạng vật lý độc lập cho từng cuốn.
-  - Tái cấu trúc bộ chọn tình trạng thành **3 ô đồng đều**: *Nguyên vẹn (0đ)*, *Hư hỏng (slider 3 nấc 20%, 40%, 110%)* và *Thất lạc / Mất (110%)*.
-  - Tối ưu ô Hư hỏng: bố cục 3/7 (tiền phạt bên trái; slider có 3 nút tròn mốc cùng các nút nấc thu nhỏ 60%, chữ 9px bên phải).
-  - Tích hợp Modal popup xem và sao chép Barcode Code128 khi click vào chip mã sách.
-  - Cập nhật huy hiệu trạng thái *"Chờ thu phạt"* sang màu đỏ chữ trắng in đậm rõ nét.
-
-- **Biểu Mẫu Phiếu In A4 (`CirculationReceiptModal`):**
-  - Chuẩn hóa Header modal thành **1 hàng ngang duy nhất** (Tên phiếu bên trái; nút In, Tải PDF, Xác nhận tạo phiếu và nút X bên phải); xóa bỏ footer dư thừa phía dưới.
-  - Xóa bỏ khung đen bao quanh Tên sách (sửa lỗi flexbox trên `<td>`), hỗ trợ tên sách dài tự động xuống dòng linh hoạt.
-  - Tối ưu tỉ lệ 6 cột bảng: tăng độ rộng cột **Tên sách lên 45%**, thu gọn 4 cột Tác giả, Mã sách, Ngày trả, Ghi chú.
-  - Nâng 2 vị trí chữ ký lên 1 dòng (giảm `sig-space` còn 36px) giúp chân trang A4 thoáng rộng.
+- **Nghiệp Vụ Lưu Thông (CirculationDesk):**
+  - **Phân trang giao dịch trong ngày:** Tích hợp bộ phân trang chuẩn Catalog (5-50 giao dịch/trang, điều hướng và nhảy trang), nạp tối đa 50 bản ghi gần nhất.
+  - **Mượn & Trả sách:** Thêm nút xem trước phiếu mượn A4; nâng cấp đánh giá tình trạng sách độc lập (Nguyên vẹn, Hư hỏng slider 3 nấc, Mất) và popup xem/sao chép Barcode.
+  - **Biểu mẫu in A4 (`CirculationReceiptModal`):** Chuẩn hóa header 1 hàng ngang, mở rộng cột Tên sách và gom gọn 2 vị trí chữ ký chân trang.
 
 
 ## [2026-10-02] - Tích Hợp Phân Trang & Tìm Kiếm Nhanh Cho Sổ Nợ Đọng & Lịch Sử Biên Lai Thu Phạt (`/revenue`)
