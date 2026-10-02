@@ -54,10 +54,22 @@ function AppContent() {
     navigate('/login');
   };
 
-  // Layout được bảo vệ dành cho người dùng đã xác thực
+  // Layout được bảo vệ dành cho Thủ thư (Admin & Staff)
   const ProtectedLayout = () => {
     if (!currentUser) {
       return <Navigate to="/login" replace state={{ from: location }} />;
+    }
+    // Chặn dứt điểm tài khoản Bạn đọc (Reader) truy cập Cổng quản trị
+    if (currentUser.role === 'Reader') {
+      localStorage.removeItem('smartlib_token');
+      localStorage.removeItem('smartlib_user');
+      return (
+        <Navigate
+          to="/login"
+          replace
+          state={{ error: 'Tài khoản Bạn đọc không có quyền truy cập Cổng Quản trị Thư viện.' }}
+        />
+      );
     }
     return <DashboardPage user={currentUser} onLogout={handleLogout} />;
   };

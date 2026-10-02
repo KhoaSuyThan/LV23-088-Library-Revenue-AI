@@ -5,6 +5,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+
+## [2026-10-02] - Khắc Phục Lỗ Hổng Phân Quyền: Chặn Tuyệt Đối Tài Khoản Reader Truy Cập Cổng Quản Trị
+
+- **[Security & Auth - LoginPage] Ngăn chặn bypass đăng nhập qua khối Catch:**
+  - Sửa lỗi trong [`LoginPage.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LoginPage.jsx): Bắt và hiển thị chính xác thông điệp lỗi nghiệp vụ từ Backend khi nhận mã `403 Forbidden` (*"Tài khoản bạn đọc không có quyền truy cập Cổng quản trị..."*), dừng ngay quy trình đăng nhập thay vì kích hoạt chế độ Fallback Demo.
+  - Vô hiệu hóa việc tự động cấp quyền Admin cho tài khoản Bạn đọc ngay cả khi xảy ra sự cố mất kết nối mạng.
+
+- **[Security & Routing - App] Bổ sung Route Guard 2 lớp tại Router:**
+  - Thêm cơ chế kiểm tra vai trò người dùng trong `ProtectedLayout` tại [`App.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/App.jsx): Nếu tài khoản có `role === 'Reader'`, lập tức hủy phiên làm việc và điều hướng về `/login` kèm thông báo từ chối truy cập.
 ## [2026-10-02] - Chuẩn Hóa Phân Trang, Máy Quét Mã Vạch & Tối Ưu Nghiệp Vụ Mượn/Trả Sách
 
 - **Quản Lý Sách (BookCatalog):**
