@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Printer,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
 import BorrowForm from '../components/BorrowForm';
@@ -115,6 +117,21 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   });
   const [toastMessage, setToastMessage] = useState('');
 
+  // Phân trang danh sách giao dịch trong ngày (Chuẩn thiết kế BookCatalog)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // Hỗ trợ 5, 10, 20, 50 dòng/trang
+  const [jumpPage, setJumpPage] = useState('1');
+
+  // Đồng bộ giá trị ô nhập trang khi trang hiện tại thay đổi
+  useEffect(() => {
+    setJumpPage(String(currentPage));
+  }, [currentPage]);
+
+  // Tự động quay về trang 1 khi thay đổi từ khóa tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [externalSearch]);
+
   // Hiển thị toast thông báo
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -152,11 +169,11 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     }
   };
 
-  // Nạp danh sách giao dịch mượn thực tế từ CSDL Backend qua GET /api/borrows/recent
+  // Nạp danh sách giao dịch mượn thực tế từ CSDL Backend qua GET /api/borrows/recent (50 bản ghi)
   const loadRecentTransactions = useCallback(async () => {
     setIsLoadingBorrows(true);
     try {
-      const res = await borrowApi.getRecentBorrows(20);
+      const res = await borrowApi.getRecentBorrows(50);
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map((item) => {
           const firstItem = item.items && item.items.length > 0 ? item.items[0] : null;
@@ -432,6 +449,26 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     );
   });
 
+  // Tính toán phân trang cho danh sách giao dịch trong ngày (Chuẩn BookCatalog)
+  const totalCount = filteredTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startIdx = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIdx = Math.min(currentPage * pageSize, totalCount);
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Xử lý xác nhận nhảy trang trực tiếp từ ô input
+  const handleCommitPage = () => {
+    const parsed = parseInt(jumpPage, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
+      setCurrentPage(parsed);
+    } else {
+      setJumpPage(String(currentPage));
+    }
+  };
+
   return (
     <div className="circulation-desk-container">
       {/* Toast thông báo tương tác nổi */}
@@ -464,7 +501,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       </div>
 
       {/* ====================================================================
-          HÀNG 3: CÁC GIAO DỊCH MƯỢN/TRẢ TRONG NGÀY
+          HÀNG 3: CÁC GIAO DỊCH MƯỢN/TRẢ TRONG NGÀY (CÓ PHÂN TRANG)
           ==================================================================== */}
       <section className="circulation-card transactions-card" aria-label="Các giao dịch mượn trả trong ngày">
         <h2 className="card-title mb-16">CÁC GIAO DỊCH MƯỢN/TRẢ TRONG NGÀY</h2>
@@ -482,7 +519,14 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map((tx) => {
+              {paginatedTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8' }}>
+                    Không tìm thấy giao dịch nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                paginatedTransactions.map((tx) => {
                 const isSelected = tx.id === selectedTransactionId;
                 const isBorrowSlip = tx.status === 'borrowing';
                 return (
@@ -590,10 +634,85 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
+
+        {/* ====================================================================
+            THANH PHÂN TRANG (PAGINATION FOOTER - CHUẨN THIẾT KẾ BOOKCATALOG)
+            ==================================================================== */}
+        {totalCount > 0 && (
+          <div className="circulation-pagination catalog-pagination">
+            <div className="pagination-left-group">
+              <div className="pagination-info">
+                Hiển thị {startIdx}-{endIdx} / {totalCount.toLocaleString('vi-VN')} giao dịch
+              </div>
+
+              {/* Bộ chọn số lượng giao dịch hiển thị trên mỗi trang */}
+              <div className="pagination-size-selector">
+                <label htmlFor="circulationPageSizeSelect" className="size-selector-label">Hiển thị:</label>
+                <select
+                  id="circulationPageSizeSelect"
+                  className="size-selector-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newSize = Number(e.target.value);
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                  }}
+                  title="Chọn số lượng giao dịch hiển thị trên mỗi trang"
+                >
+                  <option value={5}>5 / trang</option>
+                  <option value={10}>10 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pagination-controls">
+              <button
+                type="button"
+                className="pagination-btn"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                title="Trang trước"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="pagination-page-indicator">
+                <span>Trang</span>
+                <input
+                  type="text"
+                  className="pagination-page-input"
+                  value={jumpPage}
+                  onChange={(e) => setJumpPage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCommitPage();
+                      e.target.blur();
+                    }
+                  }}
+                  onBlur={handleCommitPage}
+                  title={`Nhấp để nhập trang từ 1 đến ${totalPages.toLocaleString('vi-VN')}`}
+                />
+                <span>/ {totalPages.toLocaleString('vi-VN')}</span>
+              </div>
+
+              <button
+                type="button"
+                className="pagination-btn"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                title="Trang tiếp"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
 
