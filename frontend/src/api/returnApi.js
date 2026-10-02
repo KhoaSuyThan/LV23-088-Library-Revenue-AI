@@ -17,7 +17,8 @@ export const returnApi = {
    * Tiếp nhận trả một cuốn sách cụ thể theo Barcode và ghi nhận tình trạng thực tế (POST /api/returns/process-item)
    * @param {{
    *   barcode: string,
-   *   condition?: 'Good' | 'Damaged' | 'Lost',
+   *   condition?: 'Good' | 'Damaged' | 'DamagedLight' | 'DamagedSevere' | 'Lost',
+   *   damagePercent?: number,
    *   note?: string,
    *   waiverDiscountPercent?: number,
    *   waiverReason?: string

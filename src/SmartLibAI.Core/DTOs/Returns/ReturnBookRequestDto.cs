@@ -15,9 +15,16 @@ public class ReturnBookRequestDto
 
     /// <summary>
     /// Tình trạng vật lý thực tế khi kiểm tra sách:
-    /// 'Good' (Nguyên vẹn/Bình thường), 'Damaged' (Hỏng bìa/rách sách), 'Lost' (Mất sách).
+    /// 'Good' (Nguyên vẹn/Bình thường), 'Damaged' / 'DamagedLight' (Hỏng bìa/rách sách nhẹ/vừa), 
+    /// 'DamagedSevere' (Hư hỏng nặng), 'Lost' (Mất sách).
     /// </summary>
     public string Condition { get; set; } = "Good";
+
+    /// <summary>
+    /// Tỷ lệ đền bù hư hỏng nhẹ/vừa (Quy tắc 10.3: từ 30% đến 50% giá bìa, mặc định 40%).
+    /// </summary>
+    [Range(0, 100, ErrorMessage = "Tỷ lệ đền bù hư hỏng phải từ 0% đến 100%.")]
+    public decimal? DamagePercent { get; set; }
 
     /// <summary>
     /// Ghi chú bổ sung của thủ thư về tình trạng sách hoặc sự cố vi phạm.

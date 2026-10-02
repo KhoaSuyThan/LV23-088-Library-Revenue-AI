@@ -41,7 +41,37 @@ public class ReturnLookupResponseDto
 
     public decimal EstimatedOverdueFine { get; set; }
 
+    /// <summary>
+    /// Tiền phạt trễ hạn tính theo ngày trước khi áp trần (OverdueDays * FinePerDay) - Quy tắc 10.1.
+    /// </summary>
+    public decimal RawOverdueFine { get; set; }
+
+    /// <summary>
+    /// Tiền phạt trễ hạn thực tế sau khi áp trần không quá 100% giá bìa gốc và làm tròn đến 1.000đ - Quy tắc 10.2.
+    /// </summary>
+    public decimal OverdueFine { get; set; }
+
+    /// <summary>
+    /// Mức trần tiền phạt trễ hạn (100% giá bìa gốc cuốn sách) - Quy tắc 10.2.
+    /// </summary>
+    public decimal OverdueFineCap { get; set; }
+
+    /// <summary>
+    /// Cho biết tiền phạt trễ hạn có vượt quá giá bìa gốc và phải áp trần hay không.
+    /// </summary>
+    public bool IsFineCapped { get; set; }
+
     public decimal FinePerDay { get; set; } = 5000m;
+
+    /// <summary>
+    /// Hệ số đền bù sách mất từ bảng FineRules (mặc định 1.0).
+    /// </summary>
+    public decimal DamageMultiplier { get; set; } = 1.0m;
+
+    /// <summary>
+    /// Mức phụ thu chi phí nghiệp vụ mua sắm thay thế từ bảng FineRules (mặc định 10%).
+    /// </summary>
+    public decimal DamageFeePercent { get; set; } = 10.0m;
 
     public string CurrentItemStatus { get; set; } = "Borrowed";
 

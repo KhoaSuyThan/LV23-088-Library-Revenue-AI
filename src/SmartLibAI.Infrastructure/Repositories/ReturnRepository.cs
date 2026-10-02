@@ -117,33 +117,26 @@ public class ReturnRepository : GenericRepository<BorrowingDetail>, IReturnRepos
 
             // 2. Cập nhật chi tiết mượn sách
             detail.ReturnDate = now;
-            detail.ItemStatus = cleanCondition switch
-            {
-                "Damaged" => "Damaged",
-                "Lost" => "Lost",
-                _ => "Returned"
-            };
+            var isDamagedCond = cleanCondition.StartsWith("Damaged", StringComparison.OrdinalIgnoreCase);
+            var isLostCond = cleanCondition.Equals("Lost", StringComparison.OrdinalIgnoreCase);
+
+            detail.ItemStatus = isDamagedCond ? "Damaged" : (isLostCond ? "Lost" : "Returned");
 
             // 3. Cập nhật trạng thái bản sao sách trong kho
             var copy = detail.BookCopy;
             if (copy != null)
             {
-                copy.Status = cleanCondition switch
-                {
-                    "Damaged" => "Damaged", // Sách hỏng, không cho nhập kho mượn lại
-                    "Lost" => "Lost",       // Sách mất, xóa khỏi kho khả dụng
-                    _ => "Available"        // Sách nguyên vẹn, nhập lại vào kho khả dụng
-                };
+                copy.Status = isDamagedCond ? "Damaged" : (isLostCond ? "Lost" : "Available");
             }
 
             // 4. Tính toán và tạo FineReceipt nếu phát sinh tiền phạt
             var rule = await GetActiveFineRuleAsync();
-            var rawTotal = overdueFine + damageFee + lostFee;
+            var rawTotal = Math.Round((overdueFine + damageFee + lostFee) / 1000m, MidpointRounding.AwayFromZero) * 1000m;
             FineReceipt? createdReceipt = null;
 
             if (rawTotal > 0 && rule != null)
             {
-                var discountAmt = Math.Round((rawTotal * waiverDiscountPercent) / 100m, 2);
+                var discountAmt = Math.Round(((rawTotal * waiverDiscountPercent) / 100m) / 1000m, MidpointRounding.AwayFromZero) * 1000m;
                 var finalAmt = Math.Max(0m, rawTotal - discountAmt);
 
                 createdReceipt = new FineReceipt

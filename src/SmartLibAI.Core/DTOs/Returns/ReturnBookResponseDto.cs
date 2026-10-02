@@ -31,9 +31,24 @@ public class ReturnBookResponseDto
 
     public string CopyStatus { get; set; } = string.Empty;
 
+    public decimal BasePrice { get; set; }
+
     public int OverdueDays { get; set; }
 
+    /// <summary>
+    /// Tiền phạt trễ hạn tính theo ngày trước khi áp trần.
+    /// </summary>
+    public decimal RawOverdueFine { get; set; }
+
+    /// <summary>
+    /// Tiền phạt trễ hạn thực tế sau khi áp trần không quá 100% giá bìa (Quy tắc 10.2).
+    /// </summary>
     public decimal OverdueFine { get; set; }
+
+    /// <summary>
+    /// Cho biết tiền phạt trễ hạn có chạm mức trần 100% giá bìa hay không.
+    /// </summary>
+    public bool IsFineCapped { get; set; }
 
     public decimal DamageFee { get; set; }
 
