@@ -506,7 +506,7 @@ export default function BarcodeCameraModal({
     }
   };
 
-  // Lắng nghe sự kiện Paste (Ctrl + V)
+  // Lắng nghe sự kiện Paste (Ctrl + V): Hỗ trợ dán cả file ảnh lẫn chuỗi ký tự Barcode
   useEffect(() => {
     if (!isOpen) return;
 
@@ -515,12 +515,23 @@ export default function BarcodeCameraModal({
       if (file) {
         e.preventDefault();
         handleProcessImage(file);
+        return;
+      }
+
+      const text = e.clipboardData?.getData('text');
+      if (text && text.trim()) {
+        e.preventDefault();
+        const clean = text.trim().toUpperCase();
+        setInputValue(clean);
+        playScannerBeep(true);
+        stopCamera();
+        onScanSuccess(clean);
       }
     };
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [isOpen]);
+  }, [isOpen, onScanSuccess, stopCamera]);
 
   // Xác nhận nhập thủ công hoặc súng quét mã vạch
   const handleSubmitManual = (e) => {

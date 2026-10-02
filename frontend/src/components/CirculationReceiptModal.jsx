@@ -39,7 +39,10 @@ export default function CirculationReceiptModal({
   const receiptCode = data.borrowCode || data.id || `PM-${data.borrowingId || '0001'}`;
   const readerName = data.readerName || 'Bạn đọc thư viện';
   const readerCode = data.readerCode || data.studentCode || 'N/A';
-  const department = data.memberType || data.department || 'Khoa Công nghệ Thông tin';
+  // Ưu tiên hiển thị chính xác Khoa/Bộ phận thực tế của độc giả, loại bỏ chữ Standard khô khan
+  const department = (!data.department || data.department === 'Standard')
+    ? (data.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin')
+    : data.department;
   const librarianName = data.librarianName || 'Nguyễn Võ Lê Khoa';
   
   // Ngày tháng
@@ -60,7 +63,8 @@ export default function CirculationReceiptModal({
         {
           title: data.bookTitle || 'Tài liệu Thư viện',
           author: data.author || 'Nhiều tác giả',
-          barcode: data.bookCode || 'BC000001-C',
+          // BUG-01: Nhận diện cả data.barcode và data.bookCode, xóa bỏ mã cứng BC000001-C
+          barcode: data.barcode || data.bookCode || 'N/A',
           dueDate: dueDateStr,
           note: data.isOnTime !== undefined ? (data.isOnTime ? 'Đúng hạn, nguyên vẹn' : 'Quá hạn') : 'Nguyên vẹn'
         }
@@ -165,43 +169,65 @@ export default function CirculationReceiptModal({
   return (
     <div className="receipt-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="receipt-modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Header điều khiển trên màn hình */}
-        <div className="receipt-modal-header no-print">
-          <div className="receipt-modal-title">
-            <FileText size={18} className="receipt-title-icon" />
-            <span>{isBorrow ? 'Xem & In Phiếu Mượn Sách' : 'Xem & In Phiếu Trả Sách'}</span>
-            <span className="receipt-tag-code">{receiptCode}</span>
+        {/* Header điều khiển 1 HÀNG NGANG DUY NHẤT: Trái là Tên phiếu, Phải là cụm 2 nút nhỏ gọn + nút X */}
+        <div className="circ-receipt-modal-header no-print">
+          <div className="circ-header-left">
+            <FileText size={17} className="circ-title-icon" />
+            <span className="circ-title-text">
+              {data?.isPreviewOnly
+                ? (isBorrow ? 'Xem Trước Phiếu Mượn Sách' : 'Xem Trước Phiếu Trả Sách')
+                : (isBorrow ? 'Xem & In Phiếu Mượn Sách' : 'Xem & In Phiếu Trả Sách')}
+            </span>
+            <span className={`circ-tag-code ${data?.isPreviewOnly ? 'circ-tag-preview' : ''}`}>
+              {data?.isPreviewOnly ? 'Xem trước' : receiptCode}
+            </span>
           </div>
 
-          <div className="receipt-header-actions">
+          <div className="circ-header-right">
+            {/* Nút xác nhận tạo phiếu trực tiếp nếu đang ở chế độ xem trước */}
+            {data?.onConfirmCreate && (
+              <button
+                type="button"
+                className="circ-btn-confirm-action"
+                onClick={() => {
+                  onClose();
+                  data.onConfirmCreate();
+                }}
+                title="Xác nhận tạo phiếu mượn chính thức vào hệ thống"
+              >
+                <CheckCircle2 size={13} />
+                <span>Xác nhận tạo phiếu</span>
+              </button>
+            )}
+
             <button
               type="button"
-              className="btn-receipt-action btn-print"
+              className="circ-btn-print"
               onClick={handlePrint}
-              title="In trực tiếp ra máy in hoặc lưu PDF qua hộp thoại in"
+              title="In phiếu mượn/trả"
             >
-              <Printer size={15} />
+              <Printer size={13} />
               <span>In phiếu</span>
             </button>
 
             <button
               type="button"
-              className="btn-receipt-action btn-export-pdf"
+              className="circ-btn-pdf"
               onClick={handleExportPdf}
               disabled={isExportingPdf}
-              title="Tải tệp PDF cả phiếu về máy tính"
+              title="Xuất file PDF cả phiếu"
             >
-              <Download size={15} />
-              <span>{isExportingPdf ? 'Đang xuất PDF...' : 'Tải file PDF'}</span>
+              <Download size={13} />
+              <span>{isExportingPdf ? 'Đang xuất...' : 'Tải file PDF'}</span>
             </button>
 
             <button
               type="button"
-              className="receipt-modal-close"
+              className="circ-modal-close"
               onClick={onClose}
               title="Đóng cửa sổ"
             >
-              <X size={18} />
+              <X size={17} />
             </button>
           </div>
         </div>
@@ -280,14 +306,14 @@ export default function CirculationReceiptModal({
               </div>
 
               <table className="paper-table">
-                {/* Tỉ lệ 6 cột chính xác: 0.5 (4.55%), 3.5 (31.82%), 2 (18.18%), 1.5 (13.64%), 1.5 (13.64%), 2 (18.18%) */}
+                {/* Tỉ lệ 6 cột tối ưu: STT (5%), Tên sách (45% - nhường diện tích tối đa), Tác giả (15%), Mã sách (13%), Ngày trả (11%), Ghi chú (11%) */}
                 <colgroup>
-                  <col style={{ width: '4.55%' }} />
-                  <col style={{ width: '31.82%' }} />
-                  <col style={{ width: '18.18%' }} />
-                  <col style={{ width: '13.64%' }} />
-                  <col style={{ width: '13.64%' }} />
-                  <col style={{ width: '18.18%' }} />
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '45%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '11%' }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -305,7 +331,7 @@ export default function CirculationReceiptModal({
                   {bookItems.map((item, idx) => (
                     <tr key={item.barcode || idx}>
                       <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                      <td className="book-title-cell">{item.title || 'Tài liệu Thư viện'}</td>
+                      <td className="paper-col-title book-title-cell">{item.title || 'Tài liệu Thư viện'}</td>
                       <td className="book-author-cell">{item.author || 'Nhiều tác giả'}</td>
                       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 600 }}>
                         {item.barcode || 'N/A'}
@@ -377,37 +403,6 @@ export default function CirculationReceiptModal({
                 <div className="sig-name">{librarianName}</div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Footer điều khiển */}
-        <div className="receipt-modal-footer no-print">
-          <span className="receipt-hint-text">
-            💡 Mẹo: Nhấn nút <strong>[Tải file PDF (Cả phiếu)]</strong> để xuất tệp lưu trữ hoặc in gửi bạn đọc.
-          </span>
-          <div className="receipt-footer-actions">
-            <button
-              type="button"
-              className="btn-footer-print"
-              onClick={handlePrint}
-              title="In phiếu mượn/trả"
-            >
-              <Printer size={14} />
-              <span>In phiếu</span>
-            </button>
-            <button
-              type="button"
-              className="btn-footer-export-pdf"
-              onClick={handleExportPdf}
-              disabled={isExportingPdf}
-              title="Lưu toàn bộ tờ phiếu thành tệp PDF"
-            >
-              <Download size={14} />
-              <span>{isExportingPdf ? 'Đang xuất PDF...' : 'Tải file PDF (Cả phiếu)'}</span>
-            </button>
-            <button type="button" className="btn-close-receipt" onClick={onClose}>
-              Đóng lại
-            </button>
           </div>
         </div>
       </div>

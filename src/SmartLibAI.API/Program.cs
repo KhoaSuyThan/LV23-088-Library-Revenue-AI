@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = jwtSettings["Audience"] ?? "SmartLibAIUser",
         ValidateLifetime = true,
+        RoleClaimType = ClaimTypes.Role,
+        NameClaimType = ClaimTypes.Name,
         ClockSkew = TimeSpan.Zero
     };
 });
@@ -169,6 +172,13 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 CREATE NONCLUSTERED INDEX IX_BookCopies_BookID_Status 
                 ON BookCopies(BookID, Status);
+            END
+
+            -- Chỉ mục tối ưu hóa tìm kiếm và quét mã vạch Barcode O(1) (Performance - L03)
+            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BookCopies_Barcode' AND object_id = OBJECT_ID('BookCopies'))
+            BEGIN
+                CREATE NONCLUSTERED INDEX IX_BookCopies_Barcode 
+                ON BookCopies(Barcode);
             END
 
             -- Tự động kiểm tra và tạo bảng PenaltyInvoices (Story LOLRA-19)

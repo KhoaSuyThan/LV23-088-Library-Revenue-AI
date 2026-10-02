@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Returns;
@@ -8,8 +9,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller tiếp nhận sách trả rải rác và xử lý vi phạm bằng quét mã Barcode (Story LOLRA-17).
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền tiếp nhận và xử lý hoàn trả sách.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class ReturnsController : ControllerBase
 {

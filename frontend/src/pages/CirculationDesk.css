@@ -512,9 +512,16 @@
   line-height: 1.2;
 }
 
+.status-badge.badge-pending,
 .badge-pending {
-  background-color: #ffedd5;
-  color: #c2410c;
+  background-color: #dc2626 !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  padding: 3px 9px;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.25);
 }
 
 .badge-success {

@@ -6,6 +6,65 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-10-02] - Tối Ưu Toàn Diện Quầy Lưu Thông: Xem Trước Phiếu Mượn/Trả A4, Quy Trình Hoàn Trả 3 Ô & Popup Barcode
+
+- **Tạo Phiếu Mượn (`BorrowForm`):**
+  - Bổ sung nút **"Xem trước phiếu mượn"** (A4) song song với nút **"Xác nhận tạo phiếu mượn"**, tích hợp nút xác nhận trực tiếp từ modal xem trước.
+  - Chuẩn hóa các nút chọn nhanh thời hạn `+7 ngày`, `+14 ngày`, `+30 ngày` trên 1 hàng ngang duy nhất (loại bỏ chữ `(Chuẩn)`).
+
+- **Tiếp Nhận Trả Sách (`ReturnProcessing`):**
+  - Hiển thị đầy đủ danh sách sách trong phiếu mượn; hỗ trợ kiểm tra và đánh giá tình trạng vật lý độc lập cho từng cuốn.
+  - Tái cấu trúc bộ chọn tình trạng thành **3 ô đồng đều**: *Nguyên vẹn (0đ)*, *Hư hỏng (slider 3 nấc 20%, 40%, 110%)* và *Thất lạc / Mất (110%)*.
+  - Tối ưu ô Hư hỏng: bố cục 3/7 (tiền phạt bên trái; slider có 3 nút tròn mốc cùng các nút nấc thu nhỏ 60%, chữ 9px bên phải).
+  - Tích hợp Modal popup xem và sao chép Barcode Code128 khi click vào chip mã sách.
+  - Cập nhật huy hiệu trạng thái *"Chờ thu phạt"* sang màu đỏ chữ trắng in đậm rõ nét.
+
+- **Biểu Mẫu Phiếu In A4 (`CirculationReceiptModal`):**
+  - Chuẩn hóa Header modal thành **1 hàng ngang duy nhất** (Tên phiếu bên trái; nút In, Tải PDF, Xác nhận tạo phiếu và nút X bên phải); xóa bỏ footer dư thừa phía dưới.
+  - Xóa bỏ khung đen bao quanh Tên sách (sửa lỗi flexbox trên `<td>`), hỗ trợ tên sách dài tự động xuống dòng linh hoạt.
+  - Tối ưu tỉ lệ 6 cột bảng: tăng độ rộng cột **Tên sách lên 45%**, thu gọn 4 cột Tác giả, Mã sách, Ngày trả, Ghi chú.
+  - Nâng 2 vị trí chữ ký lên 1 dòng (giảm `sig-space` còn 36px) giúp chân trang A4 thoáng rộng.
+
+
+## [2026-10-02] - Tích Hợp Phân Trang & Tìm Kiếm Nhanh Cho Sổ Nợ Đọng & Lịch Sử Biên Lai Thu Phạt (`/revenue`)
+
+- **Phân Trang & Tìm Kiếm Danh Sách Quá Hạn & Nợ Phạt Tích Lũy ([`RevenueArrearsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx)):**
+  - **Bộ điều khiển phân trang:** Hỗ trợ phân trang danh sách với tùy chọn hiển thị linh hoạt (5, 10, 20, 50 trường hợp / trang), chỉ báo vị trí (`Hiển thị X - Y / Z trường hợp`), cụm nút điều hướng trang đầu (`«`), trang trước (`‹`), danh sách số trang thông minh (có dấu `…` rút gọn khi số lượng trang lớn), trang tiếp (`›`), trang cuối (`»`) và ô nhập nhảy trang trực tiếp khi có trên 5 trang.
+  - **Thanh tìm kiếm tức thì (Quick Search):** Cho phép tra cứu nhanh theo tên độc giả, mã sinh viên (readerCode), tên đầu sách hoặc mã phiếu mượn (borrowCode); tự động cập nhật số lượng kết quả lọc (`kết quả / tổng`) và reset về trang 1 khi tìm kiếm.
+  - **Hiệu ứng làm mới:** Cập nhật nút "Làm mới" với hiệu ứng xoay icon (`RotateCw` + `spin-icon`) khi đang tải dữ liệu từ Backend và tự động quay về trang 1.
+  - **Bảo toàn nghiệp vụ:** Giữ nguyên 100% logic thu tiền nợ phạt qua modal kế toán K80/A5 (`onOpenPayModal`).
+
+- **Phân Trang & Bộ Lọc Nhanh Lịch Sử Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
+  - **Bộ phân trang bảng biên lai:** Tích hợp bộ phân trang hoàn chỉnh với các tùy chọn 5, 10, 20, 50 biên lai / trang, điều hướng đa tầng và ô nhập trang trực tiếp.
+  - **Thanh công cụ lọc phương thức & tìm kiếm:** Tích hợp thanh tìm kiếm theo mã biên lai (`BL-2026-xxxx`), tên độc giả, MSSV, nội dung thu phạt, thủ thư tiếp nhận, cùng bộ lọc phương thức thanh toán dạng pills: Tất cả, Tiền mặt, QR VietQR kèm số lượng thống kê theo từng phương thức.
+  - **Liên kết dòng tiền thời gian thực ([`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Quản lý state `receiptsList`, tự động sinh và chèn bản ghi biên lai mới lên đầu bảng lịch sử ngay sau khi thủ thư xác nhận thu tiền thành công tại tab Sổ nợ đọng; tự động tính tổng lũy kế doanh thu trên banner tổng quan.
+  - **Mở rộng dữ liệu mẫu:** Bổ sung bộ dữ liệu biên lai mẫu phong phú trải dài các ngày giúp kiểm thử trực quan và thuận tiện cho việc phân trang.
+
+- **Thiết Kế & Giao Diện CSS Đồng Bộ ([`FineRevenue.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.css)):**
+  - Bổ sung bộ quy tắc CSS hoàn chỉnh cho `.arrears-pagination`, `.receipts-pagination-bar`, `.arrears-page-btn`, `.arrears-page-size-select`, `.arrears-search-box`, `.receipts-toolbar`, `.receipts-filter-btn` và animation `arrears-spin`.
+  - Thiết kế đồng bộ chuẩn giao diện hệ thống: màu xanh thương hiệu HUTECH, hiệu ứng hover, shadow thẻ, bo góc tròn 8-12px và hiển thị responsive.
+
+
+- **[Security - L08] Phân Tách Tuyệt Đối Quyền Thủ Thư & Độc Giả (RBAC JWT):**
+  - Bổ sung `[Authorize(Roles = "Admin,Staff")]` trên toàn bộ Controller nghiệp vụ lưu thông và quản trị tài nguyên: [`BorrowsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`ReturnsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`InvoicesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs), [`BookCopiesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BookCopiesController.cs).
+  - Cấu hình `RoleClaimType = ClaimTypes.Role` và `NameClaimType = ClaimTypes.Name` trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - Đảm bảo token Độc giả (`Reader` / sinh viên) hoặc người dùng chưa xác thực khi gọi API thủ thư sẽ bị từ chối trả về **403 Forbidden** hoặc **401 Unauthorized**.
+
+- **[Performance - L03] Tối Ưu Hóa Truy Vấn & Đánh Chỉ Mục CSDL SQL Server:**
+  - Bổ sung chỉ mục Non-Clustered `IX_BookCopies_Barcode` trên bảng `BookCopies(Barcode)` giúp tra cứu quét mã vạch đạt độ phức tạp $O(1)$ thay vì Table Scan.
+  - Đồng bộ DDL kiểm tra an toàn (Idempotent) vào khối tự động khởi tạo trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và script CSDL gốc [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
+  - Kết quả đo kiểm Postman/Automated Test: API tra cứu và phân trang đạt **7.02ms - 81.42ms**, vượt xa chỉ tiêu `<= 500ms`.
+
+- **[UX/Scanner - L01, L06 & BUG-04] Cải Tiến Module Quét Barcode & Phím Tắt Ctrl + V:**
+  - Khắc phục **BUG-04**: Trong [`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), khi API trả về 404 hoặc trạng thái không khả dụng, không xóa trắng ô nhập liệu mà giữ nguyên chuỗi và tự động bôi đen (`select()`) để thủ thư chỉnh sửa nhanh.
+  - Hỗ trợ phím tắt **Ctrl + V** dán trực tiếp mã vạch bản sao hoặc dán ảnh chụp Barcode/PDF từ Clipboard trên [`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) và [`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx).
+
+- **[Data Integrity - L05, L10 & BUG-01, BUG-05, BUG-06] Chuẩn Hóa Biểu Mẫu In A4 & Bộ Lọc Giao Dịch:**
+  - Khắc phục **BUG-01**: Trên [`CirculationReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), sửa mapping Khoa ưu tiên thông tin thực tế của độc giả (không còn bị gán chữ "Standard"); xóa bỏ mã vạch gán cứng `BC000001-C`, đồng bộ 100% mã vạch thực tế.
+  - Khắc phục **BUG-05**: Tinh chỉnh bảng in khổ A4 và CSS [`CirculationReceiptModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css) với `word-break: break-word` và mở rộng tỷ lệ cột Tên sách lên 36%, đảm bảo tựa đề dài tự xuống dòng đẹp mắt không bị cắt cụt.
+  - Khắc phục **BUG-06**: Trong [`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), lưu trữ đầy đủ toàn bộ mảng `items` vào bản ghi giao dịch; khi mở lại phiếu in từ danh sách "Các giao dịch trong ngày", hiển thị đầy đủ tất cả các cuốn sách mượn.
+  - Khắc phục **L05, L10**: Bổ sung tìm kiếm theo trạng thái ("Đang mượn", "Chờ thu phạt", "Đã trả") vào bộ lọc `filteredTransactions` và xóa bỏ lệnh gọi lỗi `setChecks` gây crash khi click chọn dòng giao dịch.
+
 ## [2026-10-01] - Phân Chia 4 Tab Thành URL Sub-Routes & Tái Cấu Trúc Mô-đun Hóa Phân Hệ Thu Phạt (`/revenue`)
 
 - **Định Tuyến URL Sub-Routes Phân Hệ Báo Cáo Thu Phạt:**

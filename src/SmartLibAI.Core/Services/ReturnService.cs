@@ -109,7 +109,31 @@ public class ReturnService : IReturnService
             DamageFeePercent = rule?.DamageFeePercent ?? 10.0m,
             CurrentItemStatus = detail.ItemStatus,
             TotalItemsInBorrowing = totalItems,
-            ReturnedItemsCount = returnedItems
+            ReturnedItemsCount = returnedItems,
+            // Nạp danh sách tất cả các cuốn sách của phiếu mượn để xử lý trả nhiều cuốn
+            Items = allDetails.Select(d =>
+            {
+                var itPrice = d.BookCopy?.Book?.BasePrice ?? 50000m;
+                var itRawFine = overdueDays * finePerDay;
+                var itCapped = Math.Min(itRawFine, itPrice);
+                var itRoundedFine = overdueDays > 0 ? Math.Round(itCapped / 1000m, MidpointRounding.AwayFromZero) * 1000m : 0m;
+                var isRet = d.ReturnDate != null || d.ItemStatus != "Borrowed";
+
+                return new ReturnLookupItemDto
+                {
+                    DetailId = d.DetailID,
+                    CopyId = d.CopyID,
+                    Barcode = d.BookCopy?.Barcode ?? string.Empty,
+                    BookId = d.BookCopy?.Book?.BookID ?? 0,
+                    BookTitle = d.BookCopy?.Book?.Title ?? "Tài liệu thư viện",
+                    Author = d.BookCopy?.Book?.Author ?? "Nhiều tác giả",
+                    BasePrice = itPrice,
+                    CurrentItemStatus = d.ItemStatus,
+                    ReturnDate = d.ReturnDate,
+                    IsReturned = isRet,
+                    OverdueFine = itRoundedFine
+                };
+            }).ToList()
         };
 
         return ApiResponse<ReturnLookupResponseDto>.SuccessResult(response, "Tra cứu thông tin sách mượn thành công.");
@@ -177,7 +201,7 @@ public class ReturnService : IReturnService
                 ? (request.DamagePercent.Value / 100m)
                 : 0.4m; // Mặc định 40%
 
-            if (damageRate < 0.3m) damageRate = 0.3m;
+            if (damageRate < 0.2m) damageRate = 0.2m;
             if (damageRate > 0.5m && condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase)) damageRate = 0.5m;
 
             damageFee = basePrice * damageRate;

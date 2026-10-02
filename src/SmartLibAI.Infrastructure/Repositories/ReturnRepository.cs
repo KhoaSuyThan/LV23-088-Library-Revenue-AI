@@ -29,6 +29,8 @@ public class ReturnRepository : GenericRepository<BorrowingDetail>, IReturnRepos
                     .ThenInclude(r => r.User)
             .Include(d => d.Borrowing)
                 .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
             .FirstOrDefaultAsync(d =>
                 d.BookCopy.Barcode == cleanBarcode &&
                 d.ReturnDate == null &&
@@ -61,6 +63,8 @@ public class ReturnRepository : GenericRepository<BorrowingDetail>, IReturnRepos
                     .ThenInclude(r => r.User)
             .Include(d => d.Borrowing)
                 .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
             .Where(d =>
                 (borrowingId > 0 && d.BorrowingID == borrowingId) &&
                 d.ReturnDate == null &&

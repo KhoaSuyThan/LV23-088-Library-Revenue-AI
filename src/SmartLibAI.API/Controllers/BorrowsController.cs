@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Borrows;
 using SmartLibAI.Core.DTOs.Common;
@@ -8,8 +9,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller tiếp nhận thẻ bạn đọc và tạo phiếu mượn sách bằng quét mã vạch Barcode (Story LOLRA-16).
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền truy cập các nghiệp vụ mượn sách.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class BorrowsController : ControllerBase
 {

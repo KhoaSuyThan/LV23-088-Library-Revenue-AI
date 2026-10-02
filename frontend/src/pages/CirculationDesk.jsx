@@ -168,13 +168,36 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           const rawFine = isOverdue ? daysLate * 5000 : 0;
           const feeAmount = isOverdue ? Math.min(rawFine, itemBasePrice) : 0;
 
+          const cleanItems = (item.items && item.items.length > 0)
+            ? item.items.map((it) => ({
+                title: it.title,
+                author: it.author || 'Nhiều tác giả',
+                barcode: it.barcode,
+                dueDate: new Date(item.dueDate).toLocaleDateString('vi-VN'),
+                note: it.returnDate ? 'Đã hoàn trả' : 'Đang mượn'
+              }))
+            : [
+                {
+                  title: firstItem?.title || `Tài liệu [${firstItem?.barcode || 'N/A'}]`,
+                  author: firstItem?.author || 'Nhiều tác giả',
+                  barcode: firstItem?.barcode || 'N/A',
+                  dueDate: new Date(item.dueDate).toLocaleDateString('vi-VN'),
+                  note: 'Nguyên vẹn'
+                }
+              ];
+
+          const titleDisplay = cleanItems.length > 1
+            ? `${cleanItems[0].title} (+${cleanItems.length - 1} cuốn khác)`
+            : (cleanItems[0]?.title || `Mượn ${item.totalItems} cuốn sách`);
+
           return {
             id: item.borrowCode || `PM-${item.borrowingID}`,
             borrowingId: item.borrowingID,
             bookCode: firstItem?.barcode || 'N/A',
             readerName: item.readerName || 'Bạn đọc',
             studentCode: item.readerCode || 'N/A',
-            bookTitle: firstItem?.title || `Mượn ${item.totalItems} cuốn sách`,
+            department: item.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin',
+            bookTitle: titleDisplay,
             borrowDate: new Date(item.borrowDate).toLocaleDateString('vi-VN'),
             dueDate: new Date(item.dueDate).toLocaleDateString('vi-VN'),
             rawBorrowDate: item.borrowDate,
@@ -191,7 +214,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
             damageFee: 0,
             overdueFee: feeAmount,
             bookId: firstItem?.bookID,
-            items: item.items || []
+            items: cleanItems // BUG-06: Đầy đủ 100% các cuốn sách mượn
           };
         });
         setTransactions(mapped);
@@ -213,15 +236,43 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     if (!created) return;
     const firstItem = created.items && created.items.length > 0 ? created.items[0] : null;
     const cleanBarcode = firstItem?.barcode || 'Tài liệu';
+
+    const cleanItems = (created.items && created.items.length > 0)
+      ? created.items.map((it) => ({
+          title: it.title,
+          author: it.author || 'Nhiều tác giả',
+          barcode: it.barcode,
+          dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+          note: 'Sách mượn mới (Tình trạng tốt)'
+        }))
+      : [
+          {
+            title: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
+            author: firstItem?.author || 'Nhiều tác giả',
+            barcode: cleanBarcode,
+            dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+            note: 'Sách mượn mới (Tình trạng tốt)'
+          }
+        ];
+
+    const titleDisplay = cleanItems.length > 1
+      ? `${cleanItems[0].title} (+${cleanItems.length - 1} cuốn khác)`
+      : (cleanItems[0]?.title || `Tài liệu [${cleanBarcode}]`);
+
+    const deptDisplay = created.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin';
+
     const newTx = {
       id: created.borrowCode,
       borrowingId: created.borrowingID,
       bookCode: cleanBarcode,
       readerName: created.readerName || 'Độc giả',
       studentCode: created.readerCode || '',
-      bookTitle: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
+      department: deptDisplay,
+      bookTitle: titleDisplay,
       borrowDate: new Date(created.borrowDate).toLocaleDateString('vi-VN'),
       dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
+      rawBorrowDate: created.borrowDate,
+      rawDueDate: created.dueDate,
       status: 'borrowing',
       statusText: 'Đang mượn',
       fineAmount: 0,
@@ -232,7 +283,8 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       isLost: false,
       isOnTime: false,
       damageFee: 0,
-      overdueFee: 0
+      overdueFee: 0,
+      items: cleanItems // BUG-06: Lưu trữ đầy đủ toàn bộ sách mượn
     };
 
     setTransactions((prev) => [newTx, ...prev]);
@@ -249,29 +301,26 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
         readerName: created.readerName || 'Độc giả',
         readerCode: created.readerCode || '',
         studentCode: created.readerCode || '',
-        department: created.memberType || 'Khoa Công nghệ Thông tin',
+        department: deptDisplay,
         rawBorrowDate: created.borrowDate,
         rawDueDate: created.dueDate,
         borrowDate: new Date(created.borrowDate).toLocaleDateString('vi-VN'),
         dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
         librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
-        items: created.items && created.items.length > 0
-          ? created.items.map((it) => ({
-              title: it.title,
-              author: it.author || 'Nhiều tác giả',
-              barcode: it.barcode,
-              dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
-              note: 'Sách mượn mới (Tình trạng tốt)'
-            }))
-          : [
-              {
-                title: firstItem?.title || `Tài liệu [${cleanBarcode}]`,
-                author: firstItem?.author || 'Nhiều tác giả',
-                barcode: cleanBarcode,
-                dueDate: new Date(created.dueDate).toLocaleDateString('vi-VN'),
-                note: 'Sách mượn mới (Tình trạng tốt)'
-              }
-            ]
+        items: cleanItems
+      }
+    });
+  };
+
+  // Xử lý khi nhấn nút Xem trước phiếu mượn từ component BorrowForm
+  const handlePreviewBorrow = (previewData) => {
+    if (!previewData) return;
+    setReceiptModalConfig({
+      isOpen: true,
+      type: 'borrow',
+      data: {
+        ...previewData,
+        librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa'
       }
     });
   };
@@ -285,7 +334,11 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       setReceiptModalConfig({
         isOpen: true,
         type: 'return',
-        data: { ...result }
+        data: {
+          ...result,
+          department: (result.department && result.department !== 'Standard') ? result.department : 'Khoa Công nghệ Thông tin',
+          librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa'
+        }
       });
       return;
     }
@@ -319,7 +372,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
     // Tự động làm mới danh sách giao dịch gần đây từ Backend
     loadRecentTransactions();
 
-    // Mở Modal Biểu mẫu Phiếu trả sách chuẩn A4 PDF
+    // Mở Modal Biểu mẫu Phiếu trả sách chuẩn A4 PDF với toàn bộ danh sách sách
     setReceiptModalConfig({
       isOpen: true,
       type: 'return',
@@ -329,7 +382,7 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
         readerName: result.readerName,
         studentCode: result.readerCode,
         readerCode: result.readerCode,
-        department: result.department || 'Khoa Công nghệ Thông tin',
+        department: (result.department && result.department !== 'Standard') ? result.department : 'Khoa Công nghệ Thông tin',
         rawBorrowDate: result.borrowDate,
         rawDueDate: result.dueDate,
         borrowDate: result.borrowDate ? new Date(result.borrowDate).toLocaleDateString('vi-VN') : '',
@@ -340,18 +393,20 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           ? `Đã hoàn trả - Đã nộp phạt: ${(result.totalFine || 0).toLocaleString('vi-VN')} VNĐ (${result.paymentMethod === 'cash' ? 'Tiền mặt' : 'Chuyển khoản QR'})`
           : 'Hoàn trả đúng hạn, nguyên vẹn - Miễn phí',
         librarianName: user?.fullName || 'Nguyễn Võ Lê Khoa',
-        items: [
-          {
-            title: result.bookTitle,
-            author: result.author || 'Nhiều tác giả',
-            barcode: result.barcode,
-            dueDate: result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : '',
-            returnDate: result.returnDate || new Date().toLocaleDateString('vi-VN'),
-            note: (result.totalFine || 0) > 0
-              ? `Thu phạt ${(result.totalFine || 0).toLocaleString('vi-VN')}đ (${result.isDamaged ? 'Hỏng sách' : ''} ${result.isLost ? 'Mất sách' : ''} ${result.isOverdue ? `Trễ ${result.overdueDays} ngày` : ''})`
-              : 'Trả đúng hạn, tình trạng tốt'
-          }
-        ]
+        items: (Array.isArray(result.items) && result.items.length > 0)
+          ? result.items
+          : [
+              {
+                title: result.bookTitle,
+                author: result.author || 'Nhiều tác giả',
+                barcode: result.barcode,
+                dueDate: result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : '',
+                returnDate: result.returnDate || new Date().toLocaleDateString('vi-VN'),
+                note: (result.totalFine || 0) > 0
+                  ? `Thu phạt ${(result.totalFine || 0).toLocaleString('vi-VN')}đ`
+                  : 'Trả đúng hạn, tình trạng tốt'
+              }
+            ]
       }
     });
   };
@@ -368,6 +423,8 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       (t.bookCode && t.bookCode.toLowerCase().includes(term)) ||
       (t.bookCode && t.bookCode.split('-')[0].toLowerCase().includes(term)) ||
       (t.bookId && String(t.bookId).toLowerCase() === term) ||
+      (t.statusText && t.statusText.toLowerCase().includes(term)) ||
+      (t.status && t.status.toLowerCase().includes(term)) ||
       (Array.isArray(t.items) && t.items.some((it) => {
         const itB = (it.barcode || '').toLowerCase();
         return itB.includes(term) || itB.split('-')[0].includes(term) || (it.title || '').toLowerCase().includes(term);
@@ -392,7 +449,11 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           ==================================================================== */}
       <div className="circulation-top-grid">
         {/* THẺ TRÁI: TẠO PHIẾU MƯỢN MỚI (Story LOLRA-16 - Component BorrowForm) */}
-        <BorrowForm onBorrowSuccess={handleBorrowSuccess} showToast={showToast} />
+        <BorrowForm
+          onBorrowSuccess={handleBorrowSuccess}
+          onPreviewBorrow={handlePreviewBorrow}
+          showToast={showToast}
+        />
 
         {/* THẺ PHẢI: TIẾP NHẬN TRẢ SÁCH & KIỂM TRA VI PHẠM (Story LOLRA-17 - Component ReturnProcessing) */}
         <ReturnProcessing
@@ -430,12 +491,6 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                     className={`table-row-item ${isSelected ? 'row-active' : ''}`}
                     onClick={() => {
                       setSelectedTransactionId(tx.id);
-                      setChecks({
-                        isOnTime: tx.isOnTime,
-                        isOverdue: tx.isOverdue,
-                        isDamaged: tx.isDamaged,
-                        isLost: tx.isLost
-                      });
                     }}
                   >
                     <td>

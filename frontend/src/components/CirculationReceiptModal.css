@@ -45,95 +45,159 @@
   }
 }
 
-/* Header modal */
-.receipt-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+/* Header modal: 1 HÀNG NGANG DUY NHẤT (Trái: Tiêu đề; Phải: 2 nút nhỏ gọn + Nút X) */
+.circ-receipt-modal-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px;
+  padding: 10px 18px !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
 }
 
-.receipt-modal-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
+/* Bên trái: Tên phiếu và Mã phiếu (Không bao giờ bị che/cắt chữ) */
+.circ-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.circ-title-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.circ-title-text {
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
 }
 
-.receipt-title-icon {
-  color: #2563eb;
-}
-
-.receipt-tag-code {
+.circ-tag-code {
   font-family: monospace;
   background-color: #dbeafe;
   color: #1e40af;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
-.receipt-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.circ-tag-code.circ-tag-preview {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
-.btn-receipt-action {
+/* Nút xác nhận tạo phiếu mượn trực tiếp từ trong header modal xem trước */
+.circ-btn-confirm-action {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 5px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
+  background-color: #16a34a;
+  border: 1px solid #15803d;
+  color: #ffffff;
   transition: all 0.15s ease;
-  border: 1px solid transparent;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25);
 }
 
-.btn-receipt-action.btn-print {
+.circ-btn-confirm-action:hover {
+  background-color: #15803d;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+}
+
+/* Bên phải: Cụm nút hành động (In phiếu, Tải PDF, Đóng X trên cùng 1 hàng ngang) */
+.circ-header-right {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.circ-btn-print {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
   background-color: #ffffff;
-  border-color: #cbd5e1;
+  border: 1px solid #cbd5e1;
   color: #334155;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.btn-receipt-action.btn-print:hover {
+.circ-btn-print:hover {
   background-color: #f1f5f9;
+  border-color: #94a3b8;
   color: #0f172a;
 }
 
-.btn-receipt-action.btn-export-pdf {
+.circ-btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.btn-receipt-action.btn-export-pdf:hover {
+.circ-btn-pdf:hover {
   background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
 }
 
-.receipt-modal-close {
+.circ-btn-pdf:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Nút X ngoài cùng bên phải, cùng hàng với các nút */
+.circ-modal-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid transparent;
   background: none;
   color: #64748b;
   cursor: pointer;
-  margin-left: 4px;
+  flex-shrink: 0;
   transition: all 0.15s ease;
+  padding: 0;
 }
 
-.receipt-modal-close:hover {
+.circ-modal-close:hover {
   background-color: #fee2e2;
   color: #ef4444;
 }
@@ -317,11 +381,12 @@
 
 .paper-table th,
 .paper-table td {
-  border: 1px solid #000000;
-  padding: 4px 5px;
-  vertical-align: middle;
+  display: table-cell !important;
+  border: 1px solid #000000 !important;
+  padding: 4px 6px;
+  vertical-align: middle !important;
   font-size: 9pt;
-  line-height: 1.25;
+  line-height: 1.3;
   box-sizing: border-box;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -338,20 +403,43 @@
   height: 22px;
 }
 
-.book-title-cell {
+/* Ô Tên sách: Bắt buộc table-cell, triệt tiêu mọi khung đen viền lơ lửng, cho phép xuống dòng mượt mà */
+.paper-table td.paper-col-title,
+.paper-table td.book-title-cell {
+  display: table-cell !important;
+  vertical-align: middle !important;
   font-weight: 500;
   font-size: 8.5pt;
-  line-height: 1.2;
+  line-height: 1.35;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border: 1px solid #000000 !important;
+  max-width: none !important;
+}
+
+.paper-table td.paper-col-title *,
+.paper-table td.book-title-cell * {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .book-author-cell {
   font-size: 8.5pt;
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .book-note-cell {
   font-size: 8.5pt;
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* 5. Điều khoản quy định */
@@ -370,12 +458,13 @@
   margin-bottom: 2px;
 }
 
-/* 6. Chữ ký hai bên */
+/* 6. Chữ ký hai bên - Nâng lên 1 dòng để chân trang A4 thoáng rộng hơn */
 .paper-signatures-row {
   display: flex;
   justify-content: space-between;
-  margin-top: auto;
-  padding-top: 10px;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  padding-top: 6px;
 }
 
 .sig-block {
@@ -396,8 +485,9 @@
   margin-top: 2px;
 }
 
+/* Thu gọn khoảng trống ký tên 12px (khoảng 1 dòng chữ) để đẩy chữ ký lên */
 .sig-space {
-  height: 48px;
+  height: 36px;
 }
 
 .sig-name {
@@ -407,89 +497,7 @@
 }
 
 /* Footer modal */
-.receipt-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background-color: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-}
 
-.receipt-hint-text {
-  font-size: 12px;
-  color: #64748b;
-  font-style: italic;
-}
-
-.btn-close-receipt {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  color: #475569;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-close-receipt:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-.receipt-footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-footer-print {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  color: #334155;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-footer-print:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-.btn-footer-export-pdf {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: #ffffff;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
-  transition: all 0.15s ease;
-}
-
-.btn-footer-export-pdf:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  box-shadow: 0 3px 6px rgba(37, 99, 235, 0.35);
-}
-
-.btn-footer-export-pdf:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
 
 /* ==========================================================================
    PRINT MEDIA QUERY: In khổ A4 sạch sẽ chỉ có tờ phiếu in

@@ -202,4 +202,12 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_BookCopies_BookID_Status 
     ON BookCopies(BookID, Status);
 END
+GO
+
+-- 5.3. Chỉ mục tối ưu hóa tìm kiếm và quét mã vạch Barcode O(1) (Performance - L03)
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BookCopies_Barcode' AND object_id = OBJECT_ID('BookCopies'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_BookCopies_Barcode 
+    ON BookCopies(Barcode);
+END
 GO
