@@ -6,6 +6,24 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ---
 
+## [2026-10-02] - Tích Hợp Phân Trang & Tìm Kiếm Nhanh Cho Sổ Nợ Đọng & Lịch Sử Biên Lai Thu Phạt (`/revenue`)
+
+- **Phân Trang & Tìm Kiếm Danh Sách Quá Hạn & Nợ Phạt Tích Lũy ([`RevenueArrearsTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx)):**
+  - **Bộ điều khiển phân trang:** Hỗ trợ phân trang danh sách với tùy chọn hiển thị linh hoạt (5, 10, 20, 50 trường hợp / trang), chỉ báo vị trí (`Hiển thị X - Y / Z trường hợp`), cụm nút điều hướng trang đầu (`«`), trang trước (`‹`), danh sách số trang thông minh (có dấu `…` rút gọn khi số lượng trang lớn), trang tiếp (`›`), trang cuối (`»`) và ô nhập nhảy trang trực tiếp khi có trên 5 trang.
+  - **Thanh tìm kiếm tức thì (Quick Search):** Cho phép tra cứu nhanh theo tên độc giả, mã sinh viên (readerCode), tên đầu sách hoặc mã phiếu mượn (borrowCode); tự động cập nhật số lượng kết quả lọc (`kết quả / tổng`) và reset về trang 1 khi tìm kiếm.
+  - **Hiệu ứng làm mới:** Cập nhật nút "Làm mới" với hiệu ứng xoay icon (`RotateCw` + `spin-icon`) khi đang tải dữ liệu từ Backend và tự động quay về trang 1.
+  - **Bảo toàn nghiệp vụ:** Giữ nguyên 100% logic thu tiền nợ phạt qua modal kế toán K80/A5 (`onOpenPayModal`).
+
+- **Phân Trang & Bộ Lọc Nhanh Lịch Sử Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
+  - **Bộ phân trang bảng biên lai:** Tích hợp bộ phân trang hoàn chỉnh với các tùy chọn 5, 10, 20, 50 biên lai / trang, điều hướng đa tầng và ô nhập trang trực tiếp.
+  - **Thanh công cụ lọc phương thức & tìm kiếm:** Tích hợp thanh tìm kiếm theo mã biên lai (`BL-2026-xxxx`), tên độc giả, MSSV, nội dung thu phạt, thủ thư tiếp nhận, cùng bộ lọc phương thức thanh toán dạng pills: Tất cả, Tiền mặt, QR VietQR kèm số lượng thống kê theo từng phương thức.
+  - **Liên kết dòng tiền thời gian thực ([`FineRevenue.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Quản lý state `receiptsList`, tự động sinh và chèn bản ghi biên lai mới lên đầu bảng lịch sử ngay sau khi thủ thư xác nhận thu tiền thành công tại tab Sổ nợ đọng; tự động tính tổng lũy kế doanh thu trên banner tổng quan.
+  - **Mở rộng dữ liệu mẫu:** Bổ sung bộ dữ liệu biên lai mẫu phong phú trải dài các ngày giúp kiểm thử trực quan và thuận tiện cho việc phân trang.
+
+- **Thiết Kế & Giao Diện CSS Đồng Bộ ([`FineRevenue.css`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.css)):**
+  - Bổ sung bộ quy tắc CSS hoàn chỉnh cho `.arrears-pagination`, `.receipts-pagination-bar`, `.arrears-page-btn`, `.arrears-page-size-select`, `.arrears-search-box`, `.receipts-toolbar`, `.receipts-filter-btn` và animation `arrears-spin`.
+  - Thiết kế đồng bộ chuẩn giao diện hệ thống: màu xanh thương hiệu HUTECH, hiệu ứng hover, shadow thẻ, bo góc tròn 8-12px và hiển thị responsive.
+
 ## [2026-10-01] - Phân Chia 4 Tab Thành URL Sub-Routes & Tái Cấu Trúc Mô-đun Hóa Phân Hệ Thu Phạt (`/revenue`)
 
 - **Định Tuyến URL Sub-Routes Phân Hệ Báo Cáo Thu Phạt:**

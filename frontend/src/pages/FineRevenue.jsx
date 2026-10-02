@@ -199,6 +199,106 @@ const INITIAL_RECENT_RECEIPTS = [
     method: 'Tiền mặt',
     isQr: false,
     cashier: 'Thủ thư Nguyễn Văn A'
+  },
+  {
+    code: 'BL-2026-0887',
+    date: '26/09/2026 15:50',
+    reader: 'Đặng Thu Trang (102230114)',
+    type: 'Phạt trễ hạn 6 ngày (Nhập môn Trí tuệ nhân tạo)',
+    amount: '30.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
+    code: 'BL-2026-0886',
+    date: '26/09/2026 10:20',
+    reader: 'Vũ Đức Thắng (102210543)',
+    type: 'Bồi hoàn mất sách Clean Code',
+    amount: '185.000 đ',
+    method: 'QR VietQR',
+    isQr: true,
+    cashier: 'Thủ thư Nguyễn Văn A'
+  },
+  {
+    code: 'BL-2026-0885',
+    date: '25/09/2026 16:15',
+    reader: 'Phạm Minh Anh (102220789)',
+    type: 'Phạt trễ hạn 2 ngày',
+    amount: '10.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
+    code: 'BL-2026-0884',
+    date: '25/09/2026 11:45',
+    reader: 'Đỗ Gia Bảo (102230890)',
+    type: 'Cấp lại thẻ thư viện SV khóa 2023',
+    amount: '50.000 đ',
+    method: 'QR VietQR',
+    isQr: true,
+    cashier: 'Thủ thư Nguyễn Văn A'
+  },
+  {
+    code: 'BL-2026-0883',
+    date: '24/09/2026 14:00',
+    reader: 'Nguyễn Hải Đăng (102210234)',
+    type: 'Đền bìa sách rách Machine Learning căn bản',
+    amount: '45.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
+    code: 'BL-2026-0882',
+    date: '24/09/2026 08:30',
+    reader: 'Lê Ngọc Ánh (102220678)',
+    type: 'Phạt trễ hạn 10 ngày (Database System Concepts)',
+    amount: '50.000 đ',
+    method: 'QR VietQR',
+    isQr: true,
+    cashier: 'Thủ thư Nguyễn Văn A'
+  },
+  {
+    code: 'BL-2026-0881',
+    date: '23/09/2026 16:30',
+    reader: 'Trịnh Quốc Bảo (102230432)',
+    type: 'Phạt trễ hạn 3 ngày',
+    amount: '15.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
+    code: 'BL-2026-0880',
+    date: '23/09/2026 10:15',
+    reader: 'Mai Phương Thảo (102220551)',
+    type: 'Bồi hoàn sách Designing Data-Intensive Apps',
+    amount: '320.000 đ',
+    method: 'QR VietQR',
+    isQr: true,
+    cashier: 'Thủ thư Nguyễn Văn A'
+  },
+  {
+    code: 'BL-2026-0879',
+    date: '22/09/2026 15:10',
+    reader: 'Hồ Văn Cường (102210876)',
+    type: 'Phạt trễ hạn 8 ngày',
+    amount: '40.000 đ',
+    method: 'Tiền mặt',
+    isQr: false,
+    cashier: 'Thủ thư Trần Văn B'
+  },
+  {
+    code: 'BL-2026-0878',
+    date: '22/09/2026 09:20',
+    reader: 'Đinh Bảo Trâm (102230221)',
+    type: 'Cấp lại mã thẻ từ sinh viên',
+    amount: '50.000 đ',
+    method: 'QR VietQR',
+    isQr: true,
+    cashier: 'Thủ thư Nguyễn Văn A'
   }
 ];
 
@@ -260,6 +360,7 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
   const [isLoadingFines, setIsLoadingFines] = useState(false);
   const [activeReceiptData, setActiveReceiptData] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptsList, setReceiptsList] = useState(INITIAL_RECENT_RECEIPTS);
 
   // Tải danh sách khoản phạt Pending từ Backend
   const fetchPendingFines = async () => {
@@ -318,6 +419,25 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
           isPending: false
         });
         fetchPendingFines();
+
+        // Tự động thêm biên lai mới vào đầu danh sách lịch sử biên lai
+        const newReceipt = {
+          code: res.data.invoiceCode || `BL-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
+          date: new Date().toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          reader: `${activeReceiptData.readerName} (${activeReceiptData.readerCode})`,
+          type: activeReceiptData.reason || 'Thu tiền phạt quá hạn sách',
+          amount: `${(activeReceiptData.finalAmount || activeReceiptData.amountPaid || 0).toLocaleString('vi-VN')} đ`,
+          method: method === 'Transfer' ? 'QR VietQR' : 'Tiền mặt',
+          isQr: method === 'Transfer',
+          cashier: user?.fullName || 'Thủ thư Nguyễn Văn A'
+        };
+        setReceiptsList((prev) => [newReceipt, ...prev]);
       } else {
         triggerToast(`❌ Lỗi thu tiền: ${res.message}`);
       }
@@ -563,7 +683,7 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
 
       {currentSubTab === 'receipts' && (
         <RevenueReceiptsTab
-          receipts={INITIAL_RECENT_RECEIPTS}
+          receipts={receiptsList}
           onPrintReceipt={handlePrintPastReceipt}
           triggerToast={triggerToast}
         />
