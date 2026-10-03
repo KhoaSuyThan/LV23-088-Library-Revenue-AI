@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   Scale,
   ShieldCheck,
-  HelpCircle
+  HelpCircle,
+  Bookmark
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
 import { invoiceApi } from '../api/invoiceApi';
@@ -99,6 +100,9 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     return bookList.filter((b) => !b.isReturned);
   }, [bookList]);
 
+  // Danh sách barcode các cuốn sách được thủ thư chọn để xử lý trả trong đợt này (Hỗ trợ trả chọn lọc / trả rải rác)
+  const [selectedReturnBarcodes, setSelectedReturnBarcodes] = useState([]);
+
   // Khi có dữ liệu tra cứu mới, tự động khởi tạo tình trạng vật lý cho từng cuốn & reset miễn giảm
   useEffect(() => {
     if (lookupData && bookList.length > 0) {
@@ -113,8 +117,47 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
       setWaiverDiscountPercent(0);
       setWaiverReason('');
       setShowOverdueFormula(false);
+
+      // Tự động chọn cuốn cần trả:
+      const unreturned = bookList.filter((b) => !b.isReturned);
+      const cleanQuery = (returnQuery || '').trim().toUpperCase();
+      const singleMatch = unreturned.find((b) => b.barcode?.toUpperCase() === cleanQuery);
+
+      if (singleMatch) {
+        // Nếu quét hoặc tra cứu trúng đích danh barcode của 1 cuốn sách -> chỉ chọn trả cuốn đó
+        setSelectedReturnBarcodes([singleMatch.barcode]);
+      } else {
+        // Mặc định (hoặc tìm theo mã phiếu mượn PM-xxxx) -> chọn toàn bộ các cuốn chưa trả
+        setSelectedReturnBarcodes(unreturned.map((b) => b.barcode));
+      }
     }
   }, [lookupData, bookList]);
+
+  // Helper toggle chọn / bỏ chọn 1 cuốn sách
+  const handleToggleSelectBook = (barcode) => {
+    setSelectedReturnBarcodes((prev) => {
+      if (prev.includes(barcode)) {
+        return prev.filter((code) => code !== barcode);
+      } else {
+        return [...prev, barcode];
+      }
+    });
+  };
+
+  // Helper chọn tất cả các cuốn sách chưa trả
+  const handleSelectAll = () => {
+    setSelectedReturnBarcodes(activeBooksToReturn.map((b) => b.barcode));
+  };
+
+  // Helper bỏ chọn tất cả
+  const handleDeselectAll = () => {
+    setSelectedReturnBarcodes([]);
+  };
+
+  // Các cuốn sách THỰC SỰ được chọn để xử lý hoàn trả trong giao dịch hiện tại
+  const booksToActuallyReturn = React.useMemo(() => {
+    return activeBooksToReturn.filter((b) => selectedReturnBarcodes.includes(b.barcode));
+  }, [activeBooksToReturn, selectedReturnBarcodes]);
 
   // Helper đọc và cập nhật tình trạng cho một cuốn sách cụ thể
   const getBookCondition = (barcode) => {
@@ -140,7 +183,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const isOverdue = overdueDays > 0;
   const isOnTime = overdueDays === 0;
 
-  // 2. Tính toán tiền phạt trễ hạn và bồi thường trên tất cả các cuốn sách cần trả
+  // 2. Tính toán tiền phạt trễ hạn và bồi thường trên các cuốn sách ĐƯỢC CHỌN TRẢ ĐỢT NÀY
   // Nguyên vẹn: 0đ
   // Hư hỏng 3 mức: Nhẹ 20%, Vừa 40%, Nặng 110% giá bìa
   // Thất lạc / Mất sách: 110% giá bìa (100% bồi hoàn + 10% phụ thu nghiệp vụ)
@@ -150,7 +193,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   let totalLostFee = 0;
   let isAnyFineCapped = false;
 
-  activeBooksToReturn.forEach((b) => {
+  booksToActuallyReturn.forEach((b) => {
     const bPrice = b.basePrice || 50000;
     if (isOverdue) {
       const rawFine = overdueDays * finePerDay;
@@ -261,12 +304,15 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
 
   // Tạo danh sách các cuốn sách hoàn chỉnh kèm ghi chú tình trạng để đưa vào Phiếu trả A4
   const buildSlipItems = () => {
-    const targetBooks = activeBooksToReturn.length > 0 ? activeBooksToReturn : bookList;
-    return targetBooks.map((b) => {
+    return bookList.map((b) => {
+      const isSelected = selectedReturnBarcodes.includes(b.barcode);
       const cond = getBookCondition(b.barcode);
       let note = 'Nguyên vẹn';
+
       if (b.isReturned) {
         note = 'Đã trả trước';
+      } else if (!isSelected) {
+        note = 'Chưa trả (Giữ lại đọc tiếp)';
       } else if (cond.status === 'damaged') {
         if (cond.damageLevel === 1) note = 'Hư hỏng nhẹ (20%)';
         else if (cond.damageLevel === 2) note = 'Hư hỏng vừa (40%)';
@@ -282,23 +328,26 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         author: b.author || 'Nhiều tác giả',
         barcode: b.barcode,
         dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
-        returnDate: new Date().toLocaleDateString('vi-VN'),
+        returnDate: b.isReturned || isSelected ? new Date().toLocaleDateString('vi-VN') : '—',
         note: note
       };
     });
   };
 
-  // Xác nhận xử lý trả toàn bộ sách qua API Backend (POST /api/returns/process-item)
+  // Xác nhận xử lý trả các cuốn sách được chọn qua API Backend (POST /api/returns/process-item)
   const handleExecuteReturn = async (isPaidFine = false) => {
-    if (!lookupData || activeBooksToReturn.length === 0) return;
+    if (!lookupData || booksToActuallyReturn.length === 0) {
+      showToast?.('⚠️ Vui lòng chọn ít nhất 1 cuốn sách để thực hiện hoàn trả.');
+      return;
+    }
 
     setIsSubmitting(true);
     let lastResult = null;
-    let anyReceiptId = null;
+    const createdReceiptIds = [];
 
     try {
-      // Xử lý hoàn trả lần lượt từng cuốn sách chưa trả
-      for (const item of activeBooksToReturn) {
+      // Xử lý hoàn trả lần lượt từng cuốn sách ĐƯỢC CHỌN
+      for (const item of booksToActuallyReturn) {
         const cond = getBookCondition(item.barcode);
         let condition = 'Good';
         let damagePct = undefined;
@@ -315,12 +364,12 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             noteText = 'Hư hỏng vừa (Đền bù 40% giá bìa)';
           } else if (cond.damageLevel === 3) {
             condition = 'DamagedSevere';
-            damagePct = 110;
+            damagePct = undefined; // Backend tự động tính 110% (100% bồi hoàn + 10% phụ thu)
             noteText = 'Hư hỏng nặng (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
           }
         } else if (cond.status === 'lost') {
           condition = 'Lost';
-          damagePct = 110;
+          damagePct = undefined; // Backend tự động tính 110% (100% bồi hoàn + 10% phụ thu)
           noteText = 'Báo mất tài liệu (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
         }
 
@@ -337,28 +386,44 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         if (res.success && res.data) {
           lastResult = res.data;
           if (res.data.receiptId) {
-            anyReceiptId = res.data.receiptId;
+            createdReceiptIds.push(res.data.receiptId);
           }
         }
       }
 
       playScannerBeep?.(true);
-      showToast?.(`✅ Đã hoàn tất tiếp nhận trả ${activeBooksToReturn.length} cuốn sách.`);
+      showToast?.(`✅ Đã hoàn tất tiếp nhận trả ${booksToActuallyReturn.length} cuốn sách.`);
       setShowReceiptModal(false);
 
       // Nếu có phát sinh phạt và thủ thư bấm "Xác nhận thu & Xuất biên lai"
-      if (isPaidFine && anyReceiptId) {
+      if (isPaidFine && createdReceiptIds.length > 0) {
         try {
-          const invRes = await invoiceApi.createInvoice({
-            receiptId: anyReceiptId,
-            paymentMethod: paymentMethod === 'transfer' ? 'Transfer' : 'Cash',
-            note: `Thu tiền phạt tại quầy lưu thông (${lookupData.borrowCode})`
-          });
+          let lastInvoice = null;
+          let totalCombinedPaid = 0;
 
-          if (invRes.success && invRes.data) {
-            setPaidInvoiceData(invRes.data);
+          // Thanh toán toàn bộ các khoản phạt phát sinh cho tất cả các cuốn sách trong đợt trả
+          for (const rId of createdReceiptIds) {
+            const invRes = await invoiceApi.createInvoice({
+              receiptId: rId,
+              paymentMethod: paymentMethod === 'transfer' ? 'Transfer' : 'Cash',
+              note: `Thu tiền phạt tại quầy lưu thông (${lookupData.borrowCode})`
+            });
+
+            if (invRes.success && invRes.data) {
+              lastInvoice = invRes.data;
+              totalCombinedPaid += (invRes.data.amountPaid || 0);
+            }
+          }
+
+          if (lastInvoice) {
+            // Chuẩn hóa hiển thị tổng số tiền thực thu của cả đợt trả nhiều cuốn
+            setPaidInvoiceData({
+              ...lastInvoice,
+              amountPaid: totalCombinedPaid > 0 ? totalCombinedPaid : lastInvoice.amountPaid,
+              totalAmount: totalCombinedPaid > 0 ? totalCombinedPaid : lastInvoice.totalAmount
+            });
             setShowPaidReceiptModal(true);
-            showToast?.(`🎉 Đã lập hóa đơn ${invRes.data.invoiceCode} và tự động mở lại quyền mượn sách!`);
+            showToast?.(`🎉 Đã lập hóa đơn ${lastInvoice.invoiceCode} cho toàn bộ ${createdReceiptIds.length} cuốn sách và mở lại quyền mượn sách!`);
           }
         } catch (invErr) {
           console.error('Lỗi khi lập hóa đơn thu phạt:', invErr);
@@ -381,8 +446,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         department: (lookupData.department && lookupData.department !== 'Standard')
           ? lookupData.department
           : (lookupData.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
-        bookTitle: activeBooksToReturn[0]?.bookTitle || lookupData.bookTitle,
-        barcode: activeBooksToReturn[0]?.barcode || lookupData.barcode,
+        bookTitle: booksToActuallyReturn[0]?.bookTitle || lookupData.bookTitle,
+        barcode: booksToActuallyReturn[0]?.barcode || lookupData.barcode,
         borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
         dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
         returnDate: new Date().toLocaleDateString('vi-VN'),
@@ -396,9 +461,16 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         items: slipItems
       });
 
-      // Xóa trắng form sau khi hoàn tất trả
-      setLookupData(null);
-      setReturnQuery('');
+      // Nếu chỉ trả một phần (vẫn còn cuốn chưa trả trong phiếu mượn), tải lại thông tin phiếu để hiển thị trạng thái mới
+      if (booksToActuallyReturn.length < activeBooksToReturn.length) {
+        const remainingCount = activeBooksToReturn.length - booksToActuallyReturn.length;
+        showToast?.(`ℹ️ Phiếu ${lookupData.borrowCode} vẫn còn ${remainingCount} cuốn sách chưa trả.`);
+        await handleLookup(lookupData.borrowCode);
+      } else {
+        // Đã trả toàn bộ các cuốn sách trong phiếu
+        setLookupData(null);
+        setReturnQuery('');
+      }
     } catch (err) {
       playScannerBeep?.(false);
       const errMsg = err.response?.data?.message || err.message || 'Lỗi khi xử lý tiếp nhận trả sách.';
@@ -630,10 +702,35 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
 
           {/* PHẦN: TÌNH TRẠNG VẬT LÝ TỪNG CUỐN SÁCH (Chia 3 ô trên 1 hàng) */}
           <div className="compact-section-wrap">
-            <div className="compact-header-row">
+            <div className="compact-header-row book-list-header-row">
               <span className="compact-title-text">
                 Tình trạng vật lý từng cuốn sách ({bookList.length} cuốn)
               </span>
+              <div className="book-selection-toolbar">
+                <span className="selection-count-badge">
+                  Đã chọn trả: <strong>{booksToActuallyReturn.length}/{activeBooksToReturn.length}</strong> cuốn
+                </span>
+                {activeBooksToReturn.length > 1 && (
+                  <div className="selection-quick-actions">
+                    <button
+                      type="button"
+                      className="btn-select-action"
+                      onClick={handleSelectAll}
+                      title="Chọn trả tất cả sách chưa trả"
+                    >
+                      Chọn tất cả
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-select-action"
+                      onClick={handleDeselectAll}
+                      title="Bỏ chọn tất cả sách"
+                    >
+                      Bỏ chọn tất cả
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="return-books-list">
@@ -643,6 +740,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 const isDamaged = cond.status === 'damaged';
                 const isLost = cond.status === 'lost';
                 const level = cond.damageLevel || 1; // 1: 20%, 2: 40%, 3: 110%
+                const isSelected = selectedReturnBarcodes.includes(item.barcode);
 
                 const fee20 = Math.round((bPrice * 0.20) / 1000) * 1000;
                 const fee40 = Math.round((bPrice * 0.40) / 1000) * 1000;
@@ -661,11 +759,32 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 return (
                   <div
                     key={item.barcode || bIndex}
-                    className={`book-item-return-card ${isDamaged || isLost ? 'card-has-violation' : ''}`}
+                    className={`book-item-return-card ${item.isReturned ? 'card-already-returned' : (!isSelected ? 'card-unselected' : '')} ${isSelected && (isDamaged || isLost) ? 'card-has-violation' : ''}`}
                   >
                     {/* 1. KHU VỰC THÔNG TIN SÁCH NỔI BẬT HÀNG ĐẦU (TÂM ĐIỂM THỊ GIÁC) */}
                     <div className="book-headline-row">
                       <div className="book-main-identity">
+                        {/* Checkbox chọn cuốn sách trả rải rác */}
+                        {!item.isReturned && (
+                          <label
+                            className={`book-select-checkbox-label ${isSelected ? 'is-checked' : ''}`}
+                            title={isSelected ? 'Nhấn để bỏ chọn cuốn này (giữ lại đọc tiếp)' : 'Nhấn để chọn trả cuốn sách này'}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectBook(item.barcode)}
+                              className="book-select-checkbox-input"
+                            />
+                            <span className="book-select-custom-box">
+                              {isSelected && <Check size={12} strokeWidth={3.5} />}
+                            </span>
+                            <span className="book-select-text">
+                              {isSelected ? 'Chọn trả đợt này' : 'Chưa trả (Giữ lại)'}
+                            </span>
+                          </label>
+                        )}
+
                         <div className="book-titles-col">
                           <h3 className="book-primary-title">{item.bookTitle}</h3>
                           {item.author && (
@@ -695,8 +814,26 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                       </div>
                     </div>
 
+                    {/* NẾU SÁCH CHƯA ĐƯỢC CHỌN TRẢ: HIỂN THỊ BANNER THÔNG BÁO GIỮ LẠI ĐỌC TIẾP */}
+                    {!item.isReturned && !isSelected && (
+                      <div className="book-skipped-banner">
+                        <div className="skipped-banner-left">
+                          <Bookmark size={15} className="skipped-icon" />
+                          <span>Độc giả giữ lại đọc tiếp — Cuốn này chưa hoàn trả trong đợt giao dịch hiện tại.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-quick-select"
+                          onClick={() => handleToggleSelectBook(item.barcode)}
+                          title="Nhấn để chọn hoàn trả cuốn sách này"
+                        >
+                          + Chọn trả cuốn này
+                        </button>
+                      </div>
+                    )}
+
                     {/* 2. CHIA 3 Ô TÌNH TRẠNG VẬT LÝ TRÊN 1 HÀNG: NGUYÊN VẸN - HƯ HỎNG - THẤT LẠC / MẤT */}
-                    {!item.isReturned && (
+                    {!item.isReturned && isSelected && (
                       <div className="book-conditions-tri-grid">
                         {/* Ô 1: NGUYÊN VẸN */}
                         <div
@@ -904,8 +1041,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                     department: (lookupData.department && lookupData.department !== 'Standard')
                       ? lookupData.department
                       : (lookupData.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
-                    bookTitle: activeBooksToReturn[0]?.bookTitle || lookupData.bookTitle,
-                    barcode: activeBooksToReturn[0]?.barcode || lookupData.barcode,
+                    bookTitle: booksToActuallyReturn[0]?.bookTitle || activeBooksToReturn[0]?.bookTitle || lookupData.bookTitle,
+                    barcode: booksToActuallyReturn[0]?.barcode || activeBooksToReturn[0]?.barcode || lookupData.barcode,
                     borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
                     dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
                     returnDate: new Date().toLocaleDateString('vi-VN'),
@@ -925,8 +1062,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                   type="button"
                   className="btn-confirm-return"
                   onClick={() => handleExecuteReturn(false)}
-                  disabled={isSubmitting}
-                  title="Xác nhận bạn đọc đã hoàn trả sách đúng hạn và nhập lại kho"
+                  disabled={isSubmitting || booksToActuallyReturn.length === 0}
+                  title={booksToActuallyReturn.length === 0 ? 'Vui lòng chọn ít nhất 1 cuốn sách để trả' : 'Xác nhận bạn đọc đã hoàn trả sách đúng hạn và nhập lại kho'}
                 >
                   {isSubmitting ? <Loader2 size={16} className="spin-icon" /> : <CheckCircle2 size={16} />}
                   <span>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận hoàn tất trả sách'}</span>
@@ -938,7 +1075,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                     type="button"
                     className="btn-waiver"
                     onClick={() => setShowWaiverModal(true)}
-                    disabled={waiverDiscountPercent === 100 || isSubmitting}
+                    disabled={waiverDiscountPercent === 100 || isSubmitting || booksToActuallyReturn.length === 0}
+                    title={booksToActuallyReturn.length === 0 ? 'Vui lòng chọn sách để xét miễn giảm' : 'Xét duyệt miễn giảm tiền phạt'}
                   >
                     Miễn giảm phạt
                   </button>
@@ -947,7 +1085,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                     type="button"
                     className="btn-create-receipt"
                     onClick={() => setShowReceiptModal(true)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || booksToActuallyReturn.length === 0}
+                    title={booksToActuallyReturn.length === 0 ? 'Vui lòng chọn ít nhất 1 cuốn sách để thu phạt' : 'Lập phiếu thu phạt cho các cuốn sách được chọn'}
                   >
                     Lập phiếu thu phạt
                   </button>
@@ -1083,16 +1222,28 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                   </div>
                   <div className="receipt-line">
                     <span className="lbl">Tên tài liệu:</span>
-                    <span className="val">{lookupData.bookTitle}</span>
+                    <span className="val">
+                      {booksToActuallyReturn.length > 0
+                        ? booksToActuallyReturn.map((b) => b.bookTitle).join(', ')
+                        : lookupData.bookTitle}
+                    </span>
                   </div>
                   <div className="receipt-line">
                     <span className="lbl">Lý do xử phạt:</span>
                     <span className="val">
-                      {isOverdue ? `Trễ hạn ${overdueDays} ngày (${overdueFine.toLocaleString('vi-VN')}đ)` : ''}
-                      {isOverdue && (damageFee > 0 || lostFee > 0) ? ', ' : ''}
-                      {physicalCondition === 'damaged_light' ? `Hỏng bìa/rách sách (${damagePercent}% = ${damageFee.toLocaleString('vi-VN')}đ)` : ''}
-                      {physicalCondition === 'damaged_severe' ? `Hư hỏng nặng 110% (${damageFee.toLocaleString('vi-VN')}đ)` : ''}
-                      {physicalCondition === 'lost' ? `Mất sách 110% (${lostFee.toLocaleString('vi-VN')}đ)` : ''}
+                      {(() => {
+                        const reasons = [];
+                        if (isOverdue && totalOverdueFine > 0) {
+                          reasons.push(`Trễ hạn ${overdueDays} ngày (${totalOverdueFine.toLocaleString('vi-VN')}đ)`);
+                        }
+                        if (totalDamageFee > 0) {
+                          reasons.push(`Bồi thường hư hỏng sách (${totalDamageFee.toLocaleString('vi-VN')}đ)`);
+                        }
+                        if (totalLostFee > 0) {
+                          reasons.push(`Bồi hoàn thất lạc sách (${totalLostFee.toLocaleString('vi-VN')}đ)`);
+                        }
+                        return reasons.join(' + ') || 'Vi phạm quy định mượn trả';
+                      })()}
                     </span>
                   </div>
                   <div className="receipt-divider"></div>
