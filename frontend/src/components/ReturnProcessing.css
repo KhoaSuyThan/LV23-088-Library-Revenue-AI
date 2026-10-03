@@ -374,6 +374,56 @@
 /* ==========================================
    DANH SÁCH SÁCH MƯỢN CẦN TRẢ (TÂM ĐIỂM TÊN SÁCH & THANH TRƯỢT 3 MỨC)
    ========================================== */
+/* Toolbar chọn sách hoàn trả (Hỗ trợ trả chọn lọc / trả rải rác) */
+.book-list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-selection-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.selection-count-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.selection-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-select-action {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 2px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-select-action:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 .return-books-list {
   display: flex;
   flex-direction: column;
@@ -401,6 +451,129 @@
   border-color: #fdba74;
   background: #fffcf9;
   box-shadow: 0 2px 6px rgba(249, 115, 22, 0.08);
+}
+
+/* Thẻ sách chưa được chọn trả trong đợt này */
+.book-item-return-card.card-unselected {
+  border-style: dashed;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  opacity: 0.92;
+}
+
+.book-item-return-card.card-already-returned {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  opacity: 0.85;
+}
+
+/* Checkbox chọn cuốn sách trả */
+.book-select-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.book-select-checkbox-label:hover {
+  border-color: #93c5fd;
+  background: #f0f7ff;
+}
+
+.book-select-checkbox-label.is-checked {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.book-select-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.book-select-custom-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid #94a3b8;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.book-select-checkbox-label.is-checked .book-select-custom-box {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.book-select-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.book-select-checkbox-label.is-checked .book-select-text {
+  color: #1e40af;
+}
+
+/* Banner sách giữ lại đọc tiếp */
+.book-skipped-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  animation: fadeInSlideDown 0.18s ease-out;
+}
+
+.skipped-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.skipped-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.btn-quick-select {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-select:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
 }
 
 /* 1. Khu vực hiển thị thông tin sách (Nổi bật tên sách hàng đầu) */

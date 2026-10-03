@@ -21,9 +21,9 @@ public class ReturnBookRequestDto
     public string Condition { get; set; } = "Good";
 
     /// <summary>
-    /// Tỷ lệ đền bù hư hỏng nhẹ/vừa (Quy tắc 10.3: từ 30% đến 50% giá bìa, mặc định 40%).
+    /// Tỷ lệ đền bù hư hỏng nhẹ/vừa (Quy tắc 10.3: từ 30% đến 50% giá bìa, hoặc 110% đối với hư hỏng nặng/mất sách).
     /// </summary>
-    [Range(0, 100, ErrorMessage = "Tỷ lệ đền bù hư hỏng phải từ 0% đến 100%.")]
+    [Range(0, 200, ErrorMessage = "Tỷ lệ đền bù hư hỏng phải từ 0% đến 200%.")]
     public decimal? DamagePercent { get; set; }
 
     /// <summary>
