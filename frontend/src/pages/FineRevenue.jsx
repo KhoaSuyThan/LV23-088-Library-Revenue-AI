@@ -355,12 +355,16 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     }, 4000);
   };
 
-  // State quản lý Hóa đơn & Thu tiền phạt kế toán (Story LOLRA-19)
+  // State quản lý Hóa đơn & Thu tiền phạt kế toán (Story LOLRA-19 & LOLRA-17)
   const [backendPendingFines, setBackendPendingFines] = useState([]);
   const [isLoadingFines, setIsLoadingFines] = useState(false);
   const [activeReceiptData, setActiveReceiptData] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptsList, setReceiptsList] = useState(INITIAL_RECENT_RECEIPTS);
+
+  // State tổng hợp Doanh thu & Thống kê từ Backend SQL Server
+  const [revenueSummary, setRevenueSummary] = useState(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   // Tải danh sách khoản phạt Pending từ Backend
   const fetchPendingFines = async () => {
@@ -377,8 +381,53 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     }
   };
 
+  // Tải tổng hợp doanh thu tài chính từ Backend
+  const fetchRevenueSummary = async () => {
+    setIsLoadingSummary(true);
+    try {
+      const res = await invoiceApi.getRevenueSummary();
+      if (res.success && res.data) {
+        setRevenueSummary(res.data);
+      }
+    } catch (err) {
+      console.warn('Chưa nạp được tóm tắt doanh thu từ Backend:', err.message);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
+
+  // Tải lịch sử biên lai thực tế từ Backend
+  const fetchReceiptHistory = async () => {
+    try {
+      const res = await invoiceApi.getInvoiceHistory({ pageSize: 50 });
+      if (res.success && res.data && Array.isArray(res.data.items) && res.data.items.length > 0) {
+        const mapped = res.data.items.map((i) => ({
+          code: i.invoiceCode,
+          date: new Date(i.paymentDate).toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          reader: `${i.readerName} (${i.studentCode})`,
+          type: i.fineReasonLabel || i.fineReason,
+          amount: `${Number(i.amountPaid || 0).toLocaleString('vi-VN')} đ`,
+          method: i.paymentMethod === 'Transfer' ? 'QR VietQR' : 'Tiền mặt',
+          isQr: i.paymentMethod === 'Transfer',
+          cashier: i.cashierName
+        }));
+        setReceiptsList(mapped);
+      }
+    } catch (err) {
+      console.warn('Chưa nạp được lịch sử biên lai từ Backend:', err.message);
+    }
+  };
+
   useEffect(() => {
     fetchPendingFines();
+    fetchRevenueSummary();
+    fetchReceiptHistory();
   }, []);
 
   // Mở ReceiptModal ở chế độ xem trước (Preview) trước khi xác nhận thu tiền (LOLRA-19)
@@ -419,6 +468,18 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
           isPending: false
         });
         fetchPendingFines();
+        fetchRevenueSummary();
+        fetchReceiptHistory();
+
+        // Phát sự kiện toàn cục để Dashboard tự động cập nhật số liệu thời gian thực không cần F5
+        window.dispatchEvent(
+          new CustomEvent('smartlib-revenue-updated', {
+            detail: {
+              invoiceCode: res.data.invoiceCode,
+              amount: res.data.amountPaid
+            }
+          })
+        );
 
         // Tự động thêm biên lai mới vào đầu danh sách lịch sử biên lai
         const newReceipt = {
@@ -526,9 +587,41 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     );
   };
 
-  // Xuất file báo cáo thống kê Excel giả lập
+  // Xuất file báo cáo thống kê Excel / CSV chuẩn UTF-8 từ danh sách biên lai thực tế
   const handleExportExcel = () => {
-    triggerToast('Đang kết xuất tệp Báo_Cáo_Thu_Phạt_SmartLib_09_2026.xlsx thành công!');
+    if (!receiptsList || receiptsList.length === 0) {
+      triggerToast('⚠️ Không có dữ liệu biên lai để xuất file Excel!');
+      return;
+    }
+
+    try {
+      // Tiêu đề các cột trong file CSV
+      const headers = ['Mã biên lai', 'Ngày thu tiền', 'Độc giả (MSSV)', 'Khoản thu / Vi phạm', 'Số tiền (VNĐ)', 'Hình thức', 'Thủ thư thu tiền'];
+      const rows = receiptsList.map((r) => [
+        `"${r.code || ''}"`,
+        `"${r.date || ''}"`,
+        `"${r.reader || ''}"`,
+        `"${(r.type || '').replace(/"/g, '""')}"`,
+        `"${r.amount || ''}"`,
+        `"${r.method || ''}"`,
+        `"${r.cashier || ''}"`
+      ]);
+
+      // Tạo nội dung CSV kèm UTF-8 BOM (\uFEFF) để Excel hiển thị đúng tiếng Việt có dấu
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Bao_Cao_Bien_Lai_Thu_Phat_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      triggerToast('✅ Đã xuất tệp danh sách biên lai thu phạt thành công (Mở tốt trên Microsoft Excel)!');
+    } catch (err) {
+      triggerToast(`❌ Lỗi khi xuất tệp: ${err.message}`);
+    }
   };
 
   return (
@@ -556,7 +649,7 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
             <AlertTriangle size={15} />
             <span>Sổ nợ đọng & Sách hư hỏng</span>
             <span className="fine-tab-badge">
-              {backendPendingFines.length > 0 ? backendPendingFines.length : 47}
+              {revenueSummary ? revenueSummary.totalPendingFinesCount : backendPendingFines.length > 0 ? backendPendingFines.length : 47}
             </span>
           </button>
 
@@ -567,7 +660,9 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
           >
             <ReceiptText size={15} />
             <span>Biên lai đã thu</span>
-            <span className="fine-tab-badge">15.45M</span>
+            <span className="fine-tab-badge">
+              {revenueSummary ? `${(revenueSummary.totalCollectedRevenue / 1000000).toFixed(2)}M` : '15.45M'}
+            </span>
           </button>
 
           <button
@@ -607,7 +702,11 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
               <ReceiptText size={20} />
             </div>
           </div>
-          <div className="revenue-kpi-value">15.450.000 đ</div>
+          <div className="revenue-kpi-value">
+            {revenueSummary
+              ? `${Number(revenueSummary.totalCollectedRevenue || 0).toLocaleString('vi-VN')} đ`
+              : '15.450.000 đ'}
+          </div>
           <div className="revenue-kpi-footer">
             <span className="revenue-growth-badge">
               <TrendingUp size={13} />
@@ -626,13 +725,17 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
             </div>
           </div>
           <div className="revenue-kpi-value">
-            {backendPendingFines.length > 0
+            {revenueSummary
+              ? `${Number(revenueSummary.totalPendingArrears || 0).toLocaleString('vi-VN')} đ`
+              : backendPendingFines.length > 0
               ? `${backendPendingFines.reduce((sum, f) => sum + (f.finalAmount || 0), 0).toLocaleString('vi-VN')} đ`
               : '2.150.000 đ'}
           </div>
           <div className="revenue-kpi-footer">
             <span className="revenue-kpi-subtext">
-              {backendPendingFines.length > 0 ? backendPendingFines.length : 47} lượt mượn quá hạn
+              {revenueSummary
+                ? `${revenueSummary.totalOverdueBorrowsCount || revenueSummary.totalPendingFinesCount} lượt mượn quá hạn`
+                : `${backendPendingFines.length > 0 ? backendPendingFines.length : 47} lượt mượn quá hạn`}
             </span>
           </div>
         </div>
@@ -645,9 +748,17 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
               <Award size={20} />
             </div>
           </div>
-          <div className="revenue-kpi-value">3.800.000 đ</div>
+          <div className="revenue-kpi-value">
+            {revenueSummary
+              ? `${Number(revenueSummary.totalDamageBookValue || 0).toLocaleString('vi-VN')} đ`
+              : '3.800.000 đ'}
+          </div>
           <div className="revenue-kpi-footer">
-            <span className="revenue-kpi-subtext">12 trường hợp cần xử lý</span>
+            <span className="revenue-kpi-subtext">
+              {revenueSummary
+                ? `${revenueSummary.totalPendingFinesCount} trường hợp cần xử lý`
+                : '12 trường hợp cần xử lý'}
+            </span>
           </div>
         </div>
       </div>
@@ -689,7 +800,12 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
         />
       )}
 
-      {currentSubTab === 'breakdown' && <RevenueBreakdownTab />}
+      {currentSubTab === 'breakdown' && (
+        <RevenueBreakdownTab
+          revenueSummary={revenueSummary}
+          receiptsList={receiptsList}
+        />
+      )}
 
       {/* ----------------------------------------------------------------------
           MODAL 1: CHI TIẾT PHÂN TÍCH NGUY CƠ AI CỦA ĐỘC GIẢ

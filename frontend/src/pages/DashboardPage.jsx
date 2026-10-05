@@ -19,6 +19,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { authApi } from '../api/authApi';
+import { invoiceApi } from '../api/invoiceApi';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
@@ -108,27 +109,153 @@ export default function DashboardPage({
     }
   ];
 
-  // Dữ liệu cơ cấu nguồn thu phạt (khớp với thẻ KPI 15.450.000 VNĐ)
+  // Dữ liệu cơ cấu nguồn thu phạt mặc định (dự phòng)
   const revenueSources = [
     {
       label: 'Phạt trễ hạn theo ngày',
       amount: '10.042.500đ',
       percentage: '65%',
-      color: '#3b82f6'
+      color: '#3b82f6',
+      ratio: 0.65
     },
     {
       label: 'Bồi hoàn sách hỏng/mất',
       amount: '3.862.500đ',
       percentage: '25%',
-      color: '#f97316'
+      color: '#f97316',
+      ratio: 0.25
     },
     {
       label: 'Phí cấp lại thẻ bạn đọc',
       amount: '1.545.000đ',
       percentage: '10%',
-      color: '#8b5cf6'
+      color: '#8b5cf6',
+      ratio: 0.10
     }
   ];
+
+  // State lưu trữ dữ liệu thống kê doanh thu thực tế từ Backend API
+  const [revenueSummary, setRevenueSummary] = React.useState(null);
+  const [isExportingExcel, setIsExportingExcel] = React.useState(false);
+
+  // Hàm nạp dữ liệu thống kê doanh thu từ Backend
+  const loadRevenueSummary = React.useCallback(() => {
+    invoiceApi.getRevenueSummary()
+      .then((res) => {
+        if (res?.data) {
+          setRevenueSummary(res.data);
+        }
+      })
+      .catch((err) => {
+        console.error('Lỗi khi nạp dữ liệu thống kê doanh thu:', err);
+      });
+  }, []);
+
+  // Nạp dữ liệu thống kê doanh thu khi vào tab Dashboard
+  React.useEffect(() => {
+    if (activeTab === 'dashboard') {
+      loadRevenueSummary();
+    }
+  }, [activeTab, loadRevenueSummary]);
+
+  // Lắng nghe sự kiện toàn cục để cập nhật số liệu Dashboard theo thời gian thực (không cần F5)
+  React.useEffect(() => {
+    const handleRevenueUpdated = () => {
+      loadRevenueSummary();
+    };
+
+    window.addEventListener('smartlib-revenue-updated', handleRevenueUpdated);
+    return () => {
+      window.removeEventListener('smartlib-revenue-updated', handleRevenueUpdated);
+    };
+  }, [loadRevenueSummary]);
+
+  // Nhãn tháng hiện tại
+  const currentMonthText = `Tháng ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`;
+
+  // Cơ cấu nguồn thu phạt tính toán động từ dữ liệu thật
+  const computedRevenueSources = React.useMemo(() => {
+    if (!revenueSummary?.breakdown) return revenueSources;
+    const bd = revenueSummary.breakdown;
+    const total = (bd.overdueAmount || 0) + (bd.damageAmount || 0) + (bd.lostAmount || 0) + (bd.otherAmount || 0);
+    const safeTotal = total > 0 ? total : 1;
+
+    const pOverdue = Math.round(((bd.overdueAmount || 0) / safeTotal) * 100);
+    const pDamage = Math.round(((bd.damageAmount || 0) / safeTotal) * 100);
+    const pLost = Math.round(((bd.lostAmount || 0) / safeTotal) * 100);
+    const pOther = Math.max(0, 100 - pOverdue - pDamage - pLost);
+
+    const list = [
+      {
+        label: 'Phạt trễ hạn theo ngày',
+        amount: (bd.overdueAmount || 0).toLocaleString('vi-VN') + 'đ',
+        percentage: `${pOverdue}%`,
+        color: '#3b82f6',
+        ratio: (bd.overdueAmount || 0) / safeTotal
+      },
+      {
+        label: 'Bồi hoàn sách hư hỏng',
+        amount: (bd.damageAmount || 0).toLocaleString('vi-VN') + 'đ',
+        percentage: `${pDamage}%`,
+        color: '#f97316',
+        ratio: (bd.damageAmount || 0) / safeTotal
+      },
+      {
+        label: 'Bồi hoàn sách làm mất',
+        amount: (bd.lostAmount || 0).toLocaleString('vi-VN') + 'đ',
+        percentage: `${pLost}%`,
+        color: '#ef4444',
+        ratio: (bd.lostAmount || 0) / safeTotal
+      },
+      {
+        label: 'Phí dịch vụ & thẻ khác',
+        amount: (bd.otherAmount || 0).toLocaleString('vi-VN') + 'đ',
+        percentage: `${pOther}%`,
+        color: '#8b5cf6',
+        ratio: (bd.otherAmount || 0) / safeTotal
+      }
+    ];
+
+    return total === 0 ? revenueSources : list.filter(item => item.amount !== '0đ');
+  }, [revenueSummary]);
+
+  // Xử lý xuất báo cáo tổng quan Dashboard dạng CSV chuẩn UTF-8 có dấu (hỗ trợ Excel)
+  const handleExportDashboardReport = async () => {
+    try {
+      setIsExportingExcel(true);
+      const res = await invoiceApi.getInvoiceHistory({ pageSize: 500 });
+      const invoices = res?.data?.items || [];
+
+      const headers = ['Mã biên lai', 'Mã bạn đọc', 'Họ tên bạn đọc', 'Lý do vi phạm', 'Số tiền (VNĐ)', 'Phương thức', 'Ngày thanh toán', 'Thủ thư xử lý', 'Trạng thái'];
+      const rows = invoices.map(inv => [
+        `"${inv.invoiceCode || ''}"`,
+        `"${inv.readerCode || ''}"`,
+        `"${inv.readerName || ''}"`,
+        `"${inv.violationReason || ''}"`,
+        inv.amount || 0,
+        `"${inv.paymentMethod || ''}"`,
+        `"${inv.paymentDate ? new Date(inv.paymentDate).toLocaleString('vi-VN') : ''}"`,
+        `"${inv.processedBy || ''}"`,
+        `"${inv.status || ''}"`
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Bao_cao_tong_quan_doanh_thu_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Lỗi khi xuất file báo cáo Excel:', err);
+      alert('Không thể xuất báo cáo Excel vào lúc này.');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
 
   // Thông tin metadata cho các tab đang chờ thành viên khác phát triển
   const tabMetadata = {
@@ -360,16 +487,22 @@ export default function DashboardPage({
               </>
             ) : (
               <>
-                {/* Bộ chọn tháng */}
+                {/* Bộ chọn tháng hiện tại */}
                 <div className="date-badge">
                   <Calendar size={16} />
-                  <span>Tháng 09/2026</span>
+                  <span>{currentMonthText}</span>
                 </div>
 
-                {/* Nút xuất báo cáo Excel (Giao diện hiển thị) */}
-                <button className="btn-excel" type="button">
+                {/* Nút xuất báo cáo Excel kết nối dữ liệu thật */}
+                <button
+                  className="btn-excel"
+                  type="button"
+                  onClick={handleExportDashboardReport}
+                  disabled={isExportingExcel}
+                  title="Xuất danh sách biên lai và doanh thu ra Excel (CSV)"
+                >
                   <FileSpreadsheet size={16} />
-                  <span>Xuất báo cáo Excel</span>
+                  <span>{isExportingExcel ? 'Đang xuất...' : 'Xuất báo cáo Excel'}</span>
                 </button>
               </>
             )}
@@ -414,14 +547,18 @@ export default function DashboardPage({
                       <ReceiptText size={20} />
                     </div>
                   </div>
-                  <div className="kpi-value">15.450.000 VNĐ</div>
+                  <div className="kpi-value">
+                    {revenueSummary
+                      ? `${revenueSummary.totalCollectedRevenue.toLocaleString('vi-VN')} VNĐ`
+                      : '15.450.000 VNĐ'}
+                  </div>
                   <div className="kpi-subtext-box">
                     <span className="badge-growth">+12%</span>
                     <span>so với tháng trước</span>
                   </div>
                 </div>
 
-                {/* Thẻ 2: Tiền phạt trễ hạn dự kiến */}
+                {/* Thẻ 2: Tiền phạt trễ hạn dự kiến (nợ đọng) */}
                 <div className="kpi-card">
                   <div className="kpi-header">
                     <h3 className="kpi-title">Tiền phạt trễ hạn dự kiến</h3>
@@ -429,9 +566,13 @@ export default function DashboardPage({
                       <AlertTriangle size={20} />
                     </div>
                   </div>
-                  <div className="kpi-value">2.350.000 VNĐ</div>
+                  <div className="kpi-value">
+                    {revenueSummary
+                      ? `${revenueSummary.totalPendingArrears.toLocaleString('vi-VN')} VNĐ`
+                      : '2.350.000 VNĐ'}
+                  </div>
                   <div className="kpi-subtext-box">
-                    <span>47 lượt mượn quá hạn</span>
+                    <span>Dòng tiền chờ thu hồi</span>
                   </div>
                 </div>
 
@@ -530,7 +671,7 @@ export default function DashboardPage({
                 <div className="doughnut-card">
                   <div className="doughnut-header">
                     <h3 className="doughnut-title">Cơ cấu Nguồn thu Phạt</h3>
-                    <p className="doughnut-subtitle">Dòng tiền phạt tháng 09/2026</p>
+                    <p className="doughnut-subtitle">Dòng tiền phạt {currentMonthText}</p>
                   </div>
 
                   {/* Vòng tròn SVG Doughnut Chart */}
@@ -546,59 +687,49 @@ export default function DashboardPage({
                         strokeWidth="16"
                       />
 
-                      {/* Phân khúc 1: Phạt trễ hạn theo ngày (65%) */}
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="58"
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="16"
-                        strokeDasharray="236.9 364.4"
-                        strokeDashoffset="0"
-                        transform="rotate(-90 80 80)"
-                        strokeLinecap="round"
-                      />
+                      {/* Các phân khúc nguồn thu tính theo tỉ lệ thực tế */}
+                      {(() => {
+                        let accumulatedRatio = 0;
+                        const circ = 364.42;
+                        return computedRevenueSources.map((item, idx) => {
+                          const ratio = item.ratio || 0;
+                          const strokeLen = Math.max(0, ratio * circ);
+                          const strokeOffset = -(accumulatedRatio * circ);
+                          accumulatedRatio += ratio;
 
-                      {/* Phân khúc 2: Bồi hoàn hỏng/mất sách (25%) */}
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="58"
-                        fill="none"
-                        stroke="#f97316"
-                        strokeWidth="16"
-                        strokeDasharray="91.1 364.4"
-                        strokeDashoffset="-236.9"
-                        transform="rotate(-90 80 80)"
-                        strokeLinecap="round"
-                      />
-
-                      {/* Phân khúc 3: Phí cấp lại thẻ bạn đọc (10%) */}
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="58"
-                        fill="none"
-                        stroke="#8b5cf6"
-                        strokeWidth="16"
-                        strokeDasharray="36.4 364.4"
-                        strokeDashoffset="-328"
-                        transform="rotate(-90 80 80)"
-                        strokeLinecap="round"
-                      />
+                          return (
+                            <circle
+                              key={idx}
+                              cx="80"
+                              cy="80"
+                              r="58"
+                              fill="none"
+                              stroke={item.color}
+                              strokeWidth="16"
+                              strokeDasharray={`${strokeLen.toFixed(1)} ${circ.toFixed(1)}`}
+                              strokeDashoffset={strokeOffset.toFixed(1)}
+                              transform="rotate(-90 80 80)"
+                              strokeLinecap="round"
+                            />
+                          );
+                        });
+                      })()}
                     </svg>
 
                     {/* Thông tin trọng tâm ở giữa hình tròn */}
                     <div className="doughnut-center-info">
-                      <span className="doughnut-center-amount">15.45M</span>
+                      <span className="doughnut-center-amount">
+                        {revenueSummary && revenueSummary.totalCollectedRevenue > 0
+                          ? `${(revenueSummary.totalCollectedRevenue / 1000000).toFixed(2)}M`
+                          : '15.45M'}
+                      </span>
                       <span className="doughnut-center-label">Tổng thu phạt</span>
                     </div>
                   </div>
 
                   {/* Danh sách chú giải chi tiết từng nguồn thu */}
                   <ul className="doughnut-legend-list">
-                    {revenueSources.map((item, idx) => (
+                    {computedRevenueSources.map((item, idx) => (
                       <li key={idx} className="doughnut-legend-item">
                         <div className="doughnut-legend-left">
                           <div

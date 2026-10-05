@@ -67,6 +67,40 @@ public class InvoicesController : ControllerBase
     }
 
     /// <summary>
+    /// Tổng hợp số liệu tài chính doanh thu thu phạt và dữ liệu biểu đồ xu hướng (Story LOLRA-17 / Sprint 5.1).
+    /// </summary>
+    /// <response code="200">Dữ liệu tổng hợp KPI và biểu đồ doanh thu</response>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(ApiResponse<RevenueSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRevenueSummary()
+    {
+        var result = await _invoiceService.GetRevenueSummaryAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách lịch sử biên lai thu tiền phạt có lọc theo từ khóa, ngày và phân trang (Story LOLRA-17 / Sprint 5.1).
+    /// </summary>
+    /// <param name="query">Từ khóa tìm kiếm (Mã biên lai, Họ tên độc giả, MSSV, Tên sách)</param>
+    /// <param name="fromDate">Từ ngày thanh toán</param>
+    /// <param name="toDate">Đến ngày thanh toán</param>
+    /// <param name="pageNumber">Số trang (mặc định 1)</param>
+    /// <param name="pageSize">Kích thước trang (mặc định 20)</param>
+    /// <response code="200">Danh sách biên lai đã thu tiền</response>
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<InvoiceHistoryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetInvoiceHistory(
+        [FromQuery] string? query = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _invoiceService.GetInvoiceHistoryAsync(query, fromDate, toDate, pageNumber, pageSize);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tra cứu chi tiết biên lai thu tiền phạt theo Mã biên lai (INVxxxxxx) hoặc ID hóa đơn để in lại.
     /// </summary>
     /// <param name="idOrCode">Mã biên lai dạng INV202610010001 hoặc ID số</param>
