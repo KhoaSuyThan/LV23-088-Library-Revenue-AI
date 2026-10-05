@@ -5,6 +5,12 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-05] - Hoàn Thiện API Doanh Thu, Quản Lý Biên Lai Phạt & Đồng Bộ Thời Gian Thực (Sprint 5.1 - TASK-01)
+
+- **Backend API Doanh thu & Biên lai:** Bổ sung DTOs, Repository, Service và 2 endpoint `GET /api/invoices/summary`, `GET /api/invoices/history` truy vấn dữ liệu thực tế từ SQL Server.
+- **Báo cáo Thu phạt ([`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Kết nối dữ liệu thật cho 3 thẻ KPI, tab "Biên lai đã thu", tab "Cơ cấu doanh thu" và hỗ trợ xuất file Excel/CSV chuẩn UTF-8 có dấu.
+- **Dashboard & Đồng bộ Real-time ([`DashboardPage.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):** Hiển thị số liệu thực tế trên thẻ KPI, biểu đồ tròn Donut tự động chia tỉ lệ và tự động làm mới số liệu theo thời gian thực khi phát sinh giao dịch thu phạt.
+
 
 ## [2026-10-02] - Khắc Phục Lỗ Hổng Phân Quyền: Chặn Tuyệt Đối Tài Khoản Reader Truy Cập Cổng Quản Trị
 

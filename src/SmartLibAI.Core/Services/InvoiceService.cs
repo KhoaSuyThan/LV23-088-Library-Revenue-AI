@@ -189,4 +189,52 @@ public class InvoiceService : IInvoiceService
             CanBorrowAgain = true
         };
     }
+
+    /// <summary>
+    /// Lấy tổng hợp số liệu tài chính doanh thu thu phạt và dữ liệu biểu đồ.
+    /// </summary>
+    public async Task<ApiResponse<RevenueSummaryDto>> GetRevenueSummaryAsync()
+    {
+        try
+        {
+            var summary = await _invoiceRepository.GetRevenueSummaryAsync();
+            return ApiResponse<RevenueSummaryDto>.SuccessResult(summary, "Tổng hợp số liệu doanh thu thu phạt thành công.");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<RevenueSummaryDto>.ErrorResult($"Lỗi truy vấn tổng hợp doanh thu: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách lịch sử biên lai thu tiền phạt có lọc và phân trang.
+    /// </summary>
+    public async Task<ApiResponse<PagedResult<InvoiceHistoryDto>>> GetInvoiceHistoryAsync(
+        string? query = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        int pageNumber = 1,
+        int pageSize = 20)
+    {
+        try
+        {
+            var (items, totalCount) = await _invoiceRepository.GetInvoiceHistoryAsync(
+                query,
+                fromDate,
+                toDate,
+                pageNumber,
+                pageSize);
+
+            var pagedResult = new PagedResult<InvoiceHistoryDto>(items, totalCount, pageNumber, pageSize);
+
+            return ApiResponse<PagedResult<InvoiceHistoryDto>>.SuccessResult(
+                pagedResult,
+                $"Lấy danh sách biên lai thành công ({items.Count}/{totalCount} biên lai).");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<InvoiceHistoryDto>>.ErrorResult($"Lỗi truy vấn danh sách biên lai: {ex.Message}");
+        }
+    }
 }
+

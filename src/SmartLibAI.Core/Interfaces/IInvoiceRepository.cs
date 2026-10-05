@@ -1,3 +1,4 @@
+using SmartLibAI.Core.DTOs.Invoices;
 using SmartLibAI.Core.Entities;
 
 namespace SmartLibAI.Core.Interfaces;
@@ -41,4 +42,19 @@ public interface IInvoiceRepository : IGenericRepository<PenaltyInvoice>
         string paymentMethod,
         int cashierId,
         string? note);
+
+    /// <summary>
+    /// Tính toán tổng hợp số liệu tài chính doanh thu thu phạt và mảng dữ liệu biểu đồ.
+    /// </summary>
+    Task<RevenueSummaryDto> GetRevenueSummaryAsync();
+
+    /// <summary>
+    /// Lấy danh sách lịch sử biên lai thu tiền phạt có lọc theo từ khóa, khoảng ngày và phân trang.
+    /// </summary>
+    Task<(List<InvoiceHistoryDto> Items, int TotalCount)> GetInvoiceHistoryAsync(
+        string? query = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        int pageNumber = 1,
+        int pageSize = 20);
 }

@@ -30,5 +30,30 @@ export const invoiceApi = {
   getInvoice: async (idOrCode) => {
     const response = await apiClient.get(`/api/invoices/${encodeURIComponent(idOrCode)}`);
     return response.data;
+  },
+
+  /**
+   * Lấy tổng hợp số liệu tài chính doanh thu thu phạt và dữ liệu biểu đồ (Story LOLRA-17)
+   */
+  getRevenueSummary: async () => {
+    const response = await apiClient.get('/api/invoices/summary');
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách lịch sử các biên lai đã thu tiền có phân trang và lọc theo ngày/từ khóa
+   * @param {{ query?: string, fromDate?: string, toDate?: string, pageNumber?: number, pageSize?: number }} [params]
+   */
+  getInvoiceHistory: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.query) queryParams.append('query', params.query);
+    if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+    if (params.toDate) queryParams.append('toDate', params.toDate);
+    if (params.pageNumber) queryParams.append('pageNumber', params.pageNumber);
+    if (params.pageSize) queryParams.append('pageSize', params.pageSize);
+
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    const response = await apiClient.get(`/api/invoices/history${queryString}`);
+    return response.data;
   }
 };

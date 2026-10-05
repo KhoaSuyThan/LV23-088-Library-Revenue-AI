@@ -27,4 +27,19 @@ public interface IInvoiceService
     /// Tra cứu chi tiết biên lai thu tiền phạt theo ID hóa đơn.
     /// </summary>
     Task<ApiResponse<InvoiceResponseDto>> GetInvoiceByIdAsync(int invoiceId);
+
+    /// <summary>
+    /// Lấy tổng hợp số liệu tài chính doanh thu thu phạt và dữ liệu biểu đồ.
+    /// </summary>
+    Task<ApiResponse<RevenueSummaryDto>> GetRevenueSummaryAsync();
+
+    /// <summary>
+    /// Lấy danh sách lịch sử biên lai thu tiền phạt có lọc và phân trang.
+    /// </summary>
+    Task<ApiResponse<PagedResult<InvoiceHistoryDto>>> GetInvoiceHistoryAsync(
+        string? query = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        int pageNumber = 1,
+        int pageSize = 20);
 }
