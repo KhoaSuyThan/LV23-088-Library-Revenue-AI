@@ -5,6 +5,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-05] - Chuẩn Hóa Dữ Liệu Thực Tế & Xuất Excel Cho Sổ Nợ Đọng Và Biên Lai Thu Phạt
+
+- **Sổ Nợ Đọng & Sách Hư Hỏng ([`RevenueArrearsTab.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx), [`FineRevenue.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):**
+  - Đồng bộ số liệu thực tế từ cơ sở dữ liệu: Hiển thị chính xác tổng tiền nợ đọng, số tiền phạt đã thu và số lượng khoản phạt vi phạm (loại bỏ toàn bộ các số liệu mẫu/fallback giả lập).
+  - Nâng cấp chức năng **Xuất file Excel**: Xuất danh sách nợ đọng thực tế với đầy đủ 14 cột chi tiết (Mã phiếu, Độc giả, Khoa, Tên sách, Mã bản sao, Ngày trễ, Tiền phạt, Hạn thu...), hỗ trợ mã hóa UTF-8 BOM hiển thị chuẩn tiếng Việt có dấu.
+- **Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
+  - Hiển thị danh sách biên lai thu tiền phạt thực tế từ hệ thống, đồng bộ trạng thái gạch nợ và hình thức thanh toán (Tiền mặt / Chuyển khoản QR).
+  - Nâng cấp chức năng **Xuất file Excel**: Xuất toàn bộ dữ liệu lịch sử biên lai thực tế với 14 cột nghiệp vụ kế toán phục vụ đối soát tài chính, định dạng chuẩn UTF-8 BOM.
+
 ## [2026-10-05] - Nâng Cấp Dashboard Vận Hành Tổng Quát & Báo Cáo Xuất Excel Đa Tầng
 
 - **Biểu đồ Vận hành Tổng quát ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
