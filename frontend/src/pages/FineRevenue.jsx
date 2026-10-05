@@ -671,7 +671,7 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
             type="button"
           >
             <TrendingUp size={15} />
-            <span>Cơ cấu doanh thu</span>
+            <span>Biểu đồ & Thống kê vi phạm</span>
           </button>
         </div>
 
@@ -804,6 +804,7 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
         <RevenueBreakdownTab
           revenueSummary={revenueSummary}
           receiptsList={receiptsList}
+          backendPendingFines={backendPendingFines}
         />
       )}
 

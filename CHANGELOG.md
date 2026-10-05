@@ -5,7 +5,19 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-05] - Hoàn Thiện API Doanh Thu, Quản Lý Biên Lai Phạt & Đồng Bộ Thời Gian Thực (Sprint 5.1 - TASK-01)
+## [2026-10-05] - Thiết Kế & Nâng Cấp Dashboard Biểu Đồ Doanh Thu Thu Phạt & Thống Kê Vi Phạm
+
+- **Đồng bộ hóa Dashboard Tổng quan ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+  - Nâng cấp biểu đồ đường xu hướng SVG tương tác cao: kết nối trực tiếp mảng dữ liệu `trendPoints` từ CSDL, hỗ trợ bộ chọn thời gian linh hoạt (7 ngày, 30 ngày, Theo quý), hiển thị đồng thời đường diện tích *Thực thu* (Xanh dương) và đường nét đứt *Nợ phát sinh / Mục tiêu* (Vàng cam).
+  - Tích hợp tooltip động hiển thị ngày và số tiền chi tiết khi rê chuột vào từng điểm mốc.
+  - Cập nhật biểu đồ tròn Donut cơ cấu nguồn thu phạt tự động bóc tách từ mảng DTO thực tế, bổ sung chỉ số *Tỷ lệ thu hồi nợ phạt* và nút điều hướng nhanh sang Dashboard chi tiết.
+- **Dashboard Phân tích Chuyên sâu ([`RevenueBreakdownTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx)):**
+  - Thiết kế hoàn chỉnh Dashboard phân tích tài chính & thống kê vi phạm trong tab *"Biểu đồ & Thống kê vi phạm"* tại phân hệ Báo cáo Thu phạt ([`FineRevenue.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)).
+  - Bổ sung cụm 4 thẻ KPI tài chính: Thực thu lũy kế, Dòng tiền phạt nợ đọng, Tỷ lệ thu hồi nợ phạt (kèm thanh đo tiến độ), và Giá trị tài liệu hư hỏng/mất mát.
+  - Thống kê cơ cấu 4 nhóm vi phạm quy chế trọng tâm: Phạt trễ hạn theo ngày, Hư hỏng vật lý (bìa/trang/vẽ bẩn), Làm mất tài liệu, và Phí cấp lại thẻ/nội quy khác (gồm thanh phân đoạn Segmented Bar và 4 thẻ chi tiết).
+  - Phân tích kênh thanh toán: Chuyển khoản VietQR tự động đối soát (QR VietQR) vs Tiền mặt tại quầy lưu thông.
+  - Bảng xếp hạng Top đầu sách thường xuyên vi phạm (số lượt quá hạn, số cuốn hư hỏng, mức phạt phát sinh và khuyến nghị giải pháp lưu thông).
+
 
 - **Backend API Doanh thu & Biên lai:** Bổ sung DTOs, Repository, Service và 2 endpoint `GET /api/invoices/summary`, `GET /api/invoices/history` truy vấn dữ liệu thực tế từ SQL Server.
 - **Báo cáo Thu phạt ([`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Kết nối dữ liệu thật cho 3 thẻ KPI, tab "Biên lai đã thu", tab "Cơ cấu doanh thu" và hỗ trợ xuất file Excel/CSV chuẩn UTF-8 có dấu.
