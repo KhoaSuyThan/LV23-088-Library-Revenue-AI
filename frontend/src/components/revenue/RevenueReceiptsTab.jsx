@@ -8,35 +8,38 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Download
 } from 'lucide-react';
 
 /**
- * Component Tab 3: Lịch sử Biên lai đã thu
- * Có hỗ trợ phân trang danh sách, tìm kiếm và lọc theo phương thức thanh toán
+ * Component Tab 3: Lịch sử Biên lai đã thu từ SQL Server (Story LOLRA-19)
+ * Hỗ trợ phân trang danh sách, tìm kiếm, lọc theo phương thức thanh toán và xuất Excel thực tế.
  */
 export default function RevenueReceiptsTab({
   receipts = [],
   onPrintReceipt,
-  triggerToast
+  triggerToast,
+  onExportExcel,
+  isLoading = false
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState('all'); // 'all' | 'cash' | 'qr'
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [jumpPageInput, setJumpPageInput] = useState('1');
 
-  // Đếm số lượng theo phương thức thanh toán
+  // Đếm số lượng theo phương thức thanh toán thực tế
   const cashCount = useMemo(() => receipts.filter((r) => !r.isQr).length, [receipts]);
   const qrCount = useMemo(() => receipts.filter((r) => r.isQr).length, [receipts]);
 
-  // Tính tổng số tiền thu được từ danh sách biên lai
+  // Tính tổng số tiền thu được thực tế từ danh sách biên lai SQL Server
   const totalRevenue = useMemo(() => {
     const sum = receipts.reduce((acc, r) => {
       const num = parseInt(String(r.amount).replace(/[^0-9]/g, ''), 10) || 0;
       return acc + num;
     }, 0);
-    return sum > 0 ? `${sum.toLocaleString('vi-VN')} VNĐ` : '15.450.000 VNĐ';
+    return `${sum.toLocaleString('vi-VN')} VNĐ`;
   }, [receipts]);
 
   // Lọc biên lai theo từ khóa và phương thức thanh toán
@@ -146,17 +149,32 @@ export default function RevenueReceiptsTab({
             {totalRevenue}
           </div>
           <div style={{ fontSize: '13px', color: '#86efac', marginTop: '4px' }}>
-            ✓ Đã đối soát tài chính ngân hàng ngày 28/09/2026 ({receipts.length} biên lai)
+            ✓ Đã lưu trữ & đồng bộ {receipts.length} biên lai thu phạt chính thức từ cơ sở dữ liệu SQL Server
           </div>
         </div>
-        <button
-          className="btn-secondary-action"
-          style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
-          onClick={() => triggerToast && triggerToast('Đang kết xuất tất cả biên lai sang file PDF...')}
-        >
-          <Printer size={15} />
-          <span>In bảng kê biên lai</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {onExportExcel && (
+            <button
+              className="btn-secondary-action"
+              style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', fontWeight: 600 }}
+              onClick={onExportExcel}
+              type="button"
+              title="Xuất toàn bộ biên lai ra file Excel (.CSV UTF-8 chuẩn có dấu)"
+            >
+              <Download size={15} />
+              <span>Xuất Excel ({receipts.length})</span>
+            </button>
+          )}
+          <button
+            className="btn-secondary-action"
+            style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
+            onClick={() => window.print ? window.print() : triggerToast && triggerToast('Đang kết xuất tất cả biên lai sang file PDF...')}
+            type="button"
+          >
+            <Printer size={15} />
+            <span>In bảng kê biên lai</span>
+          </button>
+        </div>
       </div>
 
       {/* THANH TÌM KIẾM & BỘ LỌC PHƯƠNG THỨC */}
@@ -280,7 +298,11 @@ export default function RevenueReceiptsTab({
             ) : (
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
-                  <div>Không tìm thấy biên lai nào phù hợp với bộ lọc hiện tại.</div>
+                  {isLoading ? (
+                    <div>⏳ Đang tải dữ liệu biên lai thực tế từ SQL Server...</div>
+                  ) : (
+                    <div>Không tìm thấy biên lai nào phù hợp với bộ lọc hiện tại.</div>
+                  )}
                   {(searchQuery || methodFilter !== 'all') && (
                     <button
                       type="button"

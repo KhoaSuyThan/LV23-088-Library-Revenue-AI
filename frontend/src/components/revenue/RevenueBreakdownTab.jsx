@@ -38,14 +38,24 @@ export default function RevenueBreakdownTab({
 
   // 1. TỔNG HỢP CÁC CHỈ SỐ TÀI CHÍNH TỔNG QUÁT (KPI METRICS)
   const metrics = useMemo(() => {
-    const totalCollected = revenueSummary?.totalCollectedRevenue || 15450000;
-    const totalPending = revenueSummary?.totalPendingArrears || 2350000;
-    const totalDamage = revenueSummary?.totalDamageBookValue || 3800000;
-    const invoicesCount = revenueSummary?.totalInvoicesCount || (receiptsList.length > 0 ? receiptsList.length : 128);
-    const pendingCount = revenueSummary?.totalPendingFinesCount || (backendPendingFines.length > 0 ? backendPendingFines.length : 47);
+    const totalCollected = revenueSummary?.totalCollectedRevenue != null
+      ? Number(revenueSummary.totalCollectedRevenue)
+      : receiptsList.reduce((acc, r) => acc + (parseInt(String(r.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+    const totalPending = revenueSummary?.totalPendingArrears != null
+      ? Number(revenueSummary.totalPendingArrears)
+      : backendPendingFines.reduce((sum, f) => sum + (Number(f.finalAmount) || 0), 0);
+    const totalDamage = revenueSummary?.totalDamageBookValue != null
+      ? Number(revenueSummary.totalDamageBookValue)
+      : 3800000;
+    const invoicesCount = revenueSummary?.totalInvoicesCount != null
+      ? revenueSummary.totalInvoicesCount
+      : receiptsList.length;
+    const pendingCount = revenueSummary?.totalPendingFinesCount != null
+      ? revenueSummary.totalPendingFinesCount
+      : backendPendingFines.length;
 
     const totalPotential = totalCollected + totalPending;
-    const recoveryRate = totalPotential > 0 ? Math.round((totalCollected / totalPotential) * 1000) / 10 : 86.8;
+    const recoveryRate = totalPotential > 0 ? Math.round((totalCollected / totalPotential) * 1000) / 10 : 0;
 
     return {
       totalCollected,
