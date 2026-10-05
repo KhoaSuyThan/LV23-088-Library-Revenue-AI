@@ -5,6 +5,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-05] - Nâng Cấp Dashboard Vận Hành Tổng Quát & Báo Cáo Xuất Excel Đa Tầng
+
+- **Biểu đồ Vận hành Tổng quát ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+  - Chuyển đổi biểu đồ chính sang theo dõi **Lưu thông Sách** (Lượt mượn vs Lượt trả), có nút chuyển nhanh sang *Thu phạt*.
+  - Chuyển biểu đồ tròn sang **Cơ cấu Thể loại Kho sách** từ 10 danh mục CSDL thực tế (11.123 đầu sách), hỗ trợ 3 chế độ xem (*Thể loại*, *Bản sao*, *Thu phạt*).
+  - Chuẩn hóa 4 thẻ KPI bao quát 4 trụ cột thư viện: *Kho sách & Danh mục*, *Lưu thông & Mượn trả*, *Hồ sơ Bạn đọc*, và *Doanh thu Thu phạt*.
+- **Xuất Báo cáo Excel Tổng hợp ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+  - Nâng cấp xuất Excel thành Báo cáo vận hành thư viện tổng hợp gồm 4 phần: Chỉ số KPI toàn hệ thống, Thống kê 10 thể loại sách, Danh sách độc giả rủi ro AI và Biên lai đối soát tài chính.
+
 ## [2026-10-05] - Thiết Kế & Nâng Cấp Dashboard Biểu Đồ Doanh Thu Thu Phạt & Thống Kê Vi Phạm
 
 - **Đồng bộ hóa Dashboard Tổng quan ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
