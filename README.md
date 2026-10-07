@@ -179,14 +179,14 @@ Dự án áp dụng mô hình phân nhánh **Gitflow** tích hợp tự động 
 
 * `main`: Nhánh ổn định, chỉ tiếp nhận mã nguồn sau khi kiểm thử và nghiệm thu tính năng.
 * `develop`: Nhánh làm việc trung tâm tích hợp mã nguồn của toàn nhóm.
-* `LOLRA-<Số>-<slug>`: Nhánh phát triển tính năng theo mã công việc Jira (bắt đầu trực tiếp bằng mã Issue để Jira tự động nhận diện và liên kết nhánh).
-  * **Ví dụ:** `git checkout -b LOLRA-78-reader-management`
+* `L0LRA-<Số>-<slug>`: Nhánh phát triển tính năng theo mã công việc Jira (bắt đầu trực tiếp bằng mã Issue để Jira tự động nhận diện và liên kết nhánh).
+  * **Ví dụ:** `git checkout -b L0LRA-78-reader-management`
 
 ### Quy ước đặt tên commit (Jira Smart Commits):
 ```text
-LOLRA-<Số> <Mô tả nội dung bằng tiếng Việt>
+L0LRA-<Số> <Mô tả nội dung bằng tiếng Việt>
 ```
-* **Ví dụ:** `git commit -m "LOLRA-78 Viết API Quản lý độc giả & Khóa thẻ"`
+* **Ví dụ:** `git commit -m "L0LRA-78 Viết API Quản lý độc giả & Khóa thẻ"`
 * *Lưu ý:* Luôn đặt mã Issue viết hoa ở đầu thông điệp commit (không dùng tiền tố hay dấu ngoặc vuông) để Jira Webhook bắt và hiển thị chính xác vào mục **Development** của Task.
 
 ---

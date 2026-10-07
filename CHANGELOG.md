@@ -5,7 +5,7 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-07] - [LOLRA-78] Triển Khai Bộ API Quản Lý Độc Giả & Khóa Mở Thẻ Bạn Đọc
+## [2026-10-07] - [L0LRA-78] Triển Khai Bộ API Quản Lý Độc Giả & Khóa Mở Thẻ Bạn Đọc
 
 - **Backend Web API (.NET 10 & Entity Framework Core):**
   - **DTOs ([`src/SmartLibAI.Core/DTOs/Readers/`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Readers/)):** Xây dựng các DTO `ReaderDto`, `ReaderDetailDto`, `CreateReaderRequestDto`, `UpdateReaderRequestDto`, `ToggleReaderStatusDto`, `ExtendCardRequestDto` chuẩn hóa dữ liệu hồ sơ bạn đọc, danh sách sách đang mượn và nợ phạt.
