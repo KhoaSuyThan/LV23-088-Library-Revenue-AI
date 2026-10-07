@@ -6,6 +6,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
+import { rulesApi } from '../api/rulesApi';
 import BorrowForm from '../components/BorrowForm';
 import ReturnProcessing from '../components/ReturnProcessing';
 import CirculationReceiptModal from '../components/CirculationReceiptModal';
@@ -173,6 +174,17 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   const loadRecentTransactions = useCallback(async () => {
     setIsLoadingBorrows(true);
     try {
+      // Lấy quy định mức phí phạt trễ hạn hiện hành từ CSDL Backend / Rules API
+      let fineRatePerDay = 2000;
+      try {
+        const rules = await rulesApi.getSystemRules();
+        if (rules && (rules.finePerDay !== undefined && rules.finePerDay !== null)) {
+          fineRatePerDay = Number(rules.finePerDay) || 2000;
+        }
+      } catch (errRule) {
+        console.warn('Không tải được quy định phạt từ hệ thống, dùng mức mặc định:', errRule);
+      }
+
       const res = await borrowApi.getRecentBorrows(50);
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map((item) => {
@@ -181,8 +193,8 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
           const isOverdue = item.status === 'Overdue' || (daysLate > 0 && item.status !== 'Returned');
           const isReturned = item.status === 'Returned';
           const itemBasePrice = firstItem?.basePrice || 50000;
-          // Quy tắc 10.1 & 10.2: Tính phạt 5.000đ/ngày và áp mức trần 100% giá bìa gốc
-          const rawFine = isOverdue ? daysLate * 5000 : 0;
+          // Tính phạt theo quy định hệ thống (mặc định 2.000đ/ngày) và áp mức trần 100% giá bìa gốc
+          const rawFine = isOverdue ? daysLate * fineRatePerDay : 0;
           const feeAmount = isOverdue ? Math.min(rawFine, itemBasePrice) : 0;
 
           const cleanItems = (item.items && item.items.length > 0)

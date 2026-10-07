@@ -24,8 +24,20 @@ VALUES
     (N'Văn học & Nghệ thuật'), 
     (N'Y học & Sức khỏe');
 
-INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier, StudentBorrowLimit, StudentBorrowDays, LecturerBorrowLimit, LecturerBorrowDays, DamageFeePercent, ConductScoreDiscountPercent) 
-VALUES (N'Quy định Thư viện Tiêu chuẩn', 5000, 1.0, 5, 14, 10, 30, 10.0, 20.0);
+INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier, StudentBorrowLimit, StudentBorrowDays, LecturerBorrowLimit, LecturerBorrowDays, DamageFeePercent, ConductScoreDiscountPercent, MaxRenewalTimes, RenewalExtraDays, DebtLockAmount, AutoLockDebtThreshold, AiRiskThreshold, AiRemindDaysBefore, AiAutoEmailReminder, CompensationFixedFee, AiAccuracy, AiLastTrained, IsActive) 
+VALUES (N'Quy định Thư viện Tiêu chuẩn', 5000, 1.0, 5, 14, 10, 30, 10.0, 20.0, 1, 7, 50000, 1, 80, 3, 1, 20000, 84.5, '10/09/2026', 1);
+
+INSERT INTO WaiverReasons (ReasonCode, ReasonName, DefaultDiscountPercent, IsActive) VALUES
+('WR-SICK', N'Nghỉ ốm có giấy ra/nhập viện điều trị', 100, 1),
+('WR-FORCE-MAJEURE', N'Thiên tai, lũ lụt, dịch bệnh, sự cố bất khả kháng', 100, 1),
+('WR-SYS-ERROR', N'Sự cố lỗi phần mềm hệ thống hoặc mất điện thư viện', 100, 1),
+('WR-POOR-STUDENT', N'Sinh viên diện chính sách hoàn cảnh khó khăn', 50, 0);
+
+INSERT INTO RuleAuditLogs (RuleKey, RuleName, OldValue, NewValue, ChangedBy, ChangedAt, IpAddress) VALUES
+('aiRiskThreshold', N'Ngưỡng kích hoạt rủi ro AI Early Warning', '75%', '80%', N'Thủ thư (Admin)', '2026-09-18 15:10:00', '192.168.1.10'),
+('finePerDay', N'Phí phạt trễ hạn theo ngày', N'3.000 VNĐ', N'2.000 VNĐ', N'Thủ thư (Admin)', '2026-09-18 14:32:10', '192.168.1.45'),
+('aiDiscount_100', N'Chiết khấu AI điểm tuyệt đối (100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
+('borrowLimit_MaxTogether', N'Số sách tối đa được mượn cùng lúc', N'4 cuốn', N'5 cuốn', N'Thủ thư (Admin)', '2026-09-10 09:15:00', '192.168.1.12');
 
 -- 2. TÀI KHOẢN ADMIN & NHÂN VIÊN MẪU (BẢO MẬT BCRYPT CHUẨN, ISACTIVE = 1)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive) 
