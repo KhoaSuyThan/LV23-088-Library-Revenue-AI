@@ -30,6 +30,8 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IBorrowService, BorrowService>();
 builder.Services.AddScoped<IReturnService, ReturnService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IRulesRepository, RulesRepository>();
+builder.Services.AddScoped<IRulesService, RulesService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -196,6 +198,68 @@ using (var scope = app.Services.CreateScope())
                     FOREIGN KEY (ReceiptID) REFERENCES FineReceipts(ReceiptID),
                     FOREIGN KEY (CashierID) REFERENCES Users(UserID)
                 );
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'MaxRenewalTimes')
+            BEGIN
+                ALTER TABLE FineRules ADD 
+                    MaxRenewalTimes INT NOT NULL DEFAULT 1,
+                    RenewalExtraDays INT NOT NULL DEFAULT 7,
+                    DebtLockAmount DECIMAL(18,2) NOT NULL DEFAULT 50000,
+                    AutoLockDebtThreshold BIT NOT NULL DEFAULT 1,
+                    AiRiskThreshold INT NOT NULL DEFAULT 80,
+                    AiRemindDaysBefore INT NOT NULL DEFAULT 3,
+                    AiAutoEmailReminder BIT NOT NULL DEFAULT 1,
+                    CompensationFixedFee DECIMAL(18,2) NOT NULL DEFAULT 20000,
+                    AiAccuracy DECIMAL(5,2) NOT NULL DEFAULT 84.5,
+                    AiLastTrained NVARCHAR(50) NOT NULL DEFAULT '10/09/2026';
+            END
+
+            -- Tự động kiểm tra và tạo bảng RuleAuditLogs
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RuleAuditLogs')
+            BEGIN
+                CREATE TABLE RuleAuditLogs (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    RuleKey NVARCHAR(100) NOT NULL,
+                    RuleName NVARCHAR(255) NOT NULL,
+                    OldValue NVARCHAR(255) NULL,
+                    NewValue NVARCHAR(255) NULL,
+                    ChangedBy NVARCHAR(100) NOT NULL,
+                    ChangedAt DATETIME NOT NULL DEFAULT GETDATE(),
+                    IpAddress NVARCHAR(50) NULL
+                );
+            END
+
+            -- Tự động kiểm tra và tạo bảng WaiverReasons
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WaiverReasons')
+            BEGIN
+                CREATE TABLE WaiverReasons (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    ReasonCode NVARCHAR(50) NOT NULL UNIQUE,
+                    ReasonName NVARCHAR(255) NOT NULL,
+                    DefaultDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 100.0,
+                    IsActive BIT NOT NULL DEFAULT 1
+                );
+            END
+
+            -- Tự động nạp lý do miễn giảm nếu chưa có
+            IF NOT EXISTS (SELECT * FROM WaiverReasons)
+            BEGIN
+                INSERT INTO WaiverReasons (ReasonCode, ReasonName, DefaultDiscountPercent, IsActive) VALUES
+                ('WR-SICK', N'Nghỉ ốm có giấy ra/nhập viện điều trị', 100, 1),
+                ('WR-FORCE-MAJEURE', N'Thiên tai, lũ lụt, dịch bệnh, sự cố bất khả kháng', 100, 1),
+                ('WR-SYS-ERROR', N'Sự cố lỗi phần mềm hệ thống hoặc mất điện thư viện', 100, 1),
+                ('WR-POOR-STUDENT', N'Sinh viên diện chính sách hoàn cảnh khó khăn', 50, 0);
+            END
+
+            -- Tự động nạp lịch sử kiểm toán ban đầu nếu chưa có
+            IF NOT EXISTS (SELECT * FROM RuleAuditLogs)
+            BEGIN
+                INSERT INTO RuleAuditLogs (RuleKey, RuleName, OldValue, NewValue, ChangedBy, ChangedAt, IpAddress) VALUES
+                ('aiRiskThreshold', N'Ngưỡng kích hoạt rủi ro AI Early Warning', '75%', '80%', N'Thủ thư (Admin)', '2026-09-18 15:10:00', '192.168.1.10'),
+                ('finePerDay', N'Phí phạt trễ hạn theo ngày', N'3.000 VNĐ', N'2.000 VNĐ', N'Thủ thư (Admin)', '2026-09-18 14:32:10', '192.168.1.45'),
+                ('aiDiscount_100', N'Chiết khấu AI điểm tuyệt đối (100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
+                ('borrowLimit_MaxTogether', N'Số sách tối đa được mượn cùng lúc', N'4 cuốn', N'5 cuốn', N'Thủ thư (Admin)', '2026-09-10 09:15:00', '192.168.1.12');
             END
         ");
 

@@ -5,6 +5,24 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-07] - Triển Khai Hoàn Thiện Backend Cấu Hình Quy Định Mượn Trả & Mức Phạt 
+
+- **Backend Web API (.NET 10 & Entity Framework Core):**
+  - **Entity & CSDL ([`FineRule.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`RuleAuditLog.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/RuleAuditLog.cs), [`WaiverReason.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/WaiverReason.cs)):** Mở rộng bảng `FineRules` lưu trữ đầy đủ các tham số hạn mượn, hạn mức, biểu phí phạt, ngưỡng cảnh báo AI và kiểm soát nợ. Bổ sung bảng `RuleAuditLogs` ghi nhận nhật ký kiểm toán và bảng `WaiverReasons` quản lý danh mục lý do miễn giảm tiền phạt.
+  - **DTOs ([`src/SmartLibAI.Core/DTOs/Rules/`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/)):** Xây dựng các DTO chuẩn hóa `SystemRulesDto`, `UpdateRulesRequestDto`, `WaiverReasonDto`, `RuleAuditLogDto`, và `AiRetrainResponseDto`.
+  - **Kiến trúc Layered Repository & Service ([`IRulesRepository`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IRulesRepository.cs), [`RulesRepository`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/RulesRepository.cs), [`IRulesService`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IRulesService.cs), [`RulesService`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):** Triển khai nghiệp vụ cập nhật thông số quy định, ghi vết kiểm toán tự động theo người dùng và địa chỉ IP, huấn luyện lại mô hình AI dự báo rủi ro trễ hạn.
+  - **API Controller ([`RulesController.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/RulesController.cs)):** Cung cấp bộ 5 endpoint RESTful:
+    - `GET /api/rules`: Đọc toàn bộ cấu hình quy định hiện hành từ cơ sở dữ liệu.
+    - `PUT /api/rules`: Cập nhật cấu hình quy định mượn trả & mức phạt (bảo vệ bởi `[Authorize(Roles = "Admin,Staff")]`).
+    - `GET /api/rules/waivers`: Truy vấn danh mục lý do miễn giảm tiền phạt.
+    - `GET /api/rules/history`: Xem lịch sử kiểm toán thay đổi cấu hình.
+    - `POST /api/ai/retrain`: Kích hoạt tiến trình huấn luyện lại mô hình AI Random Forest Classifier.
+  - **Đồng bộ Quầy lưu thông (Circulation Desk):** Mọi thay đổi về thời hạn mượn, số sách tối đa và phí phạt trễ hạn (VND/ngày) sau khi Quản trị viên lưu cấu hình sẽ lập tức được `BorrowService` và `ReturnService` áp dụng ngay cho các giao dịch mượn/trả tiếp theo trên hệ thống (đáp ứng trọn vẹn tiêu chí AC của LOLRA-72).
+
+- **Frontend Integration ([`rulesApi.js`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
+  - Đồng bộ bóc tách dữ liệu từ `ApiResponse<T>` của Backend.
+  - Kết nối dữ liệu thực tế giữa giao diện Cài đặt quy định và Backend API; hiển thị toast thông báo thành công và cập nhật tức thì danh sách nhật ký kiểm toán.
+
 ## [2026-10-05] - Chuẩn Hóa Dữ Liệu Thực Tế & Xuất Excel Cho Sổ Nợ Đọng Và Biên Lai Thu Phạt
 
 - **Sổ Nợ Đọng & Sách Hư Hỏng ([`RevenueArrearsTab.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx), [`FineRevenue.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):**

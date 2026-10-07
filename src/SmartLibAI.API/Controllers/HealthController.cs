@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SmartLibAI.Core.DTOs.Common;
 
 namespace SmartLibAI.API.Controllers;

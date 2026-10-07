@@ -139,7 +139,36 @@ CREATE TABLE FineRules (
     LecturerBorrowDays INT NOT NULL DEFAULT 30, -- Thời hạn mượn Giảng viên: 30 ngày
     DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 10.0, -- Mức phụ thu đền bù sách mất/hỏng (10%)
     ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Tỷ lệ giảm trừ tiền phạt theo điểm rèn luyện
+    MaxRenewalTimes INT NOT NULL DEFAULT 1, -- Số lần gia hạn tối đa
+    RenewalExtraDays INT NOT NULL DEFAULT 7, -- Số ngày gia hạn thêm
+    DebtLockAmount DECIMAL(18,2) NOT NULL DEFAULT 50000, -- Ngưỡng nợ phạt khóa quyền mượn
+    AutoLockDebtThreshold BIT NOT NULL DEFAULT 1,
+    AiRiskThreshold INT NOT NULL DEFAULT 80, -- Ngưỡng kích hoạt rủi ro cao AI (%)
+    AiRemindDaysBefore INT NOT NULL DEFAULT 3, -- Số ngày gửi nhắc nhở trước hạn
+    AiAutoEmailReminder BIT NOT NULL DEFAULT 1,
+    CompensationFixedFee DECIMAL(18,2) NOT NULL DEFAULT 20000, -- Phí xử lý đền bù
+    AiAccuracy DECIMAL(5,2) NOT NULL DEFAULT 84.5,
+    AiLastTrained NVARCHAR(50) NOT NULL DEFAULT '10/09/2026',
     IsActive BIT DEFAULT 1
+);
+
+CREATE TABLE RuleAuditLogs (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    RuleKey NVARCHAR(100) NOT NULL,
+    RuleName NVARCHAR(255) NOT NULL,
+    OldValue NVARCHAR(255) NULL,
+    NewValue NVARCHAR(255) NULL,
+    ChangedBy NVARCHAR(100) NOT NULL,
+    ChangedAt DATETIME NOT NULL DEFAULT GETDATE(),
+    IpAddress NVARCHAR(50) NULL
+);
+
+CREATE TABLE WaiverReasons (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ReasonCode NVARCHAR(50) NOT NULL UNIQUE,
+    ReasonName NVARCHAR(255) NOT NULL,
+    DefaultDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 100.0,
+    IsActive BIT NOT NULL DEFAULT 1
 );
 
 CREATE TABLE FineReceipts (

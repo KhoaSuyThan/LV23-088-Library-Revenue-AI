@@ -124,7 +124,7 @@ export const rulesApi = {
   getSystemRules: async () => {
     try {
       const response = await apiClient.get('/api/rules');
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       const saved = localStorage.getItem(LOCAL_STORAGE_RULES_KEY);
       if (saved) {
@@ -142,7 +142,7 @@ export const rulesApi = {
   updateSystemRules: async (payload) => {
     try {
       const response = await apiClient.put('/api/rules', payload);
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       localStorage.setItem(LOCAL_STORAGE_RULES_KEY, JSON.stringify(payload));
       
@@ -173,7 +173,7 @@ export const rulesApi = {
   retrainAiModel: async () => {
     try {
       const response = await apiClient.post('/api/ai/retrain');
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       // Giả lập huấn luyện lại thành công với độ chính xác tăng nhẹ
       const newAccuracy = Number((84.5 + Math.random() * 2).toFixed(1));
@@ -192,7 +192,7 @@ export const rulesApi = {
   getWaiverReasons: async () => {
     try {
       const response = await apiClient.get('/api/rules/waivers');
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       return DEFAULT_WAIVER_REASONS;
     }
@@ -202,7 +202,7 @@ export const rulesApi = {
   getAuditHistory: async () => {
     try {
       const response = await apiClient.get('/api/rules/history');
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch {
       return rulesApi.getLocalAuditHistory();
     }

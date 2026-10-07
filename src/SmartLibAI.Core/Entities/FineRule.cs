@@ -43,6 +43,26 @@ public class FineRule
     /// </summary>
     public decimal ConductScoreDiscountPercent { get; set; } = 20.0m;
 
+    public int MaxRenewalTimes { get; set; } = 1;
+
+    public int RenewalExtraDays { get; set; } = 7;
+
+    public decimal DebtLockAmount { get; set; } = 50000m;
+
+    public bool AutoLockDebtThreshold { get; set; } = true;
+
+    public int AiRiskThreshold { get; set; } = 80;
+
+    public int AiRemindDaysBefore { get; set; } = 3;
+
+    public bool AiAutoEmailReminder { get; set; } = true;
+
+    public decimal CompensationFixedFee { get; set; } = 20000m;
+
+    public decimal AiAccuracy { get; set; } = 84.5m;
+
+    public string AiLastTrained { get; set; } = "10/09/2026";
+
     public bool IsActive { get; set; } = true;
 
     // Navigation properties

@@ -25,6 +25,8 @@ public class SmartLibDbContext : DbContext
     public DbSet<FineReceipt> FineReceipts => Set<FineReceipt>();
     public DbSet<PenaltyInvoice> PenaltyInvoices => Set<PenaltyInvoice>();
     public DbSet<AIPredictionLog> AIPredictionLogs => Set<AIPredictionLog>();
+    public DbSet<RuleAuditLog> RuleAuditLogs => Set<RuleAuditLog>();
+    public DbSet<WaiverReason> WaiverReasons => Set<WaiverReason>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -361,6 +363,31 @@ public class SmartLibDbContext : DbContext
                 .WithMany(b => b.AIPredictionLogs)
                 .HasForeignKey(e => e.BorrowingID)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // RuleAuditLogs
+        modelBuilder.Entity<RuleAuditLog>(entity =>
+        {
+            entity.ToTable("RuleAuditLogs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RuleKey).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.RuleName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.OldValue).HasMaxLength(255);
+            entity.Property(e => e.NewValue).HasMaxLength(255);
+            entity.Property(e => e.ChangedBy).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ChangedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IpAddress).HasMaxLength(50);
+        });
+
+        // WaiverReasons
+        modelBuilder.Entity<WaiverReason>(entity =>
+        {
+            entity.ToTable("WaiverReasons");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ReasonCode).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ReasonName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.DefaultDiscountPercent).HasColumnType("decimal(5,2)").HasDefaultValue(100m);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
     }
 }
