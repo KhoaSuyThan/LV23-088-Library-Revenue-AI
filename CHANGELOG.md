@@ -5,6 +5,26 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-07] - [LOLRA-78] Triển Khai Bộ API Quản Lý Độc Giả & Khóa Mở Thẻ Bạn Đọc
+
+- **Backend Web API (.NET 10 & Entity Framework Core):**
+  - **DTOs ([`src/SmartLibAI.Core/DTOs/Readers/`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Readers/)):** Xây dựng các DTO `ReaderDto`, `ReaderDetailDto`, `CreateReaderRequestDto`, `UpdateReaderRequestDto`, `ToggleReaderStatusDto`, `ExtendCardRequestDto` chuẩn hóa dữ liệu hồ sơ bạn đọc, danh sách sách đang mượn và nợ phạt.
+  - **Repository & Service ([`IReaderRepository`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReaderRepository.cs), [`ReaderRepository`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`IReaderService`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReaderService.cs), [`ReaderService`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)):**
+    - Hỗ trợ phân trang, tìm kiếm đa tiêu chí (mã thẻ, MSSV, tên, email) và lọc trạng thái thẻ (`Active`, `Locked`, `Expired`).
+    - Tính toán số sách đang mượn và tổng nợ phạt chưa thanh toán bằng truy vấn gộp (batch query tối ưu).
+    - Cấp thẻ mới: Tự động mã hóa mật khẩu với BCrypt, tạo tài khoản User và hồ sơ Reader trong SQL Transaction an toàn.
+    - Khóa / Mở khóa thẻ bạn đọc: Chuyển đổi trạng thái `User.IsActive` đồng bộ trực tiếp với cơ chế từ chối mượn sách tại Quầy lưu thông.
+    - Gia hạn thẻ bạn đọc (`ExpiryDate`).
+  - **API Controller ([`ReadersController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs)):**
+    - `GET /api/readers`: Phân trang, tìm kiếm và lọc danh sách độc giả.
+    - `GET /api/readers/{id}` & `GET /api/readers/code/{readerCode}`: Chi tiết hồ sơ độc giả kèm tài liệu đang mượn và nợ phạt.
+    - `POST /api/readers`: Thêm mới độc giả và cấp thẻ bạn đọc.
+    - `PUT /api/readers/{id}`: Cập nhật thông tin độc giả.
+    - `PATCH /api/readers/{id}/status`: Khóa hoặc mở khóa thẻ bạn đọc.
+    - `POST /api/readers/{id}/extend`: Gia hạn ngày hết hạn thẻ bạn đọc.
+    - Bảo vệ bởi phân quyền `[Authorize(Roles = "Admin,Staff")]`.
+  - **Quy tắc dự án:** Thiết lập cấu hình tự động quy ước nhánh và commit Jira trong [`.agents/rules/jira_conventions.md`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/.agents/rules/jira_conventions.md).
+
 ## [2026-10-07] - Triển Khai Hoàn Thiện Backend Cấu Hình Quy Định Mượn Trả & Mức Phạt 
 
 - **Backend Web API (.NET 10 & Entity Framework Core):**
