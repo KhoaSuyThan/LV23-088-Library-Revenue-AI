@@ -52,29 +52,29 @@ INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
 VALUES (3, 'duchuy', '$2a$11$YieZsQ4dNdbN.64JMR0YVezmjNGzehGaMfUXiMiXUp.Uod.NvhG/K', N'Trần Đức Huy', 'duchuy3d2005@gmail.com', 1);
 
 SET @NewUserID = SCOPE_IDENTITY();
-INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate, CreditScore)
-VALUES (@NewUserID, 'RD20260001', 'Standard', '2027-12-31', 100);
+INSERT INTO Readers (UserID, ReaderCode, MemberType, Faculty, ClassGroup, ExpiryDate, CreditScore)
+VALUES (@NewUserID, 'RD20260001', 'Standard', N'CNTT', N'K21-CC', '2027-12-31', 100);
 
 -- Độc giả 2: Nguyễn Văn Minh (102220184) - Đang nợ tiền phạt 45.000 VNĐ (Kịch bản từ chối mượn nợ phạt)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
 VALUES (3, '102220184', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Văn Minh', 'minhnv@smartlib.edu.vn', 1);
 SET @NewUserID = SCOPE_IDENTITY();
-INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate, CreditScore)
-VALUES (@NewUserID, '102220184', 'Standard', '2027-12-31', 85);
+INSERT INTO Readers (UserID, ReaderCode, MemberType, Faculty, ClassGroup, ExpiryDate, CreditScore)
+VALUES (@NewUserID, '102220184', 'Standard', N'CNTT', N'K22-CC', '2027-12-31', 85);
 
 -- Độc giả 3: Lê Thị Khánh Huyền (102230045) - Thẻ bị khóa IsActive = 0 (Kịch bản từ chối mượn thẻ bị khóa)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
 VALUES (3, '102230045', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Lê Thị Khánh Huyền', 'huyenltk@smartlib.edu.vn', 0);
 SET @NewUserID = SCOPE_IDENTITY();
-INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate, CreditScore)
-VALUES (@NewUserID, '102230045', 'Standard', '2027-12-31', 95);
+INSERT INTO Readers (UserID, ReaderCode, MemberType, Faculty, ClassGroup, ExpiryDate, CreditScore)
+VALUES (@NewUserID, '102230045', 'Standard', N'Kinh Tế', N'K23-KT', '2027-12-31', 95);
 
 -- Độc giả 4: Phan Hoàng Long (102220412) - Đang mượn tối đa 5 cuốn (Kịch bản từ chối mượn vượt hạn mức)
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
 VALUES (3, '102220412', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Phan Hoàng Long', 'longph@smartlib.edu.vn', 1);
 SET @NewUserID = SCOPE_IDENTITY();
-INSERT INTO Readers (UserID, ReaderCode, MemberType, ExpiryDate, CreditScore)
-VALUES (@NewUserID, '102220412', 'Standard', '2027-12-31', 100);
+INSERT INTO Readers (UserID, ReaderCode, MemberType, Faculty, ClassGroup, ExpiryDate, CreditScore)
+VALUES (@NewUserID, '102220412', 'Standard', N'Cơ Khí', N'K22-CK', '2027-12-31', 100);
 
 -- 4. TẠO 20 ĐẦU SÁCH VÀ BẢN SAO MÃ VẠCH (BOOKCOPIES, ISACTIVE = 1)
 DECLARE @b INT = 1;

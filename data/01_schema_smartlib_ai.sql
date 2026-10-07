@@ -56,6 +56,8 @@ CREATE TABLE Readers (
     UserID INT NOT NULL UNIQUE,
     ReaderCode VARCHAR(20) NOT NULL UNIQUE,
     MemberType NVARCHAR(50) DEFAULT 'Standard',
+    Faculty NVARCHAR(100) NOT NULL DEFAULT N'CNTT', -- Khoa / Viện của độc giả
+    ClassGroup NVARCHAR(50) NOT NULL DEFAULT N'K21-CC', -- Lớp / Niên khóa của độc giả
     ExpiryDate DATE NOT NULL,
     CreditScore INT NOT NULL DEFAULT 100, -- Điểm tín nhiệm bạn đọc (0 - 100, mặc định 100 điểm)
     FOREIGN KEY (UserID) REFERENCES Users(UserID)

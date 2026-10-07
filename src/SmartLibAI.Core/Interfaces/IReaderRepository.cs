@@ -5,7 +5,7 @@ using SmartLibAI.Core.Entities;
 namespace SmartLibAI.Core.Interfaces;
 
 /// <summary>
-/// Giao diện Repository chuyên biệt cho quản lý độc giả và khóa thẻ (Story LOLRA-78).
+/// Giao diện Repository chuyên biệt cho quản lý độc giả, hồ sơ bạn đọc, khóa thẻ và cảnh báo (L0LRA-71 & L0LRA-78).
 /// </summary>
 public interface IReaderRepository : IGenericRepository<Reader>
 {
@@ -20,6 +20,11 @@ public interface IReaderRepository : IGenericRepository<Reader>
         int pageSize);
 
     /// <summary>
+    /// Lấy danh sách toàn bộ độc giả kèm thông tin User, Borrowings, BorrowingDetails, BookCopies, Book và FineReceipts.
+    /// </summary>
+    Task<List<Reader>> GetAllReadersWithDetailsAsync();
+
+    /// <summary>
     /// Lấy thông tin độc giả kèm User theo ReaderID.
     /// </summary>
     Task<Reader?> GetReaderDetailByIdAsync(int readerId);
@@ -28,6 +33,16 @@ public interface IReaderRepository : IGenericRepository<Reader>
     /// Lấy thông tin độc giả kèm User theo ReaderCode (Mã thẻ bạn đọc).
     /// </summary>
     Task<Reader?> GetReaderDetailByCodeAsync(string readerCode);
+
+    /// <summary>
+    /// Lấy chi tiết một độc giả theo ReaderID kèm quan hệ chi tiết mượn trả và phạt.
+    /// </summary>
+    Task<Reader?> GetReaderByIdWithDetailsAsync(int readerId);
+
+    /// <summary>
+    /// Lấy chi tiết một độc giả theo ReaderCode kèm quan hệ chi tiết mượn trả và phạt.
+    /// </summary>
+    Task<Reader?> GetReaderByCodeWithDetailsAsync(string readerCode);
 
     /// <summary>
     /// Kiểm tra xem Username hoặc ReaderCode đã tồn tại trong CSDL chưa.
@@ -48,4 +63,19 @@ public interface IReaderRepository : IGenericRepository<Reader>
     /// Tính tổng số tiền phạt chưa thanh toán của độc giả.
     /// </summary>
     Task<decimal> GetUnpaidFineAmountByReaderIdAsync(int readerId);
+
+    /// <summary>
+    /// Cập nhật trực tiếp trạng thái IsActive của tài khoản User gắn với độc giả trong SQL Server.
+    /// </summary>
+    Task<bool> UpdateUserActiveStatusAsync(int userId, bool isActive);
+
+    /// <summary>
+    /// Thêm thông báo vào bảng Notifications cho người dùng.
+    /// </summary>
+    Task AddNotificationAsync(int userId, string message);
+
+    /// <summary>
+    /// Lấy số liệu thống kê tổng quan cho 4 thẻ KPI của phân hệ độc giả.
+    /// </summary>
+    Task<ReaderSummaryDto> GetReaderSummaryAsync();
 }

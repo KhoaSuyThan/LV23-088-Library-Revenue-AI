@@ -176,8 +176,8 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
           handleQuickDueDate(30);
         }
 
-        if (!data.canBorrow) {
-          const reason = data.rejectionReason || 'Độc giả không đủ điều kiện mượn sách!';
+        if (!data.canBorrow || !data.isActive) {
+          const reason = data.rejectionReason || (!data.isActive ? 'Tài khoản thẻ thư viện đang bị khóa. Hệ thống từ chối mượn sách.' : 'Độc giả không đủ điều kiện mượn sách!');
           setBorrowError(reason);
           if (showToast) showToast(`⚠️ ${reason}`);
         } else {
@@ -459,6 +459,14 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
       return;
     }
 
+    // Kiểm tra độc giả có bị khóa thẻ hoặc không đủ điều kiện mượn không
+    if (readerInfo && (!readerInfo.canBorrow || !readerInfo.isActive)) {
+      const reason = readerInfo.rejectionReason || (!readerInfo.isActive ? 'Tài khoản thẻ thư viện đang bị khóa. Hệ thống từ chối mượn sách.' : 'Độc giả không đủ điều kiện mượn sách!');
+      setBorrowError(reason);
+      if (showToast) showToast(`❌ Từ chối mượn sách: ${reason}`);
+      return;
+    }
+
     // Kiểm tra tính hợp lệ của Hạn trả dự kiến (định dạng dd/mm/yyyy và không được trong quá khứ)
     const dateErr = validateDueDate(dueDate);
     if (dateErr) {
@@ -623,9 +631,16 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               Mã độc giả / MSSV <span className="hotkey-badge" title="Nhấn F2 để quét nhanh">[F2]</span>
             </label>
             {readerInfo && (
-              <span className={`reader-member-badge ${memberType === 'Lecturer' ? 'badge-lecturer' : 'badge-student'}`}>
-                {memberType === 'Lecturer' ? '👨‍🏫 Giảng viên (Tối đa 10 cuốn)' : '🎓 Sinh viên (Tối đa 5 cuốn)'}
-              </span>
+              <>
+                <span className={`reader-member-badge ${memberType === 'Lecturer' ? 'badge-lecturer' : 'badge-student'}`}>
+                  {memberType === 'Lecturer' ? '👨‍🏫 Giảng viên (Tối đa 10 cuốn)' : '🎓 Sinh viên (Tối đa 5 cuốn)'}
+                </span>
+                {!readerInfo.isActive && (
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 800, border: '1px solid #fecaca', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    🔒 Thẻ đã bị khóa
+                  </span>
+                )}
+              </>
             )}
             {isLoadingReader && (
               <Loader2 size={13} className="spin-icon" style={{ color: '#2563eb', marginLeft: '6px' }} />
@@ -988,8 +1003,12 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
           <button
             type="submit"
             className="btn-confirm-borrow-flex"
-            disabled={isSubmitting}
-            title="Ghi nhận giao dịch mượn sách chính thức vào CSDL"
+            disabled={isSubmitting || (readerInfo && (!readerInfo.canBorrow || !readerInfo.isActive))}
+            title={
+              readerInfo && (!readerInfo.canBorrow || !readerInfo.isActive)
+                ? 'Độc giả bị chặn mượn sách do thẻ đã bị khóa hoặc vi phạm quy định!'
+                : 'Ghi nhận giao dịch mượn sách chính thức vào CSDL'
+            }
           >
             {isSubmitting ? (
               <>
