@@ -20,6 +20,16 @@ public class Reader
     /// </summary>
     public int CreditScore { get; set; } = 100;
 
+    /// <summary>
+    /// Khoa / Viện của độc giả (VD: CNTT, Kinh Tế, Cơ Khí, Ngoại Ngữ).
+    /// </summary>
+    public string Faculty { get; set; } = "CNTT";
+
+    /// <summary>
+    /// Lớp / Niên khóa của độc giả (VD: K21-CC, K22-KT).
+    /// </summary>
+    public string ClassGroup { get; set; } = "K21-CC";
+
     // Navigation properties
     public User User { get; set; } = null!;
 

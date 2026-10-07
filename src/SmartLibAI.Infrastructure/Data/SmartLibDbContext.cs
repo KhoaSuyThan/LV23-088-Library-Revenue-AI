@@ -99,6 +99,12 @@ public class SmartLibDbContext : DbContext
                 .IsRequired();
             entity.Property(e => e.CreditScore)
                 .HasDefaultValue(100);
+            entity.Property(e => e.Faculty)
+                .HasMaxLength(100)
+                .HasDefaultValue("CNTT");
+            entity.Property(e => e.ClassGroup)
+                .HasMaxLength(50)
+                .HasDefaultValue("K21-CC");
 
             entity.HasOne(e => e.User)
                 .WithOne(u => u.Reader)

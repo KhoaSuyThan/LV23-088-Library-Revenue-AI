@@ -32,6 +32,8 @@ builder.Services.AddScoped<IReturnService, ReturnService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IRulesRepository, RulesRepository>();
 builder.Services.AddScoped<IRulesService, RulesService>();
+builder.Services.AddScoped<IReaderRepository, ReaderRepository>();
+builder.Services.AddScoped<IReaderService, ReaderService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -144,6 +146,16 @@ using (var scope = app.Services.CreateScope())
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Readers') AND name = 'CreditScore')
             BEGIN
                 ALTER TABLE Readers ADD CreditScore INT NOT NULL DEFAULT 100;
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Readers') AND name = 'Faculty')
+            BEGIN
+                ALTER TABLE Readers ADD Faculty NVARCHAR(100) NOT NULL DEFAULT N'CNTT';
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Readers') AND name = 'ClassGroup')
+            BEGIN
+                ALTER TABLE Readers ADD ClassGroup NVARCHAR(50) NOT NULL DEFAULT N'K21-CC';
             END
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'StudentBorrowLimit')
@@ -293,29 +305,55 @@ using (var scope = app.Services.CreateScope())
             await context.SaveChangesAsync();
         }
 
-        // Tự động nạp độc giả mẫu đại diện nếu bảng Readers còn trống
-        if (!await context.Readers.AnyAsync(r => r.ReaderCode == "102220184"))
+        // Tự động nạp danh sách độc giả phong phú và đa dạng Khoa/Viện nếu chưa có
+        var seedReadersList = new[]
         {
-            var userMinh = new SmartLibAI.Core.Entities.User
-            {
-                RoleID = 3,
-                Username = "102220184",
-                PasswordHash = "$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6",
-                FullName = "Nguyễn Văn Minh",
-                Email = "minhnv@smartlib.edu.vn",
-                IsActive = true
-            };
-            await context.Users.AddAsync(userMinh);
-            await context.SaveChangesAsync();
+            new { Code = "102220184", Name = "Nguyễn Văn Minh", Email = "minhnv@smartlib.edu.vn", Faculty = "CNTT", Class = "K22-CC", Type = "Standard", Credit = 85 },
+            new { Code = "102230045", Name = "Lê Thị Khánh Huyền", Email = "huyenltk@smartlib.edu.vn", Faculty = "Kinh Tế", Class = "K23-KT", Type = "Standard", Credit = 92 },
+            new { Code = "102220412", Name = "Phan Hoàng Long", Email = "longph@smartlib.edu.vn", Faculty = "Cơ Khí", Class = "K22-CK", Type = "Standard", Credit = 75 },
+            new { Code = "2180600123", Name = "Nguyễn Văn A", Email = "vana@gmail.com", Faculty = "CNTT", Class = "K21-CC", Type = "Standard", Credit = 45 },
+            new { Code = "2180600124", Name = "Trần Thị B", Email = "thib@gmail.com", Faculty = "Kinh Tế", Class = "K21-KT", Type = "Standard", Credit = 95 },
+            new { Code = "2080601245", Name = "Phạm Minh C", Email = "minhc@gmail.com", Faculty = "Cơ Khí", Class = "K20-CK", Type = "Standard", Credit = 78 },
+            new { Code = "2280702111", Name = "Lê Thị D", Email = "thid@gmail.com", Faculty = "Ngoại Ngữ", Class = "K22-NN", Type = "Standard", Credit = 90 },
+            new { Code = "GV2026001", Name = "TS. Trần Văn Giảng", Email = "giangtv@smartlib.edu.vn", Faculty = "CNTT", Class = "GV-CNTT", Type = "Lecturer", Credit = 100 }
+        };
 
-            await context.Readers.AddAsync(new SmartLibAI.Core.Entities.Reader
+        foreach (var sr in seedReadersList)
+        {
+            if (!await context.Readers.AnyAsync(r => r.ReaderCode == sr.Code))
             {
-                UserID = userMinh.UserID,
-                ReaderCode = "102220184",
-                MemberType = "Standard",
-                ExpiryDate = DateTime.UtcNow.AddYears(1),
-                CreditScore = 85
-            });
+                var newUser = new SmartLibAI.Core.Entities.User
+                {
+                    RoleID = 3,
+                    Username = sr.Code,
+                    PasswordHash = "$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6",
+                    FullName = sr.Name,
+                    Email = sr.Email,
+                    IsActive = true
+                };
+                await context.Users.AddAsync(newUser);
+                await context.SaveChangesAsync();
+
+                await context.Readers.AddAsync(new SmartLibAI.Core.Entities.Reader
+                {
+                    UserID = newUser.UserID,
+                    ReaderCode = sr.Code,
+                    MemberType = sr.Type,
+                    Faculty = sr.Faculty,
+                    ClassGroup = sr.Class,
+                    ExpiryDate = DateTime.UtcNow.AddYears(1),
+                    CreditScore = sr.Credit
+                });
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // Cập nhật Khoa và Lớp cho độc giả đầu tiên (Trần Đức Huy) nếu chưa có
+        var rHuy = await context.Readers.FirstOrDefaultAsync(r => r.ReaderCode == "RD20260001");
+        if (rHuy != null)
+        {
+            rHuy.Faculty = "CNTT";
+            rHuy.ClassGroup = "K21-CC";
             await context.SaveChangesAsync();
         }
 
