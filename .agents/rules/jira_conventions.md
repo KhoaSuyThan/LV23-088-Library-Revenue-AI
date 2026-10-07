@@ -1,17 +1,17 @@
-# QUY ƯỚC ĐẶT TÊN NHÁNH GIT & COMMIT THEO JIRA (SMART COMMITS)
+# QUY ƯỚC ĐẶT TÊN NHÁNH GIT & COMMIT THEO ĐÚNG MẪU JIRA CLOUD
 
-Mỗi khi người dùng nhắc đến hoặc cung cấp mã Jira Issue (ví dụ: `LOLRA-<Số>` hoặc `LOLRA-<Số> <tiêu đề>`):
+Mỗi khi người dùng cung cấp hoặc nhắc đến mã Jira Issue (ví dụ: `LOLRA-<Số>` hoặc `LOLRA-<Số> <tiêu đề>`):
 
-1. **Lệnh tạo & chuyển nhánh (Create branch):**
-   Luôn tự động đề xuất lệnh tạo nhánh tính năng chuẩn Jira:
+1. **Lệnh tạo & chuyển nhánh (Create branch - Đúng mẫu popup Jira gợi ý):**
+   Luôn bắt đầu trực tiếp bằng mã Issue (KHÔNG thêm tiền tố `feat/`):
    ```bash
-   git checkout -b feat/LOLRA-<Số>-<slug-tinh-nang>
+   git checkout -b LOLRA-<Số>-<tieu-de-slug-khong-dau>
    ```
-   *(hoặc `fix/LOLRA-<Số>-<slug-tinh-nang>` đối với lỗi)*
+   - Ví dụ: `git checkout -b LOLRA-78-viet-api-quan-ly-doc-gia-va-khoa-the`
 
-2. **Lệnh Commit (Create commit):**
-   Luôn tự động đề xuất lệnh commit chuẩn Conventional Commit có gắn mã Jira để hệ thống Jira tự động bắt và liên kết:
+2. **Lệnh Commit (Create commit - Đúng mẫu popup Jira gợi ý):**
+   Luôn bắt đầu trực tiếp bằng mã Issue ở đầu message (KHÔNG dùng tiền tố `feat(...)` hay ngoặc vuông `[]`):
    ```bash
-   git commit -m "<type>(<scope>): [LOLRA-<Số>] <Mô tả ngắn gọn công việc bằng tiếng Việt>"
+   git commit -m "LOLRA-<Số> <Tiêu đề công việc>"
    ```
-   - Ví dụ: `git commit -m "feat(reader): [LOLRA-78] Viết API Quản lý độc giả & Khóa thẻ"`
+   - Ví dụ: `git commit -m "LOLRA-78 Viết API Quản lý độc giả & Khóa thẻ"`
