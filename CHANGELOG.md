@@ -5,6 +5,22 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-08] - [Merge Conflict Resolution] Hợp Nhất Hoàn Chỉnh Nhánh L0LRA-71 và L0LRA-78 (Quản Lý Hồ Sơ Độc Giả & Khóa Thẻ)
+
+- **Hợp nhất mã nguồn Backend (.NET 10 & Entity Framework Core):**
+  - **DTOs ([`ReaderDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Readers/ReaderDto.cs)):** Tích hợp song song các thuộc tính từ L0LRA-78 (`ActiveBorrowCount`, `TotalUnpaidFines`, `Status`, `CreatedAt`) và L0LRA-71 (`RiskScore`, `RiskType`, `RiskLevelText`, `AiDiagnosis`, `Avatar`, `Faculty`, `ClassGroup`, `Books`) kèm các thuộc tính bí danh (alias properties) đảm bảo tương thích 100% với cả 2 phía UI.
+  - **Repository & Service ([`ReaderRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`ReaderService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)):**
+    - Giữ trọn vẹn nghiệp vụ phân trang, CRUD, cấp thẻ bạn đọc, gia hạn thẻ từ L0LRA-78.
+    - Tích hợp nghiệp vụ thống kê 4 thẻ KPI (`GetReaderSummaryAsync`), thuật toán đánh giá rủi ro AI trên lịch sử mượn trả & nợ phạt, khóa/mở khóa thẻ tức thời (`ToggleLockAsync`) và gửi thông báo cảnh báo trễ hạn (`SendWarningNotificationAsync`) từ L0LRA-71.
+  - **API Controller ([`ReadersController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs)):**
+    - Cung cấp đầy đủ các endpoints: `GET /api/readers` (tự động phân nhánh trả về `PagedResult` nếu có tham số `page`/`pageSize` hoặc trả về danh sách UI theo lọc Khoa/Trạng thái/Rủi ro nếu không phân trang), `GET /api/readers/summary`, `GET /api/readers/{id}`, `GET /api/readers/{id}/detail`, `GET /api/readers/code/{readerCode}`, `PUT /api/readers/{id}/toggle-lock`, `PUT /api/readers/{id}/status`, `PATCH /api/readers/{id}/status`, `POST /api/readers`, `PUT /api/readers/{id}`, `POST /api/readers/{id}/extend`, `POST /api/readers/{id}/send-warning`.
+- **Đồng bộ Cơ sở dữ liệu (Database Schema & Seed Data):**
+  - Cập nhật định nghĩa bảng `Readers` trong [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql) và [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs) bổ sung `Faculty` (NVARCHAR(100), default 'CNTT') và `ClassGroup` (NVARCHAR(50), default 'K21-CC').
+  - Đồng bộ dữ liệu khởi tạo trong [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql) và cơ chế tự động migration/seeding độc giả trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+- **Kiểm thử chất lượng:**
+  - `dotnet build` SmartLibAI.Core & Infrastructure: Thành công 100% (0 lỗi, 0 cảnh báo).
+  - `npm --prefix frontend run build`: Thành công 100% không lỗi.
+
 ## [2026-10-07] - [L0LRA-78] Triển Khai Bộ API Quản Lý Độc Giả & Khóa Mở Thẻ Bạn Đọc
 
 - **Backend Web API (.NET 10 & Entity Framework Core):**

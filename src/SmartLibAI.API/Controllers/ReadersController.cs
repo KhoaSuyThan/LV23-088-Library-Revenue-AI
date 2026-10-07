@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Readers;
@@ -7,11 +6,9 @@ using SmartLibAI.Core.Interfaces;
 namespace SmartLibAI.API.Controllers;
 
 /// <summary>
-/// Controller Quản lý hồ sơ độc giả & Khóa mở thẻ bạn đọc (Story LOLRA-78).
-/// Chỉ Thủ thư (Admin, Staff) mới có quyền truy cập.
+/// Controller Quản lý hồ sơ độc giả, phân tích rủi ro AI, thống kê KPI và Khóa/Mở thẻ bạn đọc (L0LRA-71 & L0LRA-78).
 /// </summary>
 [ApiController]
-[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class ReadersController : ControllerBase
 {
@@ -23,30 +20,71 @@ public class ReadersController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách độc giả có lọc, tìm kiếm và phân trang (GET /api/readers).
+    /// Lấy danh sách hồ sơ độc giả từ CSDL SQL Server (Hỗ trợ cả lọc thường theo UI và phân trang).
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<PagedResult<ReaderDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<ReaderDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReaders(
-        [FromQuery] string? keyword,
-        [FromQuery] string? memberType,
-        [FromQuery] string? status,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] string? faculty = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? risk = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? memberType = null,
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null)
     {
-        var result = await _readerService.GetPagedReadersAsync(keyword, memberType, status, page, pageSize);
+        // Nếu có tham số phân trang, trả về PagedResult (L0LRA-78)
+        if (page.HasValue || pageSize.HasValue)
+        {
+            var p = page ?? 1;
+            var ps = pageSize ?? 20;
+            var kw = !string.IsNullOrWhiteSpace(keyword) ? keyword : search;
+            var pagedResult = await _readerService.GetPagedReadersAsync(kw, memberType, status, p, ps);
+            return Ok(pagedResult);
+        }
+
+        // Mặc định trả về danh sách đầy đủ cho UI Profiles (L0LRA-71)
+        var result = await _readerService.GetReadersAsync(faculty, status, risk, search ?? keyword);
         return Ok(result);
     }
 
     /// <summary>
-    /// Lấy thông tin chi tiết một độc giả theo ID (GET /api/readers/{id}).
+    /// Lấy các chỉ số thống kê tổng hợp cho 4 thẻ KPI đầu trang (L0LRA-71).
+    /// </summary>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(ApiResponse<ReaderSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSummary()
+    {
+        var result = await _readerService.GetReaderSummaryAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy thông tin chi tiết một độc giả theo ReaderID (ReaderDto - L0LRA-71).
     /// </summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<ReaderDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<ReaderDetailDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _readerService.GetReaderByIdAsync(id);
+        if (!result.Success)
+        {
+            return NotFound(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy chi tiết hồ sơ độc giả kèm thống kê sách mượn và nợ phạt (ReaderDetailDto - L0LRA-78).
+    /// </summary>
+    [HttpGet("{id:int}/detail")]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDetailDto>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDetailById(int id)
+    {
+        var result = await _readerService.GetReaderDetailByIdAsync(id);
         if (!result.Success)
         {
             return NotFound(result);
@@ -71,7 +109,57 @@ public class ReadersController : ControllerBase
     }
 
     /// <summary>
-    /// Thêm mới độc giả và cấp thẻ bạn đọc (POST /api/readers).
+    /// Thao tác Khóa / Mở khóa thẻ độc giả ngay lập tức trong SQL Server (đổi IsActive của User - L0LRA-71).
+    /// Khi bị khóa, độc giả sẽ bị chặn mượn sách ngay lập tức tại quầy lưu thông.
+    /// </summary>
+    [HttpPut("{id:int}/toggle-lock")]
+    [ProducesResponseType(typeof(ApiResponse<ToggleLockResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ToggleLockResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ToggleLock(int id)
+    {
+        var result = await _readerService.ToggleLockAsync(id);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Đặt trạng thái thẻ độc giả cụ thể (Hoạt động / Đã khóa - L0LRA-71).
+    /// </summary>
+    [HttpPut("{id:int}/status")]
+    [ProducesResponseType(typeof(ApiResponse<ToggleLockResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ToggleLockResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SetStatus(int id, [FromBody] SetLockStatusRequestDto request)
+    {
+        var result = await _readerService.SetLockStatusAsync(id, request.IsActive);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Khóa hoặc Mở khóa thẻ bạn đọc (PATCH /api/readers/{id}/status - L0LRA-78).
+    /// </summary>
+    [HttpPatch("{id:int}/status")]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ToggleCardStatus(int id, [FromBody] ToggleReaderStatusDto request)
+    {
+        var result = await _readerService.ToggleCardStatusAsync(id, request);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thêm mới độc giả và cấp thẻ bạn đọc (POST /api/readers - L0LRA-78).
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status201Created)]
@@ -97,7 +185,7 @@ public class ReadersController : ControllerBase
     }
 
     /// <summary>
-    /// Cập nhật thông tin hồ sơ độc giả (PUT /api/readers/{id}).
+    /// Cập nhật thông tin hồ sơ độc giả (PUT /api/readers/{id} - L0LRA-78).
     /// </summary>
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status200OK)]
@@ -124,16 +212,15 @@ public class ReadersController : ControllerBase
     }
 
     /// <summary>
-    /// Khóa hoặc Mở khóa thẻ bạn đọc (PATCH /api/readers/{id}/status).
-    /// Chuyển đổi trạng thái IsActive để kiểm soát quyền mượn sách.
+    /// Gia hạn ngày hết hạn thẻ bạn đọc (POST /api/readers/{id}/extend - L0LRA-78).
     /// </summary>
-    [HttpPatch("{id:int}/status")]
+    [HttpPost("{id:int}/extend")]
     [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ToggleCardStatus(int id, [FromBody] ToggleReaderStatusDto request)
+    public async Task<IActionResult> ExtendCard(int id, [FromBody] ExtendCardRequestDto request)
     {
-        var result = await _readerService.ToggleCardStatusAsync(id, request);
+        var result = await _readerService.ExtendCardAsync(id, request);
         if (!result.Success)
         {
             return BadRequest(result);
@@ -143,15 +230,14 @@ public class ReadersController : ControllerBase
     }
 
     /// <summary>
-    /// Gia hạn ngày hết hạn thẻ bạn đọc (POST /api/readers/{id}/extend).
+    /// Gửi thông báo / email cảnh báo trễ hạn đến độc giả (POST /api/readers/{id}/send-warning - L0LRA-71).
     /// </summary>
-    [HttpPost("{id:int}/extend")]
-    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<ReaderDto>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ExtendCard(int id, [FromBody] ExtendCardRequestDto request)
+    [HttpPost("{id:int}/send-warning")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SendWarning(int id)
     {
-        var result = await _readerService.ExtendCardAsync(id, request);
+        var result = await _readerService.SendWarningNotificationAsync(id);
         if (!result.Success)
         {
             return BadRequest(result);

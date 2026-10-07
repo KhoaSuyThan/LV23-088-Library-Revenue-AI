@@ -8,7 +8,7 @@ using SmartLibAI.Infrastructure.Data;
 namespace SmartLibAI.Infrastructure.Repositories;
 
 /// <summary>
-/// Triển khai Repository nghiệp vụ quản lý độc giả và khóa thẻ (Story LOLRA-78).
+/// Triển khai Repository nghiệp vụ quản lý độc giả, phân tích rủi ro AI, thống kê KPI và khóa thẻ (L0LRA-71 & L0LRA-78).
 /// </summary>
 public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
 {
@@ -17,7 +17,7 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
     }
 
     /// <summary>
-    /// Lấy danh sách độc giả có lọc, tìm kiếm và phân trang tối ưu.
+    /// Lấy danh sách độc giả có lọc, tìm kiếm và phân trang tối ưu (L0LRA-78).
     /// </summary>
     public async Task<PagedResult<ReaderDto>> GetPagedReadersAsync(
         string? keyword,
@@ -110,6 +110,9 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
                 calculatedStatus = "Expired";
             }
 
+            var activeCount = activeBorrowCounts.TryGetValue(r.ReaderID, out var bCount) ? bCount : 0;
+            var unpaidAmount = unpaidFines.TryGetValue(r.ReaderID, out var fTotal) ? fTotal : 0m;
+
             return new ReaderDto
             {
                 ReaderID = r.ReaderID,
@@ -119,12 +122,18 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
                 Email = r.User.Email,
                 ReaderCode = r.ReaderCode,
                 MemberType = r.MemberType,
+                Faculty = r.Faculty,
+                ClassGroup = r.ClassGroup,
                 ExpiryDate = r.ExpiryDate,
                 CreditScore = r.CreditScore,
                 IsActive = r.User.IsActive,
                 Status = calculatedStatus,
-                ActiveBorrowCount = activeBorrowCounts.TryGetValue(r.ReaderID, out var bCount) ? bCount : 0,
-                TotalUnpaidFines = unpaidFines.TryGetValue(r.ReaderID, out var fTotal) ? fTotal : 0m,
+                ActiveBorrowCount = activeCount,
+                ActiveBorrowedBooks = activeCount,
+                TotalUnpaidFines = unpaidAmount,
+                UnpaidFineAmount = unpaidAmount,
+                RiskScore = Math.Max(0, 100 - r.CreditScore),
+                RiskLevel = r.CreditScore >= 80 ? "Thấp" : (r.CreditScore >= 60 ? "Trung bình" : "Cao"),
                 CreatedAt = r.User.CreatedAt
             };
         }).ToList();
@@ -133,7 +142,27 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
     }
 
     /// <summary>
-    /// Lấy thông tin độc giả kèm User theo ReaderID.
+    /// Lấy danh sách toàn bộ độc giả kèm quan hệ User, Borrowings, BorrowingDetails, BookCopies, Book và FineReceipts (L0LRA-71).
+    /// </summary>
+    public async Task<List<Reader>> GetAllReadersWithDetailsAsync()
+    {
+        return await _context.Readers
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.FineReceipts)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.AIPredictionLogs)
+            .OrderBy(r => r.ReaderID)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Lấy thông tin độc giả kèm User theo ReaderID (L0LRA-78).
     /// </summary>
     public async Task<Reader?> GetReaderDetailByIdAsync(int readerId)
     {
@@ -143,7 +172,26 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
     }
 
     /// <summary>
-    /// Lấy thông tin độc giả kèm User theo ReaderCode (Mã thẻ bạn đọc).
+    /// Lấy chi tiết một độc giả theo ReaderID kèm toàn bộ quan hệ nghiệp vụ (L0LRA-71).
+    /// </summary>
+    public async Task<Reader?> GetReaderByIdWithDetailsAsync(int readerId)
+    {
+        return await _context.Readers
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.FineReceipts)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.AIPredictionLogs)
+            .FirstOrDefaultAsync(r => r.ReaderID == readerId);
+    }
+
+    /// <summary>
+    /// Lấy thông tin độc giả kèm User theo ReaderCode (Mã thẻ bạn đọc) (L0LRA-78).
     /// </summary>
     public async Task<Reader?> GetReaderDetailByCodeAsync(string readerCode)
     {
@@ -151,6 +199,26 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
         return await _context.Readers
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.ReaderCode == cleanCode || r.User.Username == cleanCode);
+    }
+
+    /// <summary>
+    /// Lấy chi tiết một độc giả theo ReaderCode kèm đầy đủ quan hệ (L0LRA-71).
+    /// </summary>
+    public async Task<Reader?> GetReaderByCodeWithDetailsAsync(string readerCode)
+    {
+        var clean = readerCode.Trim();
+        return await _context.Readers
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.FineReceipts)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.AIPredictionLogs)
+            .FirstOrDefaultAsync(r => r.ReaderCode == clean || r.User.Username == clean);
     }
 
     /// <summary>
@@ -237,5 +305,87 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
             .ToListAsync();
 
         return unpaidFines.Sum();
+    }
+
+    /// <summary>
+    /// Cập nhật trực tiếp trạng thái IsActive của User gắn với thẻ độc giả trong SQL Server.
+    /// </summary>
+    public async Task<bool> UpdateUserActiveStatusAsync(int userId, bool isActive)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
+        if (user == null)
+        {
+            return false;
+        }
+
+        user.IsActive = isActive;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Thêm thông báo vào bảng Notifications cho người dùng.
+    /// </summary>
+    public async Task AddNotificationAsync(int userId, string message)
+    {
+        var notif = new Notification
+        {
+            UserID = userId,
+            Message = message,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Notifications.AddAsync(notif);
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Tính toán các chỉ số thống kê tổng quan cho 4 thẻ KPI của phân hệ độc giả từ SQL Server (L0LRA-71).
+    /// </summary>
+    public async Task<ReaderSummaryDto> GetReaderSummaryAsync()
+    {
+        var readers = await _context.Readers
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.FineReceipts)
+            .Include(r => r.Borrowings)
+                .ThenInclude(b => b.BorrowingDetails)
+            .ToListAsync();
+
+        var totalReaders = readers.Count;
+        var totalActive = readers.Count(r => r.User != null && r.User.IsActive);
+        
+        // Thống kê nợ phạt tồn đọng (FineReceipts Status = 'Pending')
+        var debtReaders = readers.Where(r => r.Borrowings
+            .SelectMany(b => b.FineReceipts)
+            .Any(f => f.Status == "Pending")).ToList();
+
+        var totalDebt = readers
+            .SelectMany(r => r.Borrowings)
+            .SelectMany(b => b.FineReceipts)
+            .Where(f => f.Status == "Pending")
+            .Sum(f => f.FinalAmount);
+
+        // Độc giả nguy cơ cao: có sách trễ hạn hoặc nợ phạt hoặc CreditScore < 60
+        var now = DateTime.UtcNow;
+        var highRiskCount = readers.Count(r => 
+            r.CreditScore < 60 ||
+            r.Borrowings.Any(b => b.Status == "Overdue" || 
+                (b.DueDate.Date < now.Date && b.BorrowingDetails.Any(bd => bd.ItemStatus == "Borrowed" && bd.ReturnDate == null))));
+
+        // Điểm tín nhiệm trung bình
+        var avgCredit = totalReaders > 0 ? (int)Math.Round(readers.Average(r => r.CreditScore)) : 100;
+
+        return new ReaderSummaryDto
+        {
+            TotalReaders = totalReaders,
+            TotalActiveReaders = totalActive,
+            DebtReadersCount = debtReaders.Count,
+            TotalDebtAmount = totalDebt,
+            HighRiskCount = highRiskCount,
+            AverageCreditScore = avgCredit
+        };
     }
 }
