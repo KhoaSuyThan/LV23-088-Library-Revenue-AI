@@ -32,6 +32,8 @@ builder.Services.AddScoped<IReturnService, ReturnService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IRulesRepository, RulesRepository>();
 builder.Services.AddScoped<IRulesService, RulesService>();
+builder.Services.AddScoped<IReaderRepository, ReaderRepository>();
+builder.Services.AddScoped<IReaderService, ReaderService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
