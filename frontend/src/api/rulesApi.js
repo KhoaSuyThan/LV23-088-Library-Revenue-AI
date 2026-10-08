@@ -6,14 +6,14 @@ const DEFAULT_SYSTEM_RULES = {
   borrowDays_Student: 14,
   borrowDays_Teacher: 30,
   borrowLimit_MaxTogether: 5,
-  borrowLimit_Student: 3,
-  borrowLimit_Teacher: 8,
+  borrowLimit_Student: 5,
+  borrowLimit_Teacher: 10,
   maxRenewalTimes: 1,
   renewalExtraDays: 7,
 
-  // Biểu phí phạt vi phạm
-  finePerDay: 2000,
-  damagePenaltyPercent: 20,
+  // Biểu phí phạt vi phạm (chuẩn CSDL FineRules)
+  finePerDay: 5000,
+  damagePenaltyPercent: 10,
   compensationBasePercent: 100,
   compensationFixedFee: 20000,
   autoLockDebtThreshold: true,
@@ -145,6 +145,17 @@ export const rulesApi = {
       return response.data?.data ?? response.data;
     } catch (error) {
       console.error('Lỗi khi cập nhật cấu hình quy định:', error);
+      throw error;
+    }
+  },
+
+  // Khôi phục toàn bộ cấu hình quy định về mặc định chuẩn hệ thống (Story L0LRA-79)
+  resetDefaultRules: async () => {
+    try {
+      const response = await apiClient.post('/api/rules/reset-defaults');
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      console.error('Lỗi khi khôi phục cấu hình quy định mặc định:', error);
       throw error;
     }
   },

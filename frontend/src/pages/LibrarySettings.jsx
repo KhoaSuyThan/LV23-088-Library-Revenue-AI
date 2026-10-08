@@ -98,6 +98,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
 
   // State tương tác UI
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isRetraining, setIsRetraining] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
@@ -176,12 +177,37 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     setFormData((prev) => ({ ...prev, aiRiskThreshold: Number(e.target.value) }));
   };
 
-  // Khôi phục giá trị chuẩn
-  const handleResetDefaults = () => {
-    const defaults = rulesApi.getDefaultRules();
-    setFormData(defaults);
-    setValidationErrors({});
-    showToast('Đã khôi phục các giá trị cấu hình về mặc định!', 'info');
+  // Khôi phục giá trị chuẩn hệ thống qua API (L0LRA-79)
+  const handleResetDefaults = async () => {
+    const confirmed = window.confirm(
+      'Bạn có chắc chắn muốn khôi phục toàn bộ cấu hình quy định mượn trả & tham số AI về mặc định chuẩn của hệ thống không?'
+    );
+    if (!confirmed) return;
+
+    setIsResetting(true);
+    try {
+      const res = await rulesApi.resetDefaultRules();
+      if (res) {
+        setFormData(res);
+      } else {
+        setFormData(rulesApi.getDefaultRules());
+      }
+      setValidationErrors({});
+      // Tự động làm mới lịch sử kiểm toán sau khi reset
+      const updatedHistory = await rulesApi.getAuditHistory();
+      setAuditHistory(updatedHistory);
+      showToast('Đã khôi phục quy định thư viện về mặc định chuẩn thành công!', 'success');
+    } catch (err) {
+      console.error(err);
+      const serverMsg =
+        err.response?.data?.message ||
+        (err.response?.status === 401 || err.response?.status === 403
+          ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để khôi phục cấu hình.'
+          : 'Không thể khôi phục cấu hình mặc định. Vui lòng thử lại!');
+      showToast(serverMsg, 'error');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   // Lưu cấu hình
@@ -214,11 +240,14 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       showToast('Đã lưu toàn bộ cấu hình thư viện thành công!', 'success');
     } catch (err) {
       console.error(err);
+      const errorList = err.response?.data?.errors;
       const serverMsg =
-        err.response?.data?.message ||
-        (err.response?.status === 401 || err.response?.status === 403
-          ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để lưu cấu hình vào CSDL.'
-          : 'Không thể lưu cấu hình. Vui lòng kiểm tra kết nối mạng hoặc thử lại!');
+        (Array.isArray(errorList) && errorList.length > 0)
+          ? errorList.join(' | ')
+          : err.response?.data?.message ||
+            (err.response?.status === 401 || err.response?.status === 403
+              ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để lưu cấu hình vào CSDL.'
+              : 'Không thể lưu cấu hình. Vui lòng kiểm tra kết nối mạng hoặc thử lại!');
       showToast(serverMsg, 'error');
     } finally {
       setIsSaving(false);
@@ -307,10 +336,19 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
             type="button"
             className="btn-ghost-reset"
             onClick={handleResetDefaults}
-            disabled={isSaving}
+            disabled={isSaving || isResetting}
           >
-            <RotateCcw size={14} />
-            <span>Khôi phục mặc định</span>
+            {isResetting ? (
+              <>
+                <RotateCw size={14} className="spinner-spin" />
+                <span>Đang khôi phục...</span>
+              </>
+            ) : (
+              <>
+                <RotateCcw size={14} />
+                <span>Khôi phục mặc định</span>
+              </>
+            )}
           </button>
 
           <button

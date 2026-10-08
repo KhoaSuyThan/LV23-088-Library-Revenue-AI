@@ -287,6 +287,18 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.ConductScoreDiscountPercent)
                 .HasColumnType("decimal(5,2)")
                 .HasDefaultValue(20.0m);
+            entity.Property(e => e.CompensationBasePercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(100.0m);
+            entity.Property(e => e.MaxFineCapPercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(100.0m);
+            entity.Property(e => e.CompensationRatePercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(200.0m);
+            entity.Property(e => e.AiDiscount_90)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(10.0m);
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true);
         });

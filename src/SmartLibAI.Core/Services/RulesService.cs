@@ -285,6 +285,66 @@ public class RulesService : IRulesService
             rule.CompensationFixedFee = request.CompensationFixedFee.Value;
         }
 
+        if (request.CompensationBasePercent.HasValue && request.CompensationBasePercent.Value != rule.CompensationBasePercent)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "compensationBasePercent",
+                RuleName = "Tỷ lệ đền bù cơ bản",
+                OldValue = $"{rule.CompensationBasePercent}%",
+                NewValue = $"{request.CompensationBasePercent.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.CompensationBasePercent = request.CompensationBasePercent.Value;
+        }
+
+        if (request.MaxFineCapPercent.HasValue && request.MaxFineCapPercent.Value != rule.MaxFineCapPercent)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "maxFineCapPercent",
+                RuleName = "Mức trần tiền phạt tối đa",
+                OldValue = $"{rule.MaxFineCapPercent}%",
+                NewValue = $"{request.MaxFineCapPercent.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.MaxFineCapPercent = request.MaxFineCapPercent.Value;
+        }
+
+        if (request.CompensationRatePercent.HasValue && request.CompensationRatePercent.Value != rule.CompensationRatePercent)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "compensationRatePercent",
+                RuleName = "Tỷ lệ bồi thường mất sách",
+                OldValue = $"{rule.CompensationRatePercent}%",
+                NewValue = $"{request.CompensationRatePercent.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.CompensationRatePercent = request.CompensationRatePercent.Value;
+        }
+
+        if (request.AiDiscount_90.HasValue && request.AiDiscount_90.Value != rule.AiDiscount_90)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "aiDiscount_90",
+                RuleName = "Chiết khấu AI điểm rèn luyện tốt (90-99)",
+                OldValue = $"{rule.AiDiscount_90}%",
+                NewValue = $"{request.AiDiscount_90.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.AiDiscount_90 = request.AiDiscount_90.Value;
+        }
+
         if (request.AiDiscount_100.HasValue && request.AiDiscount_100.Value != rule.ConductScoreDiscountPercent)
         {
             auditLogs.Add(new RuleAuditLog
@@ -355,6 +415,10 @@ public class RulesService : IRulesService
         rule.AiRemindDaysBefore = 3;
         rule.AiAutoEmailReminder = true;
         rule.CompensationFixedFee = 20000m;
+        rule.CompensationBasePercent = 100.0m;
+        rule.MaxFineCapPercent = 100.0m;
+        rule.CompensationRatePercent = 200.0m;
+        rule.AiDiscount_90 = 10.0m;
         rule.IsActive = true;
 
         await _rulesRepository.UpdateFineRuleAsync(rule);
@@ -449,7 +513,7 @@ public class RulesService : IRulesService
 
             FinePerDay = rule.FinePerDay,
             DamagePenaltyPercent = rule.DamageFeePercent,
-            CompensationBasePercent = 100m,
+            CompensationBasePercent = rule.CompensationBasePercent,
             CompensationFixedFee = rule.CompensationFixedFee,
             AutoLockDebtThreshold = rule.AutoLockDebtThreshold,
             DebtLockAmount = rule.DebtLockAmount,
@@ -463,9 +527,9 @@ public class RulesService : IRulesService
             AiLastTrained = rule.AiLastTrained ?? "10/09/2026",
             AiModelActive = rule.IsActive,
 
-            MaxFineCapPercent = 100m,
-            CompensationRatePercent = 200m,
-            AiDiscount_90 = 10m,
+            MaxFineCapPercent = rule.MaxFineCapPercent,
+            CompensationRatePercent = rule.CompensationRatePercent,
+            AiDiscount_90 = rule.AiDiscount_90,
             AiDiscount_100 = rule.ConductScoreDiscountPercent
         };
     }

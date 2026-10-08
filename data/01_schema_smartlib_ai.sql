@@ -149,6 +149,10 @@ CREATE TABLE FineRules (
     AiRemindDaysBefore INT NOT NULL DEFAULT 3, -- Số ngày gửi nhắc nhở trước hạn
     AiAutoEmailReminder BIT NOT NULL DEFAULT 1,
     CompensationFixedFee DECIMAL(18,2) NOT NULL DEFAULT 20000, -- Phí xử lý đền bù
+    CompensationBasePercent DECIMAL(5,2) NOT NULL DEFAULT 100.0, -- Tỷ lệ đền bù cơ bản (%)
+    MaxFineCapPercent DECIMAL(5,2) NOT NULL DEFAULT 100.0, -- Mức trần tiền phạt tối đa (%)
+    CompensationRatePercent DECIMAL(5,2) NOT NULL DEFAULT 200.0, -- Tỷ lệ bồi thường mất sách (%)
+    AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0, -- Tỷ lệ giảm trừ AI điểm rèn luyện 90-99 (%)
     AiAccuracy DECIMAL(5,2) NOT NULL DEFAULT 84.5,
     AiLastTrained NVARCHAR(50) NOT NULL DEFAULT '10/09/2026',
     IsActive BIT DEFAULT 1

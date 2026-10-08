@@ -59,6 +59,26 @@ public class FineRule
 
     public decimal CompensationFixedFee { get; set; } = 20000m;
 
+    /// <summary>
+    /// Tỷ lệ đền bù cơ bản tính theo % giá sách (mặc định 100%).
+    /// </summary>
+    public decimal CompensationBasePercent { get; set; } = 100.0m;
+
+    /// <summary>
+    /// Mức trần tiền phạt tối đa tính theo % giá sách (mặc định 100%).
+    /// </summary>
+    public decimal MaxFineCapPercent { get; set; } = 100.0m;
+
+    /// <summary>
+    /// Tỷ lệ bồi thường mất sách tính theo % giá sách (mặc định 200%).
+    /// </summary>
+    public decimal CompensationRatePercent { get; set; } = 200.0m;
+
+    /// <summary>
+    /// Tỷ lệ giảm trừ tiền phạt đối với điểm rèn luyện 90-99 (mặc định 10%).
+    /// </summary>
+    public decimal AiDiscount_90 { get; set; } = 10.0m;
+
     public decimal AiAccuracy { get; set; } = 84.5m;
 
     public string AiLastTrained { get; set; } = "10/09/2026";

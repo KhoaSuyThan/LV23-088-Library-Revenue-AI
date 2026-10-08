@@ -212,9 +212,11 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
         setMaxBorrowLimit(limit);
         setMemberType(data.memberType || 'Student');
 
-        // Nếu là Giảng viên và thời hạn đang là thời hạn SV, tự động chuyển sang thời hạn GV chuẩn
+        // Tự động gợi ý thời hạn chuẩn theo đối tượng bạn đọc (Giảng viên <-> Sinh viên)
         if (isLecturer && (activeQuickDays === defaultStudentDays || activeQuickDays === 14)) {
           handleQuickDueDate(defaultLecturerDays);
+        } else if (!isLecturer && (activeQuickDays === defaultLecturerDays || activeQuickDays === 30)) {
+          handleQuickDueDate(defaultStudentDays);
         }
 
         if (!data.canBorrow || !data.isActive) {

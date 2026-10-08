@@ -5,6 +5,48 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-08] - [Optimization & Fixes] Nâng Cấp Hoàn Thiện Cấu Hình Quy Định & Quầy Lưu Thông (L0LRA-79 & L0LRA-72)
+
+- **Frontend & Giao diện ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`LibrarySettings.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
+  - **Tích hợp API Khôi phục mặc định:** Bổ sung hàm `rulesApi.resetDefaultRules` gọi `POST /api/rules/reset-defaults`; kết nối nút "Khôi phục mặc định" trên giao diện Cài đặt kèm hộp thoại xác nhận và tự động làm mới lịch sử kiểm toán sau khi reset.
+  - **Sửa logic quầy lưu thông:** Tự động chuyển đổi qua lại linh hoạt giữa thời hạn chuẩn của Giảng viên (30 ngày) và Sinh viên (14 ngày) khi quét thẻ liên tiếp, tránh gán nhầm hạn 30 ngày cho sinh viên.
+  - **Đồng bộ giá trị mặc định:** Cập nhật `DEFAULT_SYSTEM_RULES` trên Frontend khớp chuẩn 100% với CSDL Backend (`finePerDay = 5000`, `damagePenaltyPercent = 10`, `borrowLimit_Student = 5`...).
+  - **Hiển thị lỗi chi tiết:** Tích hợp hiển thị danh sách lỗi vi phạm dữ liệu (Validation Errors) từ phản hồi `ModelState` của Backend khi lưu cấu hình thất bại.
+- **Cơ sở dữ liệu & Backend Persistence (.NET 10 & SQL Server):**
+  - **Cơ sở dữ liệu ([`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql), [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)):**
+    - Mở rộng bảng `FineRules` với 4 cột mới: `CompensationBasePercent`, `MaxFineCapPercent`, `CompensationRatePercent`, `AiDiscount_90`.
+    - Đồng bộ mã SQL migration tự động trong `Program.cs` đảm bảo database tự cập nhật an toàn khi khởi chạy.
+  - **Entity & EF Core ([`FineRule.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)):**
+    - Bổ sung 4 thuộc tính và cấu hình kiểu dữ liệu `decimal(5,2)` cùng giá trị mặc định chuẩn xác trong `OnModelCreating`.
+  - **Service & Audit Trail ([`RulesService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):**
+    - `UpdateRulesAsync`: Ghi nhận thay đổi và sinh audit log chi tiết cho 4 trường cấu hình mới khi lưu.
+    - `ResetDefaultRulesAsync`: Khôi phục 4 trường này về giá trị tiêu chuẩn (`100%`, `100%`, `200%`, `10%`).
+    - `MapToDto`: Đọc trực tiếp từ CSDL thay cho hardcode tĩnh.
+
+## [2026-10-08] - [L0LRA-79] Viết API Đọc & Ghi cấu hình quy định
+
+- **Xác thực dữ liệu yêu cầu ([`UpdateRulesRequestDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/UpdateRulesRequestDto.cs)):**
+  - Bổ sung ràng buộc dữ liệu (`[Range]`) chi tiết kèm thông báo lỗi tiếng Việt cho tất cả tham số: thời hạn mượn, hạn mức sách, số lần gia hạn, phí phạt trễ hạn, tỷ lệ đền bù hư hỏng, ngưỡng nợ khóa thẻ, tham số cảnh báo AI và tỷ lệ chiết khấu điểm rèn luyện.
+- **Mở rộng API Controller ([`RulesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/RulesController.cs)):**
+  - Kiểm tra `ModelState.IsValid` và trả về `400 Bad Request` kèm danh sách lỗi khi dữ liệu vi phạm ràng buộc.
+  - Hỗ trợ cả 2 phương thức HTTP `PUT` và `POST` cho endpoint cập nhật cấu hình `/api/rules`.
+  - Trích xuất thông tin người thực hiện từ User Claims (`FullName`, `Name`, `Email`) và chuẩn hóa IP Client (IPv6 `::1` về `127.0.0.1`).
+  - Thêm mới Endpoint `POST /api/rules/reset-defaults` cho phép Admin/Thủ thư khôi phục cấu hình quy định về mặc định chuẩn hệ thống.
+- **Nghiệp vụ Service & Nhật ký kiểm toán ([`RulesService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`RulesRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/RulesRepository.cs)):**
+  - Tối ưu hóa ghi nhật ký kiểm toán (Audit Trail): Tự động so sánh từng trường dữ liệu thay đổi để lưu log chi tiết từng cấu hình (giá trị cũ -> mới kèm đơn vị ngày, %, VNĐ).
+  - Bổ sung phương thức `AddAuditLogsAsync` tại Repository hỗ trợ lưu hàng loạt (batch insert) audit logs vào CSDL hiệu quả.
+  - Triển khai phương thức `ResetDefaultRulesAsync` đưa toàn bộ quy định về giá trị mặc định ban đầu.
+
+## [2026-10-08] - [L0LRA-72] Cấu hình cụ thể Quy định mượn trả & mức phạt
+
+- **Đồng bộ giao diện Mượn trả sách ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx)):**
+  - Tích hợp gọi `rulesApi.getSystemRules()` khi nạp trang để lấy hạn mức và thời hạn mượn động từ CSDL thay cho hardcode.
+  - Tự động cập nhật hạn mức số lượng sách (`borrowLimit_Student`, `borrowLimit_Teacher`) và thời hạn mượn mặc định theo đối tượng bạn đọc (Sinh viên / Giảng viên).
+  - Các nút chọn nhanh thời hạn trên form mượn tự động đồng bộ số ngày theo cấu hình Admin hiện hành.
+- **Quản lý cài đặt & API Client ([`rulesApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
+  - Loại bỏ cơ chế fallback lưu ngầm LocalStorage trong `updateSystemRules`, chuyển sang bắn lỗi trực tiếp từ API server để đảm bảo dữ liệu đồng bộ với CSDL.
+  - Nâng cấp xử lý thông báo lỗi tại trang Cài đặt, hiển thị rõ ràng thông báo từ server hoặc nhắc nhở quyền Admin/Staff khi gặp lỗi phân quyền (401/403).
+
 ## [2026-10-08] - [Merge Conflict Resolution] Hợp Nhất Hoàn Chỉnh Nhánh L0LRA-71 và L0LRA-78 (Quản Lý Hồ Sơ Độc Giả & Khóa Thẻ)
 
 - **Hợp nhất mã nguồn Backend (.NET 10 & Entity Framework Core):**

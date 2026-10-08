@@ -227,6 +227,15 @@ using (var scope = app.Services.CreateScope())
                     AiLastTrained NVARCHAR(50) NOT NULL DEFAULT '10/09/2026';
             END
 
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'CompensationBasePercent')
+            BEGIN
+                ALTER TABLE FineRules ADD 
+                    CompensationBasePercent DECIMAL(5,2) NOT NULL DEFAULT 100.0,
+                    MaxFineCapPercent DECIMAL(5,2) NOT NULL DEFAULT 100.0,
+                    CompensationRatePercent DECIMAL(5,2) NOT NULL DEFAULT 200.0,
+                    AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0;
+            END
+
             -- Tự động kiểm tra và tạo bảng RuleAuditLogs
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RuleAuditLogs')
             BEGIN
@@ -300,6 +309,18 @@ using (var scope = app.Services.CreateScope())
                 LecturerBorrowDays = 30,
                 DamageFeePercent = 10.0m,
                 ConductScoreDiscountPercent = 20.0m,
+                MaxRenewalTimes = 1,
+                RenewalExtraDays = 7,
+                DebtLockAmount = 50000m,
+                AutoLockDebtThreshold = true,
+                AiRiskThreshold = 80,
+                AiRemindDaysBefore = 3,
+                AiAutoEmailReminder = true,
+                CompensationFixedFee = 20000m,
+                CompensationBasePercent = 100.0m,
+                MaxFineCapPercent = 100.0m,
+                CompensationRatePercent = 200.0m,
+                AiDiscount_90 = 10.0m,
                 IsActive = true
             });
             await context.SaveChangesAsync();
