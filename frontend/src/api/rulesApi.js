@@ -143,29 +143,9 @@ export const rulesApi = {
     try {
       const response = await apiClient.put('/api/rules', payload);
       return response.data?.data ?? response.data;
-    } catch {
-      localStorage.setItem(LOCAL_STORAGE_RULES_KEY, JSON.stringify(payload));
-      
-      const newAudit = {
-        id: Date.now(),
-        ruleKey: 'SystemSettingsUpdated',
-        ruleName: 'Cập nhật cấu hình quy định & mô hình AI',
-        oldValue: 'Xem chi tiết',
-        newValue: 'Đã lưu cấu hình mới',
-        changedBy: 'Thủ thư (Admin)',
-        changedAt: new Date().toLocaleString('vi-VN'),
-        ipAddress: '127.0.0.1 (Local Client)'
-      };
-
-      const existingAudit = rulesApi.getLocalAuditHistory();
-      const updatedAudit = [newAudit, ...existingAudit];
-      localStorage.setItem(LOCAL_STORAGE_AUDIT_KEY, JSON.stringify(updatedAudit));
-
-      return {
-        success: true,
-        message: 'Lưu quy định thành công',
-        data: payload
-      };
+    } catch (error) {
+      console.error('Lỗi khi cập nhật cấu hình quy định:', error);
+      throw error;
     }
   },
 

@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
+import { rulesApi } from '../api/rulesApi';
 import BarcodeCameraModal from './BarcodeCameraModal';
 import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
 import './BorrowForm.css';
@@ -60,13 +61,14 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
   const todayStr = formatDateToVn(today);
   const todayIso = formatDateToIso(today);
 
-  // Hạn mức và loại đối tượng bạn đọc động (Sinh viên tối đa 5 cuốn, Giảng viên tối đa 10 cuốn)
+  // Hạn mức và quy định mượn trả động (đồng bộ từ rulesApi.getSystemRules())
+  const [systemRules, setSystemRules] = useState(null);
   const [maxBorrowLimit, setMaxBorrowLimit] = useState(5);
   const [memberType, setMemberType] = useState('Student');
   const [readerInfo, setReaderInfo] = useState(null);
   const [isLoadingReader, setIsLoadingReader] = useState(false);
 
-  // Mặc định ngày hẹn trả sau 14 ngày (chuẩn 2 tuần)
+  // Mặc định ngày hẹn trả (sẽ tự động cập nhật theo cấu hình Admin khi tải xong)
   const [dueDate, setDueDate] = useState(() => {
     const d = getToday();
     d.setDate(d.getDate() + 14);
@@ -74,6 +76,32 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
   });
   const [dueDateError, setDueDateError] = useState('');
   const datePickerInputRef = useRef(null);
+
+  // Tự động tải cấu hình quy định hiện hành từ máy chủ (Story LOLRA-72)
+  useEffect(() => {
+    const loadSystemRules = async () => {
+      try {
+        const rules = await rulesApi.getSystemRules();
+        if (rules) {
+          setSystemRules(rules);
+          const studentDays = Number(rules.borrowDays_Student) || 14;
+          const studentLimit = Number(rules.borrowLimit_Student) || Number(rules.borrowLimit_MaxTogether) || 5;
+
+          // Cập nhật hạn mức mượn mặc định cho độc giả sinh viên
+          setMaxBorrowLimit(studentLimit);
+
+          // Cập nhật thời hạn mượn mặc định theo cấu hình Admin
+          const d = getToday();
+          d.setDate(d.getDate() + studentDays);
+          setDueDate(formatDateToVn(d));
+        }
+      } catch (err) {
+        console.warn('Không thể nạp quy định hệ thống cho quầy mượn:', err);
+      }
+    };
+
+    loadSystemRules();
+  }, []);
 
   // Parse chuỗi DD/MM/YYYY sang Date object
   const parseVnDateToObj = (str) => {
@@ -153,9 +181,22 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
   // Kiểm tra tư cách độc giả và cập nhật hạn mức động theo đối tượng (Sinh viên / Giảng viên)
   const checkReaderEligibility = async (code) => {
     const clean = (code !== undefined ? code : readerCode).trim();
+    const defaultStudentLimit = systemRules
+      ? (Number(systemRules.borrowLimit_Student) || Number(systemRules.borrowLimit_MaxTogether) || 5)
+      : 5;
+    const defaultLecturerLimit = systemRules
+      ? (Number(systemRules.borrowLimit_Teacher) || 10)
+      : 10;
+    const defaultStudentDays = systemRules
+      ? (Number(systemRules.borrowDays_Student) || 14)
+      : 14;
+    const defaultLecturerDays = systemRules
+      ? (Number(systemRules.borrowDays_Teacher) || 30)
+      : 30;
+
     if (!clean) {
       setReaderInfo(null);
-      setMaxBorrowLimit(5);
+      setMaxBorrowLimit(defaultStudentLimit);
       setMemberType('Student');
       return;
     }
@@ -167,13 +208,13 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
         const data = res.data;
         setReaderInfo(data);
         const isLecturer = data.memberType === 'Lecturer';
-        const limit = data.maxBorrowLimit || (isLecturer ? 10 : 5);
+        const limit = data.maxBorrowLimit || (isLecturer ? defaultLecturerLimit : defaultStudentLimit);
         setMaxBorrowLimit(limit);
         setMemberType(data.memberType || 'Student');
 
-        // Nếu là Giảng viên và thời hạn đang là 14 ngày mặc định, tự động gợi ý sang 30 ngày chuẩn
-        if (isLecturer && activeQuickDays === 14) {
-          handleQuickDueDate(30);
+        // Nếu là Giảng viên và thời hạn đang là thời hạn SV, tự động chuyển sang thời hạn GV chuẩn
+        if (isLecturer && (activeQuickDays === defaultStudentDays || activeQuickDays === 14)) {
+          handleQuickDueDate(defaultLecturerDays);
         }
 
         if (!data.canBorrow || !data.isActive) {
@@ -183,7 +224,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
         } else {
           setBorrowError('');
           if (showToast) {
-            showToast(`👤 Độc giả: ${data.fullName} [${isLecturer ? 'Giảng viên (Tối đa 10 cuốn)' : 'Sinh viên (Tối đa 5 cuốn)'}]`);
+            showToast(`👤 Độc giả: ${data.fullName} [${isLecturer ? `Giảng viên (Tối đa ${limit} cuốn)` : `Sinh viên (Tối đa ${limit} cuốn)`}]`);
           }
         }
       }
@@ -664,8 +705,11 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               onChange={(e) => {
                 setReaderCode(e.target.value);
                 if (!e.target.value.trim()) {
+                  const defaultStudentLimit = systemRules
+                    ? (Number(systemRules.borrowLimit_Student) || Number(systemRules.borrowLimit_MaxTogether) || 5)
+                    : 5;
                   setReaderInfo(null);
-                  setMaxBorrowLimit(5);
+                  setMaxBorrowLimit(defaultStudentLimit);
                   setMemberType('Student');
                 }
               }}
@@ -684,9 +728,12 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
                 type="button"
                 className="input-clear-btn"
                 onClick={() => {
+                  const defaultStudentLimit = systemRules
+                    ? (Number(systemRules.borrowLimit_Student) || Number(systemRules.borrowLimit_MaxTogether) || 5)
+                    : 5;
                   setReaderCode('');
                   setReaderInfo(null);
-                  setMaxBorrowLimit(5);
+                  setMaxBorrowLimit(defaultStudentLimit);
                   setMemberType('Student');
                 }}
                 title="Xóa mã độc giả"
@@ -821,7 +868,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               </div>
             )}
 
-            {/* Thanh chọn nhanh số ngày thời hạn mượn */}
+            {/* Thanh chọn nhanh số ngày thời hạn mượn (đồng bộ theo cấu hình Admin FineRules) */}
             <div className="quick-due-chips-bar">
               <span className="quick-due-title">Thời hạn:</span>
               <button
@@ -834,19 +881,19 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               </button>
               <button
                 type="button"
-                className={`quick-due-chip ${activeQuickDays === 14 ? 'chip-active' : ''}`}
-                onClick={() => handleQuickDueDate(14)}
-                title="Mượn 14 ngày (2 tuần)"
+                className={`quick-due-chip ${activeQuickDays === (Number(systemRules?.borrowDays_Student) || 14) ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(Number(systemRules?.borrowDays_Student) || 14)}
+                title={`Mượn ${Number(systemRules?.borrowDays_Student) || 14} ngày (chuẩn Sinh viên)`}
               >
-                +14 ngày
+                +{Number(systemRules?.borrowDays_Student) || 14} ngày
               </button>
               <button
                 type="button"
-                className={`quick-due-chip ${activeQuickDays === 30 ? 'chip-active' : ''}`}
-                onClick={() => handleQuickDueDate(30)}
-                title="Mượn 30 ngày (1 tháng)"
+                className={`quick-due-chip ${activeQuickDays === (Number(systemRules?.borrowDays_Teacher) || 30) ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(Number(systemRules?.borrowDays_Teacher) || 30)}
+                title={`Mượn ${Number(systemRules?.borrowDays_Teacher) || 30} ngày (chuẩn Giảng viên)`}
               >
-                +30 ngày
+                +{Number(systemRules?.borrowDays_Teacher) || 30} ngày
               </button>
             </div>
           </div>

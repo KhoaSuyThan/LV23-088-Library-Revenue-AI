@@ -214,7 +214,12 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       showToast('Đã lưu toàn bộ cấu hình thư viện thành công!', 'success');
     } catch (err) {
       console.error(err);
-      showToast('Không thể lưu cấu hình. Vui lòng thử lại!', 'error');
+      const serverMsg =
+        err.response?.data?.message ||
+        (err.response?.status === 401 || err.response?.status === 403
+          ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để lưu cấu hình vào CSDL.'
+          : 'Không thể lưu cấu hình. Vui lòng kiểm tra kết nối mạng hoặc thử lại!');
+      showToast(serverMsg, 'error');
     } finally {
       setIsSaving(false);
     }
