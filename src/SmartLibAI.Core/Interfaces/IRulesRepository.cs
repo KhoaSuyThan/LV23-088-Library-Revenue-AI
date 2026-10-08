@@ -12,4 +12,5 @@ public interface IRulesRepository
     Task<List<WaiverReason>> GetWaiverReasonsAsync();
     Task<List<RuleAuditLog>> GetAuditLogsAsync();
     Task AddAuditLogAsync(RuleAuditLog log);
+    Task AddAuditLogsAsync(IEnumerable<RuleAuditLog> logs);
 }

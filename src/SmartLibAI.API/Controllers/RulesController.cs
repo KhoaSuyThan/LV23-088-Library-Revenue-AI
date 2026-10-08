@@ -8,7 +8,7 @@ using SmartLibAI.Core.Interfaces;
 namespace SmartLibAI.API.Controllers;
 
 /// <summary>
-/// Controller quản lý cấu hình quy định thư viện & tham số mô hình AI (Story LOLRA-72 - US-03).
+/// Controller quản lý cấu hình quy định thư viện & tham số mô hình AI (Story LOLRA-72 / L0LRA-79 - US-03).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -34,21 +34,36 @@ public class RulesController : ControllerBase
     }
 
     /// <summary>
-    /// Cập nhật cấu hình quy định mượn trả & biểu phí phạt (PUT /api/rules) (LOLRA-72).
+    /// Cập nhật cấu hình quy định mượn trả & biểu phí phạt (PUT /api/rules hoặc POST /api/rules).
     /// Áp dụng ngay cho toàn bộ các giao dịch mượn/trả tiếp theo trên hệ thống.
     /// </summary>
     [HttpPut]
+    [HttpPost]
     [Authorize(Roles = "Admin,Staff")]
     [ProducesResponseType(typeof(ApiResponse<SystemRulesDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<SystemRulesDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateRules([FromBody] UpdateRulesRequestDto request)
     {
-        var username = User.Identity?.Name 
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<SystemRulesDto>.ErrorResult("Dữ liệu cấu hình không hợp lệ", errors));
+        }
+
+        var username = User.FindFirst("FullName")?.Value 
+            ?? User.Identity?.Name 
             ?? User.FindFirst(ClaimTypes.Name)?.Value 
             ?? User.FindFirst("unique_name")?.Value 
+            ?? User.FindFirst(ClaimTypes.Email)?.Value
             ?? "Thủ thư (Admin)";
 
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (string.IsNullOrWhiteSpace(ipAddress) || ipAddress == "::1")
+        {
+            ipAddress = "127.0.0.1";
+        }
 
         var result = await _rulesService.UpdateRulesAsync(request, username, ipAddress);
         if (!result.Success)
@@ -56,6 +71,31 @@ public class RulesController : ControllerBase
             return BadRequest(result);
         }
 
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Khôi phục toàn bộ cấu hình quy định về mặc định chuẩn của hệ thống (POST /api/rules/reset-defaults).
+    /// </summary>
+    [HttpPost("reset-defaults")]
+    [Authorize(Roles = "Admin,Staff")]
+    [ProducesResponseType(typeof(ApiResponse<SystemRulesDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ResetDefaultRules()
+    {
+        var username = User.FindFirst("FullName")?.Value 
+            ?? User.Identity?.Name 
+            ?? User.FindFirst(ClaimTypes.Name)?.Value 
+            ?? "Thủ thư (Admin)";
+
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (string.IsNullOrWhiteSpace(ipAddress) || ipAddress == "::1")
+        {
+            ipAddress = "127.0.0.1";
+        }
+
+        var result = await _rulesService.ResetDefaultRulesAsync(username, ipAddress);
         return Ok(result);
     }
 

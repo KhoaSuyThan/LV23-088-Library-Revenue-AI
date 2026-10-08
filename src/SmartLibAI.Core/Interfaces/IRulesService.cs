@@ -10,6 +10,7 @@ public interface IRulesService
 {
     Task<ApiResponse<SystemRulesDto>> GetRulesAsync();
     Task<ApiResponse<SystemRulesDto>> UpdateRulesAsync(UpdateRulesRequestDto request, string? username = null, string? ipAddress = null);
+    Task<ApiResponse<SystemRulesDto>> ResetDefaultRulesAsync(string? username = null, string? ipAddress = null);
     Task<ApiResponse<List<WaiverReasonDto>>> GetWaiverReasonsAsync();
     Task<ApiResponse<List<RuleAuditLogDto>>> GetAuditHistoryAsync();
     Task<ApiResponse<AiRetrainResponseDto>> RetrainAiModelAsync();
