@@ -52,4 +52,10 @@ public class RulesRepository : IRulesRepository
         await _context.RuleAuditLogs.AddAsync(log);
         await _context.SaveChangesAsync();
     }
+
+    public async Task AddAuditLogsAsync(IEnumerable<RuleAuditLog> logs)
+    {
+        await _context.RuleAuditLogs.AddRangeAsync(logs);
+        await _context.SaveChangesAsync();
+    }
 }
