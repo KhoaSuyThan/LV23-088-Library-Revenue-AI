@@ -5,145 +5,65 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-09] - [UI & Rules Fix] Chuẩn Hóa Text Mức Đền Bù Mất Sách Về '110% Giá Bìa' (Loại Bỏ Phí Xử Lý 20.000 VNĐ)
+## [2026-10-09] - [Refactor & Bug Fix] Hoàn Thiện BUG-04, Chuẩn Hóa Đền Bù & Cảnh Báo Số Âm
 
-- **Giao diện Cài đặt ([`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
-  - **Loại bỏ chuỗi phụ thu `+ 20.000 VNĐ phí xử lý`:** Điều chỉnh giá trị hiển thị mặc định và quá trình nạp dữ liệu của ô "Mức đền bù mất sách / hỏng hoàn toàn" thành đúng nguyên bản **`110% giá bìa`**, không cộng dồn thêm 20.000 VNĐ.
-  - Đặt `compensationFixedFee = 0` trên cả frontend và backend.
-- **Backend .NET Core ([`SystemRulesDto.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/SystemRulesDto.cs), [`RulesService.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):**
-  - Đồng bộ `CompensationFixedFee = 0m` và `CompensationBasePercent = 110m` trong DTO và dịch vụ khôi phục mặc định `ResetDefaultRulesAsync`.
+- **Khắc phục triệt để BUG-04 (Khoa/Bộ phận thực tế của độc giả):**
+  - Bổ sung [`DepartmentHelper.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Common/DepartmentHelper.cs) chuẩn hóa tên Khoa/Bộ phận hiển thị đầy đủ theo đối tượng (`CNTT`, `Kinh Tế`, `Lecturer`...).
+  - Đồng bộ trường `Department` qua các DTOs, Services ([`ReturnService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`BorrowService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`InvoiceService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs)) và giao diện Quầy lưu thông, biên lai, in phiếu A4 ([`CirculationDesk.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), [`CirculationReceiptModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx)).
+- **Chuẩn hóa mức đền bù mất sách & bỏ phí xử lý cố định:**
+  - Quy chuẩn mức đền bù về **`110% giá bìa`**, loại bỏ phụ thu cố định 20.000 VNĐ (`compensationFixedFee = 0`) trên cả Frontend ([`LibrarySettings.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)) và Backend ([`RulesService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)).
+- **Khắc phục BUG-05 & Xác thực số âm:**
+  - Phát hiện và cảnh báo tức thời số âm trên các ô nhập mức phạt hư hỏng/đền bù tại [`LibrarySettings.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx).
+  - Tự động bóc tách số liệu và lưu vào CSDL `FineRules`; áp dụng tỷ lệ phạt thực tế vào tính toán trả sách tại quầy ([`ReturnProcessing.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx)).
+  - Bổ sung xác thực `CompensationBasePercent` (0% - 500%) và dọn dẹp code thừa trong Backend.
 
-## [2026-10-09] - [Bug Fix - BUG-05] Khắc Phục Lỗi Cảnh Báo Số Âm & Đồng Bộ Mức Phạt Rách Sách, Đền Bù Mất Sách Vào CSDL FineRules
+## [2026-10-08] - [Optimization & Fixes] Cấu Hình Quy Định, Quầy Lưu Thông & Hợp Nhất Nhánh (L0LRA-71, 72, 78, 79)
 
-- **Frontend & Giao diện ([`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
-  - **Khắc phục lỗi cảnh báo số âm tức thời:** Cải tiến hàm `extractNumber` và `validateField` để phát hiện số âm ngay khi người dùng nhập chuỗi (kể cả có chứa ký hiệu `%` hoặc chữ, ví dụ `-20%`, `-20`). Tự động hiển thị viền đỏ `.has-error` và dòng cảnh báo đỏ `<span className="figma-error-hint">⚠ Không được nhập số âm (< 0)</span>` cho cả 2 ô "Mức phạt làm rách / hỏng sách nhẹ" và "Mức đền bù mất sách / hỏng hoàn toàn".
-  - **Khắc phục BUG-05 (Khóa cứng chuỗi tĩnh & không lưu CSDL):** Tự động bóc tách số phần trăm từ chuỗi nhập (`damagePenaltyText` -> `damagePenaltyPercent`, `compensationText` -> `compensationBasePercent`) và gửi lên API Backend `PUT /api/rules` để lưu vào bảng `FineRules` trong CSDL SQL Server; đồng thời lưu đồng bộ vào bộ nhớ cục bộ để khi chuyển tab hoặc tải lại trang không bị nhảy ngược về chuỗi mặc định cũ.
-  - **Mở rộng phạm vi kiểm tra `handleSave`:** Đưa cả `damagePenaltyText`, `compensationText`, `debtLockAmount`, `aiDiscount_90`, `aiDiscount_100` vào danh sách bắt buộc kiểm tra số âm trước khi gửi yêu cầu lưu, ngăn chặn lưu dữ liệu không hợp lệ.
-- **Quầy lưu thông & Trả tài liệu ([`ReturnProcessing.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx)):**
-  - **Áp dụng tỷ lệ phạt thực tế từ CSDL:** Kết nối cách tính phí làm rách/hỏng sách và đền bù thất lạc với tỷ lệ cấu hình thực tế `lookupData.damageFeePercent` từ bảng `FineRules` thay vì giá trị cố định cứng 20%, đảm bảo mọi thay đổi của thủ thư trong Cài đặt được áp dụng ngay lập tức tại quầy trả sách.
+- **Cấu hình quy định & Khôi phục mặc định (L0LRA-72 & L0LRA-79):**
+  - Bổ sung endpoint `POST /api/rules/reset-defaults` và chức năng "Khôi phục mặc định" trên giao diện Cài đặt kèm hộp thoại xác nhận.
+  - Tự động cập nhật thời hạn mượn và hạn mức sách theo đối tượng (Giảng viên 30 ngày / Sinh viên 14 ngày) trên [`BorrowForm.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx).
+  - Mở rộng bảng `FineRules` (4 cột cấu hình mới), hoàn thiện ràng buộc `[Range]` cho [`UpdateRulesRequestDto.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/UpdateRulesRequestDto.cs) và ghi nhật ký kiểm toán (Audit Trail) chi tiết khi sửa đổi.
+- **Hợp nhất mã nguồn Quản lý độc giả (L0LRA-71 & L0LRA-78):**
+  - Tích hợp toàn diện DTOs, Repository và [`ReadersController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs): hỗ trợ phân trang, CRUD hồ sơ, cấp/gia hạn thẻ bạn đọc.
+  - Tích hợp 4 thẻ KPI thống kê, đánh giá rủi ro AI, khóa/mở khóa thẻ tức thời và gửi cảnh báo trễ hạn.
+  - Đồng bộ schema bảng `Readers` (`Faculty`, `ClassGroup`) và dữ liệu mẫu khởi tạo.
 
-## [2026-10-08] - [Optimization & Fixes] Nâng Cấp Hoàn Thiện Cấu Hình Quy Định & Quầy Lưu Thông (L0LRA-79 & L0LRA-72)
+## [2026-10-07] - Triển Khai Backend Quản Lý Độc Giả & Cấu Hình Quy Định (L0LRA-78 & L0LRA-72)
 
-- **Frontend & Giao diện ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`LibrarySettings.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
-  - **Tích hợp API Khôi phục mặc định:** Bổ sung hàm `rulesApi.resetDefaultRules` gọi `POST /api/rules/reset-defaults`; kết nối nút "Khôi phục mặc định" trên giao diện Cài đặt kèm hộp thoại xác nhận và tự động làm mới lịch sử kiểm toán sau khi reset.
-  - **Sửa logic quầy lưu thông:** Tự động chuyển đổi qua lại linh hoạt giữa thời hạn chuẩn của Giảng viên (30 ngày) và Sinh viên (14 ngày) khi quét thẻ liên tiếp, tránh gán nhầm hạn 30 ngày cho sinh viên.
-  - **Đồng bộ giá trị mặc định:** Cập nhật `DEFAULT_SYSTEM_RULES` trên Frontend khớp chuẩn 100% với CSDL Backend (`finePerDay = 5000`, `damagePenaltyPercent = 10`, `borrowLimit_Student = 5`...).
-  - **Hiển thị lỗi chi tiết:** Tích hợp hiển thị danh sách lỗi vi phạm dữ liệu (Validation Errors) từ phản hồi `ModelState` của Backend khi lưu cấu hình thất bại.
-- **Cơ sở dữ liệu & Backend Persistence (.NET 10 & SQL Server):**
-  - **Cơ sở dữ liệu ([`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql), [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)):**
-    - Mở rộng bảng `FineRules` với 4 cột mới: `CompensationBasePercent`, `MaxFineCapPercent`, `CompensationRatePercent`, `AiDiscount_90`.
-    - Đồng bộ mã SQL migration tự động trong `Program.cs` đảm bảo database tự cập nhật an toàn khi khởi chạy.
-  - **Entity & EF Core ([`FineRule.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)):**
-    - Bổ sung 4 thuộc tính và cấu hình kiểu dữ liệu `decimal(5,2)` cùng giá trị mặc định chuẩn xác trong `OnModelCreating`.
-  - **Service & Audit Trail ([`RulesService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):**
-    - `UpdateRulesAsync`: Ghi nhận thay đổi và sinh audit log chi tiết cho 4 trường cấu hình mới khi lưu.
-    - `ResetDefaultRulesAsync`: Khôi phục 4 trường này về giá trị tiêu chuẩn (`100%`, `100%`, `200%`, `10%`).
-    - `MapToDto`: Đọc trực tiếp từ CSDL thay cho hardcode tĩnh.
-
-## [2026-10-08] - [L0LRA-79] Viết API Đọc & Ghi cấu hình quy định
-
-- **Xác thực dữ liệu yêu cầu ([`UpdateRulesRequestDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/UpdateRulesRequestDto.cs)):**
-  - Bổ sung ràng buộc dữ liệu (`[Range]`) chi tiết kèm thông báo lỗi tiếng Việt cho tất cả tham số: thời hạn mượn, hạn mức sách, số lần gia hạn, phí phạt trễ hạn, tỷ lệ đền bù hư hỏng, ngưỡng nợ khóa thẻ, tham số cảnh báo AI và tỷ lệ chiết khấu điểm rèn luyện.
-- **Mở rộng API Controller ([`RulesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/RulesController.cs)):**
-  - Kiểm tra `ModelState.IsValid` và trả về `400 Bad Request` kèm danh sách lỗi khi dữ liệu vi phạm ràng buộc.
-  - Hỗ trợ cả 2 phương thức HTTP `PUT` và `POST` cho endpoint cập nhật cấu hình `/api/rules`.
-  - Trích xuất thông tin người thực hiện từ User Claims (`FullName`, `Name`, `Email`) và chuẩn hóa IP Client (IPv6 `::1` về `127.0.0.1`).
-  - Thêm mới Endpoint `POST /api/rules/reset-defaults` cho phép Admin/Thủ thư khôi phục cấu hình quy định về mặc định chuẩn hệ thống.
-- **Nghiệp vụ Service & Nhật ký kiểm toán ([`RulesService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`RulesRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/RulesRepository.cs)):**
-  - Tối ưu hóa ghi nhật ký kiểm toán (Audit Trail): Tự động so sánh từng trường dữ liệu thay đổi để lưu log chi tiết từng cấu hình (giá trị cũ -> mới kèm đơn vị ngày, %, VNĐ).
-  - Bổ sung phương thức `AddAuditLogsAsync` tại Repository hỗ trợ lưu hàng loạt (batch insert) audit logs vào CSDL hiệu quả.
-  - Triển khai phương thức `ResetDefaultRulesAsync` đưa toàn bộ quy định về giá trị mặc định ban đầu.
-
-## [2026-10-08] - [L0LRA-72] Cấu hình cụ thể Quy định mượn trả & mức phạt
-
-- **Đồng bộ giao diện Mượn trả sách ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx)):**
-  - Tích hợp gọi `rulesApi.getSystemRules()` khi nạp trang để lấy hạn mức và thời hạn mượn động từ CSDL thay cho hardcode.
-  - Tự động cập nhật hạn mức số lượng sách (`borrowLimit_Student`, `borrowLimit_Teacher`) và thời hạn mượn mặc định theo đối tượng bạn đọc (Sinh viên / Giảng viên).
-  - Các nút chọn nhanh thời hạn trên form mượn tự động đồng bộ số ngày theo cấu hình Admin hiện hành.
-- **Quản lý cài đặt & API Client ([`rulesApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
-  - Loại bỏ cơ chế fallback lưu ngầm LocalStorage trong `updateSystemRules`, chuyển sang bắn lỗi trực tiếp từ API server để đảm bảo dữ liệu đồng bộ với CSDL.
-  - Nâng cấp xử lý thông báo lỗi tại trang Cài đặt, hiển thị rõ ràng thông báo từ server hoặc nhắc nhở quyền Admin/Staff khi gặp lỗi phân quyền (401/403).
-
-## [2026-10-08] - [Merge Conflict Resolution] Hợp Nhất Hoàn Chỉnh Nhánh L0LRA-71 và L0LRA-78 (Quản Lý Hồ Sơ Độc Giả & Khóa Thẻ)
-
-- **Hợp nhất mã nguồn Backend (.NET 10 & Entity Framework Core):**
-  - **DTOs ([`ReaderDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Readers/ReaderDto.cs)):** Tích hợp song song các thuộc tính từ L0LRA-78 (`ActiveBorrowCount`, `TotalUnpaidFines`, `Status`, `CreatedAt`) và L0LRA-71 (`RiskScore`, `RiskType`, `RiskLevelText`, `AiDiagnosis`, `Avatar`, `Faculty`, `ClassGroup`, `Books`) kèm các thuộc tính bí danh (alias properties) đảm bảo tương thích 100% với cả 2 phía UI.
-  - **Repository & Service ([`ReaderRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`ReaderService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)):**
-    - Giữ trọn vẹn nghiệp vụ phân trang, CRUD, cấp thẻ bạn đọc, gia hạn thẻ từ L0LRA-78.
-    - Tích hợp nghiệp vụ thống kê 4 thẻ KPI (`GetReaderSummaryAsync`), thuật toán đánh giá rủi ro AI trên lịch sử mượn trả & nợ phạt, khóa/mở khóa thẻ tức thời (`ToggleLockAsync`) và gửi thông báo cảnh báo trễ hạn (`SendWarningNotificationAsync`) từ L0LRA-71.
-  - **API Controller ([`ReadersController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs)):**
-    - Cung cấp đầy đủ các endpoints: `GET /api/readers` (tự động phân nhánh trả về `PagedResult` nếu có tham số `page`/`pageSize` hoặc trả về danh sách UI theo lọc Khoa/Trạng thái/Rủi ro nếu không phân trang), `GET /api/readers/summary`, `GET /api/readers/{id}`, `GET /api/readers/{id}/detail`, `GET /api/readers/code/{readerCode}`, `PUT /api/readers/{id}/toggle-lock`, `PUT /api/readers/{id}/status`, `PATCH /api/readers/{id}/status`, `POST /api/readers`, `PUT /api/readers/{id}`, `POST /api/readers/{id}/extend`, `POST /api/readers/{id}/send-warning`.
-- **Đồng bộ Cơ sở dữ liệu (Database Schema & Seed Data):**
-  - Cập nhật định nghĩa bảng `Readers` trong [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql) và [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs) bổ sung `Faculty` (NVARCHAR(100), default 'CNTT') và `ClassGroup` (NVARCHAR(50), default 'K21-CC').
-  - Đồng bộ dữ liệu khởi tạo trong [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql) và cơ chế tự động migration/seeding độc giả trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
-- **Kiểm thử chất lượng:**
-  - `dotnet build` SmartLibAI.Core & Infrastructure: Thành công 100% (0 lỗi, 0 cảnh báo).
-  - `npm --prefix frontend run build`: Thành công 100% không lỗi.
-
-## [2026-10-07] - [L0LRA-78] Triển Khai Bộ API Quản Lý Độc Giả & Khóa Mở Thẻ Bạn Đọc
-
-- **Backend Web API (.NET 10 & Entity Framework Core):**
-  - **DTOs ([`src/SmartLibAI.Core/DTOs/Readers/`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Readers/)):** Xây dựng các DTO `ReaderDto`, `ReaderDetailDto`, `CreateReaderRequestDto`, `UpdateReaderRequestDto`, `ToggleReaderStatusDto`, `ExtendCardRequestDto` chuẩn hóa dữ liệu hồ sơ bạn đọc, danh sách sách đang mượn và nợ phạt.
-  - **Repository & Service ([`IReaderRepository`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReaderRepository.cs), [`ReaderRepository`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`IReaderService`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReaderService.cs), [`ReaderService`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)):**
-    - Hỗ trợ phân trang, tìm kiếm đa tiêu chí (mã thẻ, MSSV, tên, email) và lọc trạng thái thẻ (`Active`, `Locked`, `Expired`).
-    - Tính toán số sách đang mượn và tổng nợ phạt chưa thanh toán bằng truy vấn gộp (batch query tối ưu).
-    - Cấp thẻ mới: Tự động mã hóa mật khẩu với BCrypt, tạo tài khoản User và hồ sơ Reader trong SQL Transaction an toàn.
-    - Khóa / Mở khóa thẻ bạn đọc: Chuyển đổi trạng thái `User.IsActive` đồng bộ trực tiếp với cơ chế từ chối mượn sách tại Quầy lưu thông.
-    - Gia hạn thẻ bạn đọc (`ExpiryDate`).
-  - **API Controller ([`ReadersController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs)):**
-    - `GET /api/readers`: Phân trang, tìm kiếm và lọc danh sách độc giả.
-    - `GET /api/readers/{id}` & `GET /api/readers/code/{readerCode}`: Chi tiết hồ sơ độc giả kèm tài liệu đang mượn và nợ phạt.
-    - `POST /api/readers`: Thêm mới độc giả và cấp thẻ bạn đọc.
-    - `PUT /api/readers/{id}`: Cập nhật thông tin độc giả.
-    - `PATCH /api/readers/{id}/status`: Khóa hoặc mở khóa thẻ bạn đọc.
-    - `POST /api/readers/{id}/extend`: Gia hạn ngày hết hạn thẻ bạn đọc.
-    - Bảo vệ bởi phân quyền `[Authorize(Roles = "Admin,Staff")]`.
-  - **Quy tắc dự án:** Thiết lập cấu hình tự động quy ước nhánh và commit Jira trong [`.agents/rules/jira_conventions.md`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/.agents/rules/jira_conventions.md).
-
-## [2026-10-07] - Triển Khai Hoàn Thiện Backend Cấu Hình Quy Định Mượn Trả & Mức Phạt 
-
-- **Backend Web API (.NET 10 & Entity Framework Core):**
-  - **Entity & CSDL ([`FineRule.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`RuleAuditLog.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/RuleAuditLog.cs), [`WaiverReason.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/WaiverReason.cs)):** Mở rộng bảng `FineRules` lưu trữ đầy đủ các tham số hạn mượn, hạn mức, biểu phí phạt, ngưỡng cảnh báo AI và kiểm soát nợ. Bổ sung bảng `RuleAuditLogs` ghi nhận nhật ký kiểm toán và bảng `WaiverReasons` quản lý danh mục lý do miễn giảm tiền phạt.
-  - **DTOs ([`src/SmartLibAI.Core/DTOs/Rules/`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/)):** Xây dựng các DTO chuẩn hóa `SystemRulesDto`, `UpdateRulesRequestDto`, `WaiverReasonDto`, `RuleAuditLogDto`, và `AiRetrainResponseDto`.
-  - **Kiến trúc Layered Repository & Service ([`IRulesRepository`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IRulesRepository.cs), [`RulesRepository`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/RulesRepository.cs), [`IRulesService`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IRulesService.cs), [`RulesService`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):** Triển khai nghiệp vụ cập nhật thông số quy định, ghi vết kiểm toán tự động theo người dùng và địa chỉ IP, huấn luyện lại mô hình AI dự báo rủi ro trễ hạn.
-  - **API Controller ([`RulesController.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/RulesController.cs)):** Cung cấp bộ 5 endpoint RESTful:
-    - `GET /api/rules`: Đọc toàn bộ cấu hình quy định hiện hành từ cơ sở dữ liệu.
-    - `PUT /api/rules`: Cập nhật cấu hình quy định mượn trả & mức phạt (bảo vệ bởi `[Authorize(Roles = "Admin,Staff")]`).
-    - `GET /api/rules/waivers`: Truy vấn danh mục lý do miễn giảm tiền phạt.
-    - `GET /api/rules/history`: Xem lịch sử kiểm toán thay đổi cấu hình.
-    - `POST /api/ai/retrain`: Kích hoạt tiến trình huấn luyện lại mô hình AI Random Forest Classifier.
-  - **Đồng bộ Quầy lưu thông (Circulation Desk):** Mọi thay đổi về thời hạn mượn, số sách tối đa và phí phạt trễ hạn (VND/ngày) sau khi Quản trị viên lưu cấu hình sẽ lập tức được `BorrowService` và `ReturnService` áp dụng ngay cho các giao dịch mượn/trả tiếp theo trên hệ thống (đáp ứng trọn vẹn tiêu chí AC của LOLRA-72).
-
-- **Frontend Integration ([`rulesApi.js`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
-  - Đồng bộ bóc tách dữ liệu từ `ApiResponse<T>` của Backend.
-  - Kết nối dữ liệu thực tế giữa giao diện Cài đặt quy định và Backend API; hiển thị toast thông báo thành công và cập nhật tức thì danh sách nhật ký kiểm toán.
+- **Bộ API Quản lý độc giả & Khóa thẻ (L0LRA-78):**
+  - Xây dựng cụm DTOs, Repository và Service ([`ReaderService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)) hỗ trợ phân trang, tìm kiếm đa tiêu chí, tính sách mượn và nợ phạt theo batch query.
+  - Cung cấp bộ API quản lý hồ sơ độc giả (`GET`, `POST`, `PUT`, `PATCH /status`, `POST /extend`) tại [`ReadersController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReadersController.cs) phân quyền Admin/Staff.
+- **Backend Cấu hình quy định mượn trả & mức phạt:**
+  - Bổ sung các thực thể CSDL [`FineRule.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`RuleAuditLog.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/RuleAuditLog.cs) và [`WaiverReason.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/WaiverReason.cs).
+  - Triển khai bộ API RESTful tại [`RulesController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/RulesController.cs) (`/api/rules`, `/api/rules/waivers`, `/api/rules/history`, `/api/ai/retrain`).
+  - Áp dụng ngay quy định mới vào `BorrowService` và `ReturnService` cho quầy lưu thông; kết nối dữ liệu thực tế lên giao diện Cài đặt ([`LibrarySettings.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)).
 
 ## [2026-10-05] - Chuẩn Hóa Dữ Liệu Thực Tế & Xuất Excel Cho Sổ Nợ Đọng Và Biên Lai Thu Phạt
 
-- **Sổ Nợ Đọng & Sách Hư Hỏng ([`RevenueArrearsTab.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx), [`FineRevenue.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):**
+- **Sổ Nợ Đọng & Sách Hư Hỏng ([`RevenueArrearsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx), [`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):**
   - Đồng bộ số liệu thực tế từ cơ sở dữ liệu: Hiển thị chính xác tổng tiền nợ đọng, số tiền phạt đã thu và số lượng khoản phạt vi phạm (loại bỏ toàn bộ các số liệu mẫu/fallback giả lập).
   - Nâng cấp chức năng **Xuất file Excel**: Xuất danh sách nợ đọng thực tế với đầy đủ 14 cột chi tiết (Mã phiếu, Độc giả, Khoa, Tên sách, Mã bản sao, Ngày trễ, Tiền phạt, Hạn thu...), hỗ trợ mã hóa UTF-8 BOM hiển thị chuẩn tiếng Việt có dấu.
-- **Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
+- **Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
   - Hiển thị danh sách biên lai thu tiền phạt thực tế từ hệ thống, đồng bộ trạng thái gạch nợ và hình thức thanh toán (Tiền mặt / Chuyển khoản QR).
   - Nâng cấp chức năng **Xuất file Excel**: Xuất toàn bộ dữ liệu lịch sử biên lai thực tế với 14 cột nghiệp vụ kế toán phục vụ đối soát tài chính, định dạng chuẩn UTF-8 BOM.
 
 ## [2026-10-05] - Nâng Cấp Dashboard Vận Hành Tổng Quát & Báo Cáo Xuất Excel Đa Tầng
 
-- **Biểu đồ Vận hành Tổng quát ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+- **Biểu đồ Vận hành Tổng quát ([`DashboardPage.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
   - Chuyển đổi biểu đồ chính sang theo dõi **Lưu thông Sách** (Lượt mượn vs Lượt trả), có nút chuyển nhanh sang *Thu phạt*.
   - Chuyển biểu đồ tròn sang **Cơ cấu Thể loại Kho sách** từ 10 danh mục CSDL thực tế (11.123 đầu sách), hỗ trợ 3 chế độ xem (*Thể loại*, *Bản sao*, *Thu phạt*).
   - Chuẩn hóa 4 thẻ KPI bao quát 4 trụ cột thư viện: *Kho sách & Danh mục*, *Lưu thông & Mượn trả*, *Hồ sơ Bạn đọc*, và *Doanh thu Thu phạt*.
-- **Xuất Báo cáo Excel Tổng hợp ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+- **Xuất Báo cáo Excel Tổng hợp ([`DashboardPage.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
   - Nâng cấp xuất Excel thành Báo cáo vận hành thư viện tổng hợp gồm 4 phần: Chỉ số KPI toàn hệ thống, Thống kê 10 thể loại sách, Danh sách độc giả rủi ro AI và Biên lai đối soát tài chính.
 
 ## [2026-10-05] - Thiết Kế & Nâng Cấp Dashboard Biểu Đồ Doanh Thu Thu Phạt & Thống Kê Vi Phạm
 
-- **Đồng bộ hóa Dashboard Tổng quan ([`DashboardPage.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+- **Đồng bộ hóa Dashboard Tổng quan ([`DashboardPage.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
   - Nâng cấp biểu đồ đường xu hướng SVG tương tác cao: kết nối trực tiếp mảng dữ liệu `trendPoints` từ CSDL, hỗ trợ bộ chọn thời gian linh hoạt (7 ngày, 30 ngày, Theo quý), hiển thị đồng thời đường diện tích *Thực thu* (Xanh dương) và đường nét đứt *Nợ phát sinh / Mục tiêu* (Vàng cam).
   - Tích hợp tooltip động hiển thị ngày và số tiền chi tiết khi rê chuột vào từng điểm mốc.
   - Cập nhật biểu đồ tròn Donut cơ cấu nguồn thu phạt tự động bóc tách từ mảng DTO thực tế, bổ sung chỉ số *Tỷ lệ thu hồi nợ phạt* và nút điều hướng nhanh sang Dashboard chi tiết.
-- **Dashboard Phân tích Chuyên sâu ([`RevenueBreakdownTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx)):**
-  - Thiết kế hoàn chỉnh Dashboard phân tích tài chính & thống kê vi phạm trong tab *"Biểu đồ & Thống kê vi phạm"* tại phân hệ Báo cáo Thu phạt ([`FineRevenue.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)).
+- **Dashboard Phân tích Chuyên sâu ([`RevenueBreakdownTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx)):**
+  - Thiết kế hoàn chỉnh Dashboard phân tích tài chính & thống kê vi phạm trong tab *"Biểu đồ & Thống kê vi phạm"* tại phân hệ Báo cáo Thu phạt ([`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)).
   - Bổ sung cụm 4 thẻ KPI tài chính: Thực thu lũy kế, Dòng tiền phạt nợ đọng, Tỷ lệ thu hồi nợ phạt (kèm thanh đo tiến độ), và Giá trị tài liệu hư hỏng/mất mát.
   - Thống kê cơ cấu 4 nhóm vi phạm quy chế trọng tâm: Phạt trễ hạn theo ngày, Hư hỏng vật lý (bìa/trang/vẽ bẩn), Làm mất tài liệu, và Phí cấp lại thẻ/nội quy khác (gồm thanh phân đoạn Segmented Bar và 4 thẻ chi tiết).
   - Phân tích kênh thanh toán: Chuyển khoản VietQR tự động đối soát (QR VietQR) vs Tiền mặt tại quầy lưu thông.
@@ -151,26 +71,26 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 
 - **Backend API Doanh thu & Biên lai:** Bổ sung DTOs, Repository, Service và 2 endpoint `GET /api/invoices/summary`, `GET /api/invoices/history` truy vấn dữ liệu thực tế từ SQL Server.
-- **Báo cáo Thu phạt ([`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Kết nối dữ liệu thật cho 3 thẻ KPI, tab "Biên lai đã thu", tab "Cơ cấu doanh thu" và hỗ trợ xuất file Excel/CSV chuẩn UTF-8 có dấu.
-- **Dashboard & Đồng bộ Real-time ([`DashboardPage.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):** Hiển thị số liệu thực tế trên thẻ KPI, biểu đồ tròn Donut tự động chia tỉ lệ và tự động làm mới số liệu theo thời gian thực khi phát sinh giao dịch thu phạt.
+- **Báo cáo Thu phạt ([`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Kết nối dữ liệu thật cho 3 thẻ KPI, tab "Biên lai đã thu", tab "Cơ cấu doanh thu" và hỗ trợ xuất file Excel/CSV chuẩn UTF-8 có dấu.
+- **Dashboard & Đồng bộ Real-time ([`DashboardPage.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):** Hiển thị số liệu thực tế trên thẻ KPI, biểu đồ tròn Donut tự động chia tỉ lệ và tự động làm mới số liệu theo thời gian thực khi phát sinh giao dịch thu phạt.
 
 
 ## [2026-10-02] - Khắc Phục Lỗ Hổng Phân Quyền: Chặn Tuyệt Đối Tài Khoản Reader Truy Cập Cổng Quản Trị
 
 - **[Security & Auth - LoginPage] Ngăn chặn bypass đăng nhập qua khối Catch:**
-  - Sửa lỗi trong [`LoginPage.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LoginPage.jsx): Bắt và hiển thị chính xác thông điệp lỗi nghiệp vụ từ Backend khi nhận mã `403 Forbidden` (*"Tài khoản bạn đọc không có quyền truy cập Cổng quản trị..."*), dừng ngay quy trình đăng nhập thay vì kích hoạt chế độ Fallback Demo.
+  - Sửa lỗi trong [`LoginPage.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/LoginPage.jsx): Bắt và hiển thị chính xác thông điệp lỗi nghiệp vụ từ Backend khi nhận mã `403 Forbidden` (*"Tài khoản bạn đọc không có quyền truy cập Cổng quản trị..."*), dừng ngay quy trình đăng nhập thay vì kích hoạt chế độ Fallback Demo.
   - Vô hiệu hóa việc tự động cấp quyền Admin cho tài khoản Bạn đọc ngay cả khi xảy ra sự cố mất kết nối mạng.
 
 - **[Security & Routing - App] Bổ sung Route Guard 2 lớp tại Router:**
-  - Thêm cơ chế kiểm tra vai trò người dùng trong `ProtectedLayout` tại [`App.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/App.jsx): Nếu tài khoản có `role === 'Reader'`, lập tức hủy phiên làm việc và điều hướng về `/login` kèm thông báo từ chối truy cập.
+  - Thêm cơ chế kiểm tra vai trò người dùng trong `ProtectedLayout` tại [`App.jsx`](LV23-088-Library-Revenue-AI/frontend/src/App.jsx): Nếu tài khoản có `role === 'Reader'`, lập tức hủy phiên làm việc và điều hướng về `/login` kèm thông báo từ chối truy cập.
 ## [2026-10-02] - Chuẩn Hóa Phân Trang, Máy Quét Mã Vạch & Tối Ưu Nghiệp Vụ Mượn/Trả Sách
 
 - **Quản Lý Sách (BookCatalog):**
   - Xóa nút lọc trùng lặp `Chỉ sách có sẵn (> 0)`, đưa toàn bộ thanh lọc lên 1 hàng ngang duy nhất.
-  - Đồng bộ modal quét mã vạch/QR sang component dùng chung [`BarcodeCameraModal`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx); sửa lỗi click nút Quét mã và phím `F2`.
+  - Đồng bộ modal quét mã vạch/QR sang component dùng chung [`BarcodeCameraModal`](LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx); sửa lỗi click nút Quét mã và phím `F2`.
 
 - **Máy Quét Mã Vạch Dùng Chung (`BarcodeCameraModal`):**
-  - Khắc phục lỗi lệch icon tiêu đề modal; cách ly kiểu dáng độc lập vào [`BarcodeCameraModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.css).
+  - Khắc phục lỗi lệch icon tiêu đề modal; cách ly kiểu dáng độc lập vào [`BarcodeCameraModal.css`](LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.css).
   - Tối ưu thanh công cụ: Nút chọn Camera co dãn dài rộng theo khoảng trống, dàn đều các nút (`Lật ngang`, `Zoom 1x-2x`, `Tải PDF/Ảnh`) sang 2 bên và đưa dòng phím tắt `Ctrl + V` xuống hàng riêng biệt.
 
 - **Nghiệp Vụ Lưu Thông (CirculationDesk):**
@@ -181,47 +101,47 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 ## [2026-10-02] - Tích Hợp Phân Trang & Tìm Kiếm Nhanh Cho Sổ Nợ Đọng & Lịch Sử Biên Lai Thu Phạt (`/revenue`)
 
-- **Phân Trang & Tìm Kiếm Danh Sách Quá Hạn & Nợ Phạt Tích Lũy ([`RevenueArrearsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx)):**
+- **Phân Trang & Tìm Kiếm Danh Sách Quá Hạn & Nợ Phạt Tích Lũy ([`RevenueArrearsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx)):**
   - **Bộ điều khiển phân trang:** Hỗ trợ phân trang danh sách với tùy chọn hiển thị linh hoạt (5, 10, 20, 50 trường hợp / trang), chỉ báo vị trí (`Hiển thị X - Y / Z trường hợp`), cụm nút điều hướng trang đầu (`«`), trang trước (`‹`), danh sách số trang thông minh (có dấu `…` rút gọn khi số lượng trang lớn), trang tiếp (`›`), trang cuối (`»`) và ô nhập nhảy trang trực tiếp khi có trên 5 trang.
   - **Thanh tìm kiếm tức thì (Quick Search):** Cho phép tra cứu nhanh theo tên độc giả, mã sinh viên (readerCode), tên đầu sách hoặc mã phiếu mượn (borrowCode); tự động cập nhật số lượng kết quả lọc (`kết quả / tổng`) và reset về trang 1 khi tìm kiếm.
   - **Hiệu ứng làm mới:** Cập nhật nút "Làm mới" với hiệu ứng xoay icon (`RotateCw` + `spin-icon`) khi đang tải dữ liệu từ Backend và tự động quay về trang 1.
   - **Bảo toàn nghiệp vụ:** Giữ nguyên 100% logic thu tiền nợ phạt qua modal kế toán K80/A5 (`onOpenPayModal`).
 
-- **Phân Trang & Bộ Lọc Nhanh Lịch Sử Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
+- **Phân Trang & Bộ Lọc Nhanh Lịch Sử Biên Lai Đã Thu ([`RevenueReceiptsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx)):**
   - **Bộ phân trang bảng biên lai:** Tích hợp bộ phân trang hoàn chỉnh với các tùy chọn 5, 10, 20, 50 biên lai / trang, điều hướng đa tầng và ô nhập trang trực tiếp.
   - **Thanh công cụ lọc phương thức & tìm kiếm:** Tích hợp thanh tìm kiếm theo mã biên lai (`BL-2026-xxxx`), tên độc giả, MSSV, nội dung thu phạt, thủ thư tiếp nhận, cùng bộ lọc phương thức thanh toán dạng pills: Tất cả, Tiền mặt, QR VietQR kèm số lượng thống kê theo từng phương thức.
-  - **Liên kết dòng tiền thời gian thực ([`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Quản lý state `receiptsList`, tự động sinh và chèn bản ghi biên lai mới lên đầu bảng lịch sử ngay sau khi thủ thư xác nhận thu tiền thành công tại tab Sổ nợ đọng; tự động tính tổng lũy kế doanh thu trên banner tổng quan.
+  - **Liên kết dòng tiền thời gian thực ([`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx)):** Quản lý state `receiptsList`, tự động sinh và chèn bản ghi biên lai mới lên đầu bảng lịch sử ngay sau khi thủ thư xác nhận thu tiền thành công tại tab Sổ nợ đọng; tự động tính tổng lũy kế doanh thu trên banner tổng quan.
   - **Mở rộng dữ liệu mẫu:** Bổ sung bộ dữ liệu biên lai mẫu phong phú trải dài các ngày giúp kiểm thử trực quan và thuận tiện cho việc phân trang.
 
-- **Thiết Kế & Giao Diện CSS Đồng Bộ ([`FineRevenue.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.css)):**
+- **Thiết Kế & Giao Diện CSS Đồng Bộ ([`FineRevenue.css`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.css)):**
   - Bổ sung bộ quy tắc CSS hoàn chỉnh cho `.arrears-pagination`, `.receipts-pagination-bar`, `.arrears-page-btn`, `.arrears-page-size-select`, `.arrears-search-box`, `.receipts-toolbar`, `.receipts-filter-btn` và animation `arrears-spin`.
   - Thiết kế đồng bộ chuẩn giao diện hệ thống: màu xanh thương hiệu HUTECH, hiệu ứng hover, shadow thẻ, bo góc tròn 8-12px và hiển thị responsive.
 
 
 - **[Security - L08] Phân Tách Tuyệt Đối Quyền Thủ Thư & Độc Giả (RBAC JWT):**
-  - Bổ sung `[Authorize(Roles = "Admin,Staff")]` trên toàn bộ Controller nghiệp vụ lưu thông và quản trị tài nguyên: [`BorrowsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`ReturnsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`InvoicesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs), [`BookCopiesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BookCopiesController.cs).
-  - Cấu hình `RoleClaimType = ClaimTypes.Role` và `NameClaimType = ClaimTypes.Name` trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - Bổ sung `[Authorize(Roles = "Admin,Staff")]` trên toàn bộ Controller nghiệp vụ lưu thông và quản trị tài nguyên: [`BorrowsController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`ReturnsController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`InvoicesController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs), [`BookCopiesController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BookCopiesController.cs).
+  - Cấu hình `RoleClaimType = ClaimTypes.Role` và `NameClaimType = ClaimTypes.Name` trong [`Program.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
   - Đảm bảo token Độc giả (`Reader` / sinh viên) hoặc người dùng chưa xác thực khi gọi API thủ thư sẽ bị từ chối trả về **403 Forbidden** hoặc **401 Unauthorized**.
 
 - **[Performance - L03] Tối Ưu Hóa Truy Vấn & Đánh Chỉ Mục CSDL SQL Server:**
   - Bổ sung chỉ mục Non-Clustered `IX_BookCopies_Barcode` trên bảng `BookCopies(Barcode)` giúp tra cứu quét mã vạch đạt độ phức tạp $O(1)$ thay vì Table Scan.
-  - Đồng bộ DDL kiểm tra an toàn (Idempotent) vào khối tự động khởi tạo trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và script CSDL gốc [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
+  - Đồng bộ DDL kiểm tra an toàn (Idempotent) vào khối tự động khởi tạo trong [`Program.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và script CSDL gốc [`01_schema_smartlib_ai.sql`](LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
   - Kết quả đo kiểm Postman/Automated Test: API tra cứu và phân trang đạt **7.02ms - 81.42ms**, vượt xa chỉ tiêu `<= 500ms`.
 
 - **[UX/Scanner - L01, L06 & BUG-04] Cải Tiến Module Quét Barcode & Phím Tắt Ctrl + V:**
-  - Khắc phục **BUG-04**: Trong [`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), khi API trả về 404 hoặc trạng thái không khả dụng, không xóa trắng ô nhập liệu mà giữ nguyên chuỗi và tự động bôi đen (`select()`) để thủ thư chỉnh sửa nhanh.
-  - Hỗ trợ phím tắt **Ctrl + V** dán trực tiếp mã vạch bản sao hoặc dán ảnh chụp Barcode/PDF từ Clipboard trên [`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) và [`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx).
+  - Khắc phục **BUG-04**: Trong [`BorrowForm.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), khi API trả về 404 hoặc trạng thái không khả dụng, không xóa trắng ô nhập liệu mà giữ nguyên chuỗi và tự động bôi đen (`select()`) để thủ thư chỉnh sửa nhanh.
+  - Hỗ trợ phím tắt **Ctrl + V** dán trực tiếp mã vạch bản sao hoặc dán ảnh chụp Barcode/PDF từ Clipboard trên [`BorrowForm.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`ReturnProcessing.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) và [`BarcodeCameraModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx).
 
 - **[Data Integrity - L05, L10 & BUG-01, BUG-05, BUG-06] Chuẩn Hóa Biểu Mẫu In A4 & Bộ Lọc Giao Dịch:**
-  - Khắc phục **BUG-01**: Trên [`CirculationReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), sửa mapping Khoa ưu tiên thông tin thực tế của độc giả (không còn bị gán chữ "Standard"); xóa bỏ mã vạch gán cứng `BC000001-C`, đồng bộ 100% mã vạch thực tế.
-  - Khắc phục **BUG-05**: Tinh chỉnh bảng in khổ A4 và CSS [`CirculationReceiptModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css) với `word-break: break-word` và mở rộng tỷ lệ cột Tên sách lên 36%, đảm bảo tựa đề dài tự xuống dòng đẹp mắt không bị cắt cụt.
-  - Khắc phục **BUG-06**: Trong [`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), lưu trữ đầy đủ toàn bộ mảng `items` vào bản ghi giao dịch; khi mở lại phiếu in từ danh sách "Các giao dịch trong ngày", hiển thị đầy đủ tất cả các cuốn sách mượn.
+  - Khắc phục **BUG-01**: Trên [`CirculationReceiptModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), sửa mapping Khoa ưu tiên thông tin thực tế của độc giả (không còn bị gán chữ "Standard"); xóa bỏ mã vạch gán cứng `BC000001-C`, đồng bộ 100% mã vạch thực tế.
+  - Khắc phục **BUG-05**: Tinh chỉnh bảng in khổ A4 và CSS [`CirculationReceiptModal.css`](LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css) với `word-break: break-word` và mở rộng tỷ lệ cột Tên sách lên 36%, đảm bảo tựa đề dài tự xuống dòng đẹp mắt không bị cắt cụt.
+  - Khắc phục **BUG-06**: Trong [`CirculationDesk.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), lưu trữ đầy đủ toàn bộ mảng `items` vào bản ghi giao dịch; khi mở lại phiếu in từ danh sách "Các giao dịch trong ngày", hiển thị đầy đủ tất cả các cuốn sách mượn.
   - Khắc phục **L05, L10**: Bổ sung tìm kiếm theo trạng thái ("Đang mượn", "Chờ thu phạt", "Đã trả") vào bộ lọc `filteredTransactions` và xóa bỏ lệnh gọi lỗi `setChecks` gây crash khi click chọn dòng giao dịch.
 
 ## [2026-10-01] - Phân Chia 4 Tab Thành URL Sub-Routes & Tái Cấu Trúc Mô-đun Hóa Phân Hệ Thu Phạt (`/revenue`)
 
 - **Định Tuyến URL Sub-Routes Phân Hệ Báo Cáo Thu Phạt:**
-  - **Cấu hình Route (`App.jsx` & `DashboardPage.jsx`):** Bổ sung `<Route path="/revenue/*" ... />` và chuyển giao `subTab` xuống component [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) để hỗ trợ điều hướng URL cấp 2.
+  - **Cấu hình Route (`App.jsx` & `DashboardPage.jsx`):** Bổ sung `<Route path="/revenue/*" ... />` và chuyển giao `subTab` xuống component [`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) để hỗ trợ điều hướng URL cấp 2.
   - **URL Chuẩn RESTful:**
     - `http://localhost:5173/revenue` hoặc `/revenue/ai-forecast`: Tab AI Dự báo & Xu hướng (mặc định).
     - `http://localhost:5173/revenue/arrears`: Tab Sổ nợ đọng & Sách hư hỏng (Story LOLRA-19).
@@ -231,27 +151,27 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 
 - **Tái Cấu Trúc Mô-đun Hóa Component:**
   - Phân tách file đơn khối `FineRevenue.jsx` thành 4 component độc lập trong `frontend/src/components/revenue/`:
-    - [`RevenueAiForecastTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueAiForecastTab.jsx): Đồ thị SVG dự báo 30 ngày & danh sách độc giả rủi ro AI.
-    - [`RevenueArrearsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx): Quản lý nợ phạt CSDL thực tế, nút "Thu tiền ngay" và 12 ca bồi hoàn sách.
-    - [`RevenueReceiptsTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx): Bảng lịch sử biên lai đã thu & nút xem lại/in phiếu K80/A5.
-    - [`RevenueBreakdownTab.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx): Tỷ trọng phân bổ dòng tiền vi phạm và phương thức thanh toán.
-  - [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) đóng vai trò Orchestrator tinh gọn: quản lý 3 thẻ KPI tổng quan, thanh điều hướng 4 tab URL sync và các modal dùng chung.
+    - [`RevenueAiForecastTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueAiForecastTab.jsx): Đồ thị SVG dự báo 30 ngày & danh sách độc giả rủi ro AI.
+    - [`RevenueArrearsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueArrearsTab.jsx): Quản lý nợ phạt CSDL thực tế, nút "Thu tiền ngay" và 12 ca bồi hoàn sách.
+    - [`RevenueReceiptsTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueReceiptsTab.jsx): Bảng lịch sử biên lai đã thu & nút xem lại/in phiếu K80/A5.
+    - [`RevenueBreakdownTab.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx): Tỷ trọng phân bổ dòng tiền vi phạm và phương thức thanh toán.
+  - [`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx) đóng vai trò Orchestrator tinh gọn: quản lý 3 thẻ KPI tổng quan, thanh điều hướng 4 tab URL sync và các modal dùng chung.
 
 ## [2026-10-01] - Cập Nhật Dữ Liệu Phạt Vi Phạm Chờ Thu (Pending) & Hoàn Thiện Luồng Kiểm Thử LOLRA-19
 
 - **Cơ Sở Dữ Liệu & Seeding Dữ Liệu Kiểm Thử:**
-  - **Khởi tạo dữ liệu Pending:** Bổ sung các bản ghi phạt vi phạm trạng thái `Pending` trong bảng `FineReceipts` (trỏ tới các phiếu mượn thực tế trong `Borrowings`) vào CSDL trực tiếp và cập nhật trong [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql).
-  - **Seeding tự động Idempotent:** Cập nhật [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) để tự động kiểm tra và khởi tạo bản ghi phạt `Pending` mẫu nếu hệ thống chưa có khoản phạt nào đang chờ thu, đảm bảo hệ thống luôn sẵn sàng kiểm thử luồng thu tiền phạt và xuất biên lai.
+  - **Khởi tạo dữ liệu Pending:** Bổ sung các bản ghi phạt vi phạm trạng thái `Pending` trong bảng `FineReceipts` (trỏ tới các phiếu mượn thực tế trong `Borrowings`) vào CSDL trực tiếp và cập nhật trong [`02_seed_dummy_data.sql`](LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql).
+  - **Seeding tự động Idempotent:** Cập nhật [`Program.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) để tự động kiểm tra và khởi tạo bản ghi phạt `Pending` mẫu nếu hệ thống chưa có khoản phạt nào đang chờ thu, đảm bảo hệ thống luôn sẵn sàng kiểm thử luồng thu tiền phạt và xuất biên lai.
 
 ## [2026-10-01] - Hoàn Thiện Thu Tiền Phạt, Hóa Đơn Kế Toán Bất Biến & Xuất Biên Lai K80/A5 (Story LOLRA-19)
 
 - **Cơ Sở Dữ Liệu & Hóa Đơn Kế Toán Bất Biến (`PenaltyInvoices`):**
-  - **Schema & Seeding:** Bổ sung bảng `PenaltyInvoices` vào [`01_schema_smartlib_ai.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql), [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), và logic tự động tạo bảng an toàn (Idempotent DDL) trong [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
-  - **Entity C# & DbContext:** Tạo Entity [`PenaltyInvoice.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/PenaltyInvoice.cs) và cập nhật [`SmartLibDbContext.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs), cấu hình khóa ngoại `ReceiptID` trỏ tới `FineReceipts` và `CashierID` trỏ tới `Users`.
+  - **Schema & Seeding:** Bổ sung bảng `PenaltyInvoices` vào [`01_schema_smartlib_ai.sql`](LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql), [`02_seed_dummy_data.sql`](LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), và logic tự động tạo bảng an toàn (Idempotent DDL) trong [`Program.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - **Entity C# & DbContext:** Tạo Entity [`PenaltyInvoice.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/PenaltyInvoice.cs) và cập nhật [`SmartLibDbContext.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs), cấu hình khóa ngoại `ReceiptID` trỏ tới `FineReceipts` và `CashierID` trỏ tới `Users`.
 
 - **Backend API Kế Toán Bất Biến & Mở Lại Quyền Mượn Sách (Sub-task 1 - Khoa NK):**
-  - **Controller & Endpoints:** Triển khai [`InvoicesController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs) với các endpoints: `POST /api/invoices` (xác nhận thu tiền), `GET /api/invoices/pending` (danh sách nợ phạt) và `GET /api/invoices/{idOrCode}` (tra cứu biên lai).
-  - **Database Transaction Bất Biến:** Xây dựng [`InvoiceRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs) và [`InvoiceService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), bọc toàn bộ thao tác trong `IDbContextTransaction`. Cơ chế chống thanh toán trùng lặp (Double-spending protection), tự động sinh mã biên lai chuẩn hóa `INVyyyyMMddxxxx`.
+  - **Controller & Endpoints:** Triển khai [`InvoicesController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs) với các endpoints: `POST /api/invoices` (xác nhận thu tiền), `GET /api/invoices/pending` (danh sách nợ phạt) và `GET /api/invoices/{idOrCode}` (tra cứu biên lai).
+  - **Database Transaction Bất Biến:** Xây dựng [`InvoiceRepository.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs) và [`InvoiceService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), bọc toàn bộ thao tác trong `IDbContextTransaction`. Cơ chế chống thanh toán trùng lặp (Double-spending protection), tự động sinh mã biên lai chuẩn hóa `INVyyyyMMddxxxx`.
   - **Tự Động Mở Lại Quyền Mượn Sách (Scenario 1):** Cập nhật `FineReceipt.Status = 'Paid'` đồng bộ ngay lập tức với cơ chế kiểm tra `CheckUnpaidFinesByReaderIdAsync()` của module lưu thông, giúp bạn đọc có thể mượn sách trở lại ngay sau khi hoàn thành nộp phạt.
 
 - **Frontend In Ấn Biên Lai K80/A5 & Tích Hợp Quầy Lưu Thông (Sub-task 2 - Huy TH):**
@@ -261,32 +181,32 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
     - Căn chỉnh nút đóng `X` ngay ngắn, sát mép phải thanh công cụ modal.
     - Tách biệt thanh header thành 2 hàng độc lập (Hàng 1: Tiêu đề + Nút X; Hàng 2: Bộ chọn khổ in K80/A5 + Chọn phương thức thanh toán + Nút Xác nhận thu), giải quyết triệt để lỗi các nút bấm và chữ bị chồng chéo, đè lên nhau.
   - **Quy Trình Nghiệp Vụ "Xem Trước Biên Lai Rồi Mới Xác Nhận Thu Tiền":**
-    - Khi thủ thư bấm "Thu tiền ngay" tại sổ nợ hoặc "Lập phiếu thu phạt" tại quầy trả sách, hệ thống mở ngay [`ReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReceiptModal.jsx) ở chế độ **Xem trước (Preview)**.
+    - Khi thủ thư bấm "Thu tiền ngay" tại sổ nợ hoặc "Lập phiếu thu phạt" tại quầy trả sách, hệ thống mở ngay [`ReceiptModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/ReceiptModal.jsx) ở chế độ **Xem trước (Preview)**.
     - Cho phép thủ thư kiểm tra đối soát thông tin độc giả, lý do vi phạm, số tiền thực thu và lựa chọn hình thức thanh toán (Tiền mặt / Chuyển khoản QR) trực tiếp trên giao diện biên lai.
     - Bấm nút **"Xác nhận đã thu tiền"** để kích hoạt gọi API Backend lập hóa đơn bất biến, tự động cấp mã `INVxxxxxx`, cập nhật `Paid` và mở khóa mượn sách.
   - **In Trực Tiếp & Xuất PDF:** Tích hợp `window.print()` với `@media print` tối ưu trang in nhiệt K80 và xuất file PDF vector sắc nét (html2canvas + jsPDF).
-  - **Kết Nối Quầy Trả Sách:** Tích hợp gọi [`invoiceApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/invoiceApi.js) trực tiếp trong [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) khi thủ thư tiếp nhận trả sách và bấm "Xác nhận thu & Xuất biên lai".
-  - **Kết Nối Quản Lý Thu Phạt:** Nâng cấp [`FineRevenue.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx), bổ sung nút "Thu tiền ngay" trên từng dòng nợ đọng, hộp thoại xác nhận thanh toán (tiền mặt / chuyển khoản QR) và nút in lại biên lai trên bảng lịch sử.
+  - **Kết Nối Quầy Trả Sách:** Tích hợp gọi [`invoiceApi.js`](LV23-088-Library-Revenue-AI/frontend/src/api/invoiceApi.js) trực tiếp trong [`ReturnProcessing.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx) khi thủ thư tiếp nhận trả sách và bấm "Xác nhận thu & Xuất biên lai".
+  - **Kết Nối Quản Lý Thu Phạt:** Nâng cấp [`FineRevenue.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/FineRevenue.jsx), bổ sung nút "Thu tiền ngay" trên từng dòng nợ đọng, hộp thoại xác nhận thanh toán (tiền mặt / chuyển khoản QR) và nút in lại biên lai trên bảng lịch sử.
 
 ## [2026-09-30] - Nâng Cấp Toàn Diện Quầy Lưu Thông: Hoàn Trả Rải Rác (LOLRA-17), Hạn Mức Mượn Động, In Phiếu A4 & Tối Ưu Máy Quét
 
 - **Tiếp Nhận Sách Trả Rải Rác & Xử Lý Vi Phạm (Story LOLRA-17):**
-  - **Backend API (.NET Core & SQL Server):** Triển khai [`ReturnsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`ReturnService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs) và các DTOs ([`ReturnBookRequestDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookRequestDto.cs), [`ReturnBookResponseDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs)). Cung cấp 2 endpoints RESTful: `GET /api/returns/lookup/{barcodeOrCode}` và `POST /api/returns/process-item`.
+  - **Backend API (.NET Core & SQL Server):** Triển khai [`ReturnsController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/ReturnsController.cs), [`ReturnService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnRepository.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs) và các DTOs ([`ReturnBookRequestDto.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookRequestDto.cs), [`ReturnBookResponseDto.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`ReturnLookupResponseDto.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs)). Cung cấp 2 endpoints RESTful: `GET /api/returns/lookup/{barcodeOrCode}` và `POST /api/returns/process-item`.
   - **Logic Hoàn Trả & Phạt:** Trả sách hợp lệ tự động tăng `AvailableCopies + 1`, đổi trạng thái bản sao `Available` và đóng phiếu `Returned` khi trả đủ. Trả sách sự cố (hỏng bìa, mất sách, trễ hạn) đánh dấu `Damaged`/`Lost` (không nhập kho), tự động tính tiền phạt vi phạm và kích hoạt tạo biên lai thu phạt điện tử.
-  - **Frontend:** Xây dựng component độc lập [`ReturnProcessing.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`ReturnProcessing.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.css) tích hợp tính phạt động, miễn giảm phạt và modal thu tiền.
+  - **Frontend:** Xây dựng component độc lập [`ReturnProcessing.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`ReturnProcessing.css`](LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.css) tích hợp tính phạt động, miễn giảm phạt và modal thu tiền.
 
-- **Nâng Cấp Hạn Mức Mượn Động & Chuẩn Hóa Thời Hạn Mượn ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`BorrowForm.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.css)):**
+- **Nâng Cấp Hạn Mức Mượn Động & Chuẩn Hóa Thời Hạn Mượn ([`BorrowForm.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`BorrowForm.css`](LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.css)):**
   - **Hạn Mức Động Theo Đối Tượng:** Đồng bộ với Backend theo quy định: Sinh viên mượn tối đa 5 cuốn (chuẩn 14 ngày), Giảng viên mượn tối đa 10 cuốn (chuẩn 30 ngày).
   - **Nhận Diện Tư Cách Bạn Đọc:** Tự động gọi API `GET /api/borrows/eligibility/{readerCode}` khi quét/nhập mã bạn đọc; hiển thị badge đối tượng trực quan.
   - **Sửa Lỗi Highlight Nút Thời Hạn:** Bỏ màu xanh cố định ở nút 14 ngày; kích hoạt `chip-active` động chính xác theo số ngày chênh lệch thực tế (+7, +14, +30 ngày) so với ngày hiện tại hôm nay.
   - **Tối Ưu Form Mượn & Phím Tắt:** Tách form thành component độc lập, bổ sung phím tắt `F2` focus nhanh ô mã thẻ và cơ chế quét liên hoàn từ thẻ sang sách.
 
-- **Biểu Mẫu Hành Chính Phiếu Mượn & Phiếu Trả Chuẩn A4 ([`CirculationReceiptModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), [`CirculationReceiptModal.css`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css)):**
+- **Biểu Mẫu Hành Chính Phiếu Mượn & Phiếu Trả Chuẩn A4 ([`CirculationReceiptModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.jsx), [`CirculationReceiptModal.css`](LV23-088-Library-Revenue-AI/frontend/src/components/CirculationReceiptModal.css)):**
   - **Thiết Kế Văn Bản Chuẩn Quốc Gia:** Đầy đủ Quốc hiệu, Tiêu ngữ, bảng kê danh mục sách mượn/trả, tình trạng tài liệu, xác nhận thu phạt và chữ ký 2 bên.
   - **In & Xuất Tệp PDF:** Hỗ trợ in trực tiếp khổ A4 (`window.print()`) và xuất file PDF chất lượng cao (html2canvas scale 2x + jsPDF), đảm bảo tiếng Việt chuẩn sắc nét.
-  - **Tự Động Mở Phiếu:** Mở xem trước phiếu ngay sau khi tạo phiếu mượn hoặc tiếp nhận trả sách; thêm nút xem/in lại phiếu trên từng dòng bảng giao dịch trong ngày tại [`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx).
+  - **Tự Động Mở Phiếu:** Mở xem trước phiếu ngay sau khi tạo phiếu mượn hoặc tiếp nhận trả sách; thêm nút xem/in lại phiếu trên từng dòng bảng giao dịch trong ngày tại [`CirculationDesk.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx).
 
-- **Tối Ưu Máy Quét Mã Vạch Camera ([`BarcodeCameraModal.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx)):**
+- **Tối Ưu Máy Quét Mã Vạch Camera ([`BarcodeCameraModal.jsx`](LV23-088-Library-Revenue-AI/frontend/src/components/BarcodeCameraModal.jsx)):**
   - **Macro Zoom Kỹ Thuật Số (1x, 1.5x, 2x):** Hỗ trợ zoom khung hình giúp camera lấy nét sắc nét ở cự ly chuẩn (30-45cm) mà không bị mờ nhòe mã vạch.
   - **Nâng Cấp Giải Mã ZXing BinaryBitmap:** Pipeline phân tích pixel đa tầng (Center Crop + Full Frame, quét 2 chiều), tăng tốc độ và độ chính xác khi quét mã 1D Code 128.
   - **Đa Năng & Hợp Nhất Giao Diện:** Tích hợp live camera, chọn webcam rời USB, lật ngang hình ảnh (Flip Horizontal), tải file ảnh và dán ảnh clipboard (`Ctrl + V`) trên cùng một màn hình.
@@ -294,30 +214,30 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 ## [2026-09-29] - Hoàn Thiện Phân Hệ Mượn Sách & Máy Quét Mã Vạch Tại Quầy Lưu Thông (Story LOLRA-16)
 
 - **Backend API & Nghiệp Vụ Mượn Sách (.NET Core & SQL Server):**
-  - **Triển khai Trọn bộ Module Mượn Sách:** Xây dựng [`BorrowsController.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`BorrowService.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowRepository.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/BorrowRepository.cs) và các DTOs nghiệp vụ.
+  - **Triển khai Trọn bộ Module Mượn Sách:** Xây dựng [`BorrowsController.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`BorrowService.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowRepository.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/BorrowRepository.cs) và các DTOs nghiệp vụ.
   - **Kiểm Soát Ràng Buộc & Điều Kiện Mượn (AC Story LOLRA-16):** Kiểm tra toàn diện điều kiện độc giả (thẻ khóa/hết hạn, nợ phạt quá hạn, vượt quá 5 cuốn) và trạng thái cuốn sách khả dụng trước khi tạo giao dịch; hỗ trợ rollback an toàn qua SQL Server Transaction.
-  - **Khởi Tạo Dữ Liệu Kiểm Thử (Seeding Data):** Cập nhật [`Program.cs`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và [`02_seed_dummy_data.sql`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql) tự động nạp độc giả và bản sao sách kiểm thử cho cả kịch bản mượn thành công lẫn từ chối.
+  - **Khởi Tạo Dữ Liệu Kiểm Thử (Seeding Data):** Cập nhật [`Program.cs`](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs) và [`02_seed_dummy_data.sql`](LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql) tự động nạp độc giả và bản sao sách kiểm thử cho cả kịch bản mượn thành công lẫn từ chối.
 
-- **Frontend Quầy Lưu Thông & Tích Hợp Máy Quét Mã Vạch ([`CirculationDesk.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx)):**
+- **Frontend Quầy Lưu Thông & Tích Hợp Máy Quét Mã Vạch ([`CirculationDesk.jsx`](LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx)):**
   - **Tích Hợp Modal Máy Quét Mã Vạch (Barcode Scanner):** Hỗ trợ quét qua camera, súng đọc barcode, tải tệp ảnh hoặc dán ảnh clipboard (`Ctrl + V`) kèm âm thanh bíp phản hồi khi nhận diện thành công.
   - **Quy Trình Quét Mượn Liên Hoàn:** Hỗ trợ quét Thẻ bạn đọc xong tự động chuyển trỏ chuột sang ô Mã vạch sách để quét tiếp cuốn sách, tạo phiếu trong tích tắc.
   - **Tối Ưu Giao Diện Ô Nhập Liệu:** Chuyển nút quét mã vạch clickable sang bên trái ô input (`.input-prefix-scan-btn`), loại bỏ icon thừa bên phải, chỉ hiển thị nút xóa nhanh `✕` (`.input-clear-btn`) khi có dữ liệu.
   - **Hoàn Thiện Luồng Trả Sách & Kiểm Tra Vi Phạm:** Khắc phục lỗi gán cứng mã sách, hỗ trợ tìm kiếm đa chiều (mã sách gốc, mã vạch bản sao, mã phiếu, MSSV) và lọc bảng realtime; tự động tính số ngày quá hạn và tiền phạt; bổ sung nút xác nhận trả sách đúng hạn.
-  - **Kết Nối Trực Tiếp API:** Tạo [`borrowApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/borrowApi.js) kết nối trực tiếp backend, hỗ trợ phím tắt `F2` đưa trỏ chuột về ô quét mã và hiển thị banner cảnh báo lỗi đỏ từ chối mượn sách.
+  - **Kết Nối Trực Tiếp API:** Tạo [`borrowApi.js`](LV23-088-Library-Revenue-AI/frontend/src/api/borrowApi.js) kết nối trực tiếp backend, hỗ trợ phím tắt `F2` đưa trỏ chuột về ô quét mã và hiển thị banner cảnh báo lỗi đỏ từ chối mượn sách.
 
 ## [2026-09-24] - Hoàn thiện 5 Tiêu chí chấp nhận (AC1 - AC5) Phân hệ Tra cứu & Quản lý Sách
 
 - **AC1: Tìm kiếm từ khóa linh hoạt (Không phân biệt hoa/thường & có dấu/không dấu):**
-  - **Backend LINQ / SQL Server:** Triển khai `EF.Functions.Collate` với Collation `SQL_Latin1_General_CP1_CI_AI` (Case-Insensitive & Accent-Insensitive) trên 3 trường `Title`, `Author`, và `ISBN` trong [BookRepository.cs](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/BookRepository.cs). Hỗ trợ tìm kiếm từ khóa không dấu khớp chính xác sách tiếng Việt có dấu (ví dụ: gõ `"a la perle"` tìm ra `"La Jeune fille à la perle"`, `"dac nhan"` tìm ra `"Đắc Nhân Tâm"`).
-  - **Frontend Chuẩn hóa:** Bổ sung hàm tiện ích `removeVietnameseTones()` trong [BookCatalog.jsx](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) nhằm hỗ trợ cơ chế tìm kiếm bỏ dấu linh hoạt cho cả chế độ dự phòng Offline/Fallback.
+  - **Backend LINQ / SQL Server:** Triển khai `EF.Functions.Collate` với Collation `SQL_Latin1_General_CP1_CI_AI` (Case-Insensitive & Accent-Insensitive) trên 3 trường `Title`, `Author`, và `ISBN` trong [BookRepository.cs](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/BookRepository.cs). Hỗ trợ tìm kiếm từ khóa không dấu khớp chính xác sách tiếng Việt có dấu (ví dụ: gõ `"a la perle"` tìm ra `"La Jeune fille à la perle"`, `"dac nhan"` tìm ra `"Đắc Nhân Tâm"`).
+  - **Frontend Chuẩn hóa:** Bổ sung hàm tiện ích `removeVietnameseTones()` trong [BookCatalog.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) nhằm hỗ trợ cơ chế tìm kiếm bỏ dấu linh hoạt cho cả chế độ dự phòng Offline/Fallback.
 - **AC2: Kết hợp các bộ lọc tìm kiếm đa chiều (Từ khóa + Thể loại + Chỉ sách có sẵn):**
-  - **Backend DTO & Query:** Mở rộng [BookFilterDto.cs](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Books/BookFilterDto.cs) bổ sung thuộc tính `OnlyAvailable`, xử lý điều kiện kiểm tra bản sao khả dụng `b.BookCopies.Any(c => c.Status == "Available")` kết hợp cùng `CategoryID`, khoảng giá và từ khóa.
-  - **Giao diện Thanh lọc:** Thêm checkbox thao tác nhanh **"Chỉ sách có sẵn (> 0)"** (`.filter-checkbox-item`) trực tiếp trên thanh công cụ lọc [BookCatalog.jsx](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) và bộ style chuyên biệt trong [BookCatalog.css](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.css).
+  - **Backend DTO & Query:** Mở rộng [BookFilterDto.cs](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Books/BookFilterDto.cs) bổ sung thuộc tính `OnlyAvailable`, xử lý điều kiện kiểm tra bản sao khả dụng `b.BookCopies.Any(c => c.Status == "Available")` kết hợp cùng `CategoryID`, khoảng giá và từ khóa.
+  - **Giao diện Thanh lọc:** Thêm checkbox thao tác nhanh **"Chỉ sách có sẵn (> 0)"** (`.filter-checkbox-item`) trực tiếp trên thanh công cụ lọc [BookCatalog.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) và bộ style chuyên biệt trong [BookCatalog.css](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.css).
 - **AC3: Hiển thị trực quan trạng thái kho sách (Tổng sở hữu & Sẵn sàng cho mượn):**
   - Cập nhật cột **"Tồn kho (Còn/Tổng)"** trên bảng quản lý sách thể hiện minh bạch cả 2 thông số: `<Số bản sao sẵn sàng> / <Tổng số bản sao sở hữu> cuốn` (ví dụ `3 / 3 cuốn`, `6 / 7 cuốn`).
   - Định dạng phân tách màu sắc (`.stock-avail-count` màu xanh lục thành công, `.stock-total-count` màu xám than chì) kèm thanh tiến trình phần trăm tồn kho và tooltip giải thích chi tiết.
 - **AC4: Phân trang tại Server-side với kích thước mặc định 20 kết quả/trang:**
-  - Thiết lập giá trị mặc định `PageSize = 20` tại [BookFilterDto.cs](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Books/BookFilterDto.cs) và State `pageSize` tại [BookCatalog.jsx](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx).
+  - Thiết lập giá trị mặc định `PageSize = 20` tại [BookFilterDto.cs](LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Books/BookFilterDto.cs) và State `pageSize` tại [BookCatalog.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx).
   - Máy chủ SQL Server chỉ truy xuất đúng lượng bản ghi của trang yêu cầu thông qua cú pháp `.Skip((PageNumber - 1) * PageSize).Take(PageSize)`.
   - Hỗ trợ đầy đủ bộ chọn kích thước trang `10`, `20`, `50`, `100` cuốn/trang và phản hồi tức thời.
 - **AC5: Đảm bảo hiệu năng cao & Thời gian phản hồi vượt chuẩn SLA:**
@@ -330,17 +250,17 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - `IX_Books_CategoryID` & `IX_Books_IsActive_CategoryID`: Đánh chỉ mục kết hợp trên bảng `Books` cho các điều kiện lọc `IsActive = 1`, `CategoryID` và `INCLUDE` các cột thông tin hiển thị (`Title`, `Author`, `Publisher`, `BasePrice`, `ISBN`), hỗ trợ kỹ thuật Covering Index để SQL Server tìm kiếm trực tiếp (Index Seek) mà không cần quét toàn bộ bảng.
   - `IX_BookCopies_BookID_Status`: Đánh chỉ mục kết hợp trên bảng `BookCopies` theo `BookID` và `Status`, tăng tốc gấp nhiều lần các truy vấn con đếm số lượng bản sao khả dụng (`AvailableCopies`) và tổng số bản sao (`TotalCopies`) khi phân trang.
 - **Đồng bộ mã nguồn CSDL & Tự động di trú an toàn (Idempotent Migration):**
-  - Cập nhật định nghĩa chỉ mục chuẩn trong file [01_schema_smartlib_ai.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
-  - Cấu hình Fluent API `HasIndex()` trong [SmartLibDbContext.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs).
-  - Bổ sung lệnh DDL kiểm tra và tự động khởi tạo chỉ mục trong hàm khởi động tại [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - Cập nhật định nghĩa chỉ mục chuẩn trong file [01_schema_smartlib_ai.sql](LV23-088-Library-Revenue-AI/data/01_schema_smartlib_ai.sql).
+  - Cấu hình Fluent API `HasIndex()` trong [SmartLibDbContext.cs](LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs).
+  - Bổ sung lệnh DDL kiểm tra và tự động khởi tạo chỉ mục trong hàm khởi động tại [Program.cs](LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
 - **Hoàn thiện Phân trang giao diện Quản lý Sách (Page Size Selector):**
-  - Cập nhật [BookCatalog.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) và [BookCatalog.css](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.css): Bổ sung bộ chọn số dòng hiển thị trên mỗi trang (`10`, `20`, `50`, `100` đầu sách / trang) tại thanh điều khiển phân trang.
+  - Cập nhật [BookCatalog.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.jsx) và [BookCatalog.css](LV23-088-Library-Revenue-AI/frontend/src/pages/BookCatalog.css): Bổ sung bộ chọn số dòng hiển thị trên mỗi trang (`10`, `20`, `50`, `100` đầu sách / trang) tại thanh điều khiển phân trang.
   - Khi người dùng thay đổi số dòng/trang, hệ thống tự động đưa về trang 1 và tải đúng số lượng bản ghi tương ứng từ API Backend.
 
 ## [2026-09-23] - Tính năng Tải lên & Quét ảnh Mã vạch / QR Code tự động (Upload, Drag-Drop, Paste & Reset)
 
 - **Bổ sung nút Đặt lại & Xóa ảnh preview:** Khi quét ảnh không thành công hoặc muốn đổi ảnh khác, bổ sung nút **"Đặt lại"** (`.btn-reset-scanner-img`) trên thanh công cụ và nút xóa nhanh `✕` góc trên khung preview (`.btn-clear-scanner-preview`) để dễ dàng làm sạch khung laser và thử lại ảnh mới.
-- **Giải mã mã vạch từ ảnh (Dual-Engine Decoder):** Xây dựng module [barcodeImageDecoder.js](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/utils/barcodeImageDecoder.js) kết hợp Web API chuẩn `BarcodeDetector` (tối ưu phần cứng C++/GPU) và fallback thư viện tiêu chuẩn `@zxing/library`, hỗ trợ nhận diện cả mã vạch 1D (Code 128, Code 39, EAN-13) và mã QR 2D.
+- **Giải mã mã vạch từ ảnh (Dual-Engine Decoder):** Xây dựng module [barcodeImageDecoder.js](LV23-088-Library-Revenue-AI/frontend/src/utils/barcodeImageDecoder.js) kết hợp Web API chuẩn `BarcodeDetector` (tối ưu phần cứng C++/GPU) và fallback thư viện tiêu chuẩn `@zxing/library`, hỗ trợ nhận diện cả mã vạch 1D (Code 128, Code 39, EAN-13) và mã QR 2D.
 - **3 phương thức nạp ảnh linh hoạt:**
   - 📂 **Nút "Tải ảnh mã vạch / QR"**: Chọn ảnh trực tiếp từ máy tính.
   - 🖱️ **Kéo & Thả (Drag & Drop)**: Thả trực tiếp file ảnh vào khung quét laser có hiệu ứng phát sáng viền.
@@ -398,8 +318,8 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - **Định tuyến 4 Subtabs chuyên sâu**: Phân tách URL riêng biệt (`/settings/general`, `/settings/borrow`, `/settings/fines`, `/settings/audit`), đồng bộ trạng thái khi F5 hoặc chia sẻ link.
   - **Khắc phục triệt để lỗi giật giao diện (Layout Shift)**: Tối ưu `scrollbar-gutter: stable` và `overflow-y: scroll` trên `html`, `body` và `.dashboard-main`, giữ không gian thanh cuộn ổn định tuyệt đối khi cuộn tab AI.
 - **Mã nguồn & Tích hợp**:
-  - Tạo mới component [LibrarySettings.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), bộ style [LibrarySettings.css](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.css) (Vanilla CSS) và service [rulesApi.js](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js) (kèm Mock Data dự phòng).
-  - Tích hợp trực tiếp vào [DashboardPage.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx) và định tuyến trong [App.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/App.jsx).
+  - Tạo mới component [LibrarySettings.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), bộ style [LibrarySettings.css](LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.css) (Vanilla CSS) và service [rulesApi.js](LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js) (kèm Mock Data dự phòng).
+  - Tích hợp trực tiếp vào [DashboardPage.jsx](LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx) và định tuyến trong [App.jsx](LV23-088-Library-Revenue-AI/frontend/src/App.jsx).
 
 
 ## [2026-09-18] - Xác thực, Phân quyền RBAC & Điều hướng URL Tab (US-01 / LOLRA-9)

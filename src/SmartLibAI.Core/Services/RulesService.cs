@@ -52,6 +52,8 @@ public class RulesService : IRulesService
             return ApiResponse<SystemRulesDto>.ErrorResult("Mức phạt làm hỏng sách vừa phải từ 0% đến 500%.");
         if (request.DamageSeverePercent.HasValue && (request.DamageSeverePercent.Value < 0 || request.DamageSeverePercent.Value > 500))
             return ApiResponse<SystemRulesDto>.ErrorResult("Mức phạt làm hỏng sách nặng phải từ 0% đến 500%.");
+        if (request.CompensationBasePercent.HasValue && (request.CompensationBasePercent.Value < 0 || request.CompensationBasePercent.Value > 500))
+            return ApiResponse<SystemRulesDto>.ErrorResult("Mức đền bù mất sách / hỏng hoàn toàn phải từ 0% đến 500%.");
         if (request.CompensationFixedFee.HasValue && request.CompensationFixedFee.Value < 0)
             return ApiResponse<SystemRulesDto>.ErrorResult("Phí xử lý đền bù không được âm.");
         if (request.AiRiskThreshold.HasValue && (request.AiRiskThreshold.Value < 1 || request.AiRiskThreshold.Value > 100))

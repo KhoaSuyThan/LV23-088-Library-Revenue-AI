@@ -21,6 +21,11 @@ public class ReturnBookResponseDto
 
     public string ReaderCode { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Khoa / Bộ phận thực tế của độc giả (BUG-04).
+    /// </summary>
+    public string Department { get; set; } = string.Empty;
+
     public DateTime BorrowDate { get; set; }
 
     public DateTime DueDate { get; set; }

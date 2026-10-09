@@ -1,3 +1,4 @@
+using SmartLibAI.Core.Common;
 using SmartLibAI.Core.DTOs.Borrows;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.Entities;
@@ -190,6 +191,8 @@ public class BorrowService : IBorrowService
             ReaderCode = reader.ReaderCode,
             FullName = reader.User?.FullName ?? string.Empty,
             MemberType = reader.MemberType,
+            Faculty = reader.Faculty ?? "CNTT",
+            Department = DepartmentHelper.FormatDepartment(reader.Faculty, reader.MemberType),
             IsActive = reader.User?.IsActive ?? false,
             ExpiryDate = reader.ExpiryDate,
             CurrentBorrowCount = currentBorrowCount,
@@ -255,6 +258,7 @@ public class BorrowService : IBorrowService
             ReaderCode = borrowing.Reader?.ReaderCode ?? string.Empty,
             ReaderName = borrowing.Reader?.User?.FullName ?? string.Empty,
             MemberType = borrowing.Reader?.MemberType ?? "Standard",
+            Department = DepartmentHelper.FormatDepartment(borrowing.Reader?.Faculty, borrowing.Reader?.MemberType),
             LibrarianID = borrowing.LibrarianID,
             LibrarianName = borrowing.Librarian?.FullName ?? string.Empty,
             BorrowDate = borrowing.BorrowDate,

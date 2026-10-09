@@ -1,3 +1,4 @@
+using SmartLibAI.Core.Common;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Returns;
 using SmartLibAI.Core.Interfaces;
@@ -95,6 +96,7 @@ public class ReturnService : IReturnService
             ReaderName = reader?.User?.FullName ?? "Bạn đọc",
             ReaderCode = reader?.ReaderCode ?? string.Empty,
             MemberType = reader?.MemberType ?? "Student",
+            Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
             BorrowDate = borrowing.BorrowDate,
             DueDate = borrowing.DueDate,
             OverdueDays = overdueDays,
@@ -192,9 +194,6 @@ public class ReturnService : IReturnService
         decimal damageFee = 0m;
         decimal lostFee = 0m;
 
-        decimal damageMultiplier = rule?.DamageMultiplier ?? 1.0m;
-        decimal damageFeePercent = rule?.DamageFeePercent ?? 10.0m;
-
         if (condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase))
         {
             // Trường hợp 1: Hư hỏng nhẹ (rách nhẹ bìa/mép trang) - mặc định 20%
@@ -274,6 +273,7 @@ public class ReturnService : IReturnService
             BookTitle = book?.Title ?? "Tài liệu",
             ReaderName = reader?.User?.FullName ?? "Độc giả",
             ReaderCode = reader?.ReaderCode ?? string.Empty,
+            Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
             BasePrice = basePrice,
             BorrowDate = borrowing.BorrowDate,
             DueDate = borrowing.DueDate,

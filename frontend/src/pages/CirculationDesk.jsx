@@ -225,7 +225,9 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
             bookCode: firstItem?.barcode || 'N/A',
             readerName: item.readerName || 'Bạn đọc',
             studentCode: item.readerCode || 'N/A',
-            department: item.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin',
+            department: (item.department && item.department !== 'Standard')
+              ? item.department
+              : (item.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
             bookTitle: titleDisplay,
             borrowDate: new Date(item.borrowDate).toLocaleDateString('vi-VN'),
             dueDate: new Date(item.dueDate).toLocaleDateString('vi-VN'),
@@ -288,7 +290,9 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
       ? `${cleanItems[0].title} (+${cleanItems.length - 1} cuốn khác)`
       : (cleanItems[0]?.title || `Tài liệu [${cleanBarcode}]`);
 
-    const deptDisplay = created.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin';
+    const deptDisplay = (created.department && created.department !== 'Standard')
+      ? created.department
+      : (created.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin');
 
     const newTx = {
       id: created.borrowCode,

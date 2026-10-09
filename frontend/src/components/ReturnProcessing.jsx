@@ -58,9 +58,14 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const [systemRules, setSystemRules] = useState(rulesApi.getDefaultRules());
 
   useEffect(() => {
-    rulesApi.getSystemRules().then((rules) => {
-      if (rules) setSystemRules(rules);
-    });
+    const refreshRules = () => {
+      rulesApi.getSystemRules().then((rules) => {
+        if (rules) setSystemRules(rules);
+      });
+    };
+    refreshRules();
+    window.addEventListener('focus', refreshRules);
+    return () => window.removeEventListener('focus', refreshRules);
   }, []);
 
   // Tình trạng vật lý thực tế khi kiểm tra sách (Quy tắc 10.3 - Tùy chọn)

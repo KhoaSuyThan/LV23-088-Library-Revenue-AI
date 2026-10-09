@@ -44,6 +44,11 @@ public class BorrowResponseDto
 
     public string MemberType { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Khoa / Bộ phận thực tế của độc giả (BUG-04).
+    /// </summary>
+    public string Department { get; set; } = string.Empty;
+
     public int LibrarianID { get; set; }
 
     public string LibrarianName { get; set; } = string.Empty;
