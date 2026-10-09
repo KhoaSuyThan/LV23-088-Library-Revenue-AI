@@ -1,3 +1,4 @@
+using SmartLibAI.Core.Common;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Invoices;
 using SmartLibAI.Core.Entities;
@@ -81,7 +82,7 @@ public class InvoiceService : IInvoiceService
                 ReaderId = reader?.ReaderID ?? 0,
                 ReaderName = user?.FullName ?? "Bạn đọc",
                 ReaderCode = reader?.ReaderCode ?? user?.Username ?? "N/A",
-                Department = reader?.MemberType ?? "Thành viên",
+                Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
                 BookTitle = bookTitle,
                 TotalAmount = r.TotalAmount,
                 DiscountAmount = r.DiscountAmount,
@@ -175,7 +176,7 @@ public class InvoiceService : IInvoiceService
             ReaderId = reader?.ReaderID ?? 0,
             ReaderName = user?.FullName ?? "Bạn đọc",
             ReaderCode = reader?.ReaderCode ?? user?.Username ?? "N/A",
-            Department = reader?.MemberType ?? "Thành viên",
+            Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
             BookTitle = bookTitle,
             Reason = reason,
             TotalAmount = receipt?.TotalAmount ?? invoice.AmountPaid,

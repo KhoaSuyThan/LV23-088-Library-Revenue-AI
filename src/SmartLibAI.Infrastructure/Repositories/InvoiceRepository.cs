@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SmartLibAI.Core.Common;
 using SmartLibAI.Core.Entities;
 using SmartLibAI.Core.Interfaces;
 using SmartLibAI.Infrastructure.Data;
@@ -432,7 +433,7 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
                 ReaderId = reader?.ReaderID ?? 0,
                 ReaderName = user?.FullName ?? "Bạn đọc",
                 StudentCode = reader?.ReaderCode ?? string.Empty,
-                Department = reader?.MemberType ?? "Thành viên",
+                Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
                 BookTitle = book?.Title ?? "Tài liệu thư viện",
                 BookCode = firstDetail?.BookCopy?.Barcode ?? string.Empty,
                 FineReason = rule?.RuleName ?? "Overdue",

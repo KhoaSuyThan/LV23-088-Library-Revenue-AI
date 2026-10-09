@@ -12,6 +12,16 @@ public class BorrowReaderEligibilityDto
     public string FullName { get; set; } = string.Empty;
 
     public string MemberType { get; set; } = "Standard";
+ 
+    /// <summary>
+    /// Khoa / Viện của độc giả (VD: CNTT, Kinh Tế, Cơ Khí, Ngoại Ngữ).
+    /// </summary>
+    public string Faculty { get; set; } = "CNTT";
+
+    /// <summary>
+    /// Tên Khoa / Bộ phận thực tế hiển thị chuẩn xác trên giao diện quầy lưu thông (BUG-04).
+    /// </summary>
+    public string Department { get; set; } = string.Empty;
 
     public bool IsActive { get; set; }
 
