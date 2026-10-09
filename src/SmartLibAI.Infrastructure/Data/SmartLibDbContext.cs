@@ -283,7 +283,13 @@ public class SmartLibDbContext : DbContext
                 .HasDefaultValue(30);
             entity.Property(e => e.DamageFeePercent)
                 .HasColumnType("decimal(5,2)")
-                .HasDefaultValue(10.0m);
+                .HasDefaultValue(20.0m);
+            entity.Property(e => e.DamageMediumPercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(40.0m);
+            entity.Property(e => e.DamageSeverePercent)
+                .HasColumnType("decimal(5,2)")
+                .HasDefaultValue(110.0m);
             entity.Property(e => e.ConductScoreDiscountPercent)
                 .HasColumnType("decimal(5,2)")
                 .HasDefaultValue(20.0m);

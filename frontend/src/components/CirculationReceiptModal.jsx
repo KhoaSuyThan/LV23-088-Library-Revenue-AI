@@ -47,12 +47,12 @@ export default function CirculationReceiptModal({
   
   // Ngày tháng
   const borrowDateStr = data.rawBorrowDate
-    ? new Date(data.rawBorrowDate).toLocaleDateString('vi-VN')
-    : data.borrowDate || new Date().toLocaleDateString('vi-VN');
+    ? (typeof data.rawBorrowDate === 'string' && data.rawBorrowDate.includes('/') ? data.rawBorrowDate : new Date(data.rawBorrowDate).toLocaleDateString('vi-VN'))
+    : (data.borrowDate || new Date().toLocaleDateString('vi-VN'));
 
   const dueDateStr = data.rawDueDate
-    ? new Date(data.rawDueDate).toLocaleDateString('vi-VN')
-    : data.dueDate || '';
+    ? (typeof data.rawDueDate === 'string' && data.rawDueDate.includes('/') ? data.rawDueDate : new Date(data.rawDueDate).toLocaleDateString('vi-VN'))
+    : (data.dueDate || '');
 
   const returnDateStr = data.returnDate || new Date().toLocaleDateString('vi-VN');
 

@@ -67,8 +67,15 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     renewalExtraDays: 7,
 
     finePerDay: 2000,
+    damagePenaltyPercent: 20,
+    damageMediumPercent: 40,
+    damageSeverePercent: 110,
+    compensationBasePercent: 110,
+    compensationFixedFee: 0,
     damagePenaltyText: '20% giá bìa',
-    compensationText: '100% giá bìa + 20.000 VNĐ phí xử lý',
+    damageMediumText: '40% giá bìa',
+    damageSevereText: '110% giá bìa',
+    compensationText: '110% giá bìa',
     autoLockDebtThreshold: true,
     debtLockAmount: 50000,
 
@@ -114,7 +121,25 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
         ]);
 
         if (rulesData) {
-          setFormData((prev) => ({ ...prev, ...rulesData }));
+          const damagePercent = rulesData.damagePenaltyPercent ?? 20;
+          const damageMed = rulesData.damageMediumPercent ?? 40;
+          const damageSev = rulesData.damageSeverePercent ?? 110;
+          const compPercent = rulesData.compensationBasePercent ?? 110;
+          const compFee = rulesData.compensationFixedFee ?? 20000;
+
+          setFormData((prev) => ({
+            ...prev,
+            ...rulesData,
+            damagePenaltyPercent: damagePercent,
+            damageMediumPercent: damageMed,
+            damageSeverePercent: damageSev,
+            compensationBasePercent: compPercent,
+            compensationFixedFee: 0,
+            damagePenaltyText: `${damagePercent}% giá bìa`,
+            damageMediumText: `${damageMed}% giá bìa`,
+            damageSevereText: `${damageSev}% giá bìa`,
+            compensationText: `${compPercent}% giá bìa`
+          }));
           if (rulesData.aiAccuracy) {
             setAiModelInfo((prev) => ({
               ...prev,
@@ -141,11 +166,19 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     }, 3500);
   };
 
-  // Xác thực trường dữ liệu
+  // Trích xuất số thực từ chuỗi hoặc số (hỗ trợ nhập số âm, ký tự %, chuỗi như "-20%", "30% giá bìa")
+  const extractNumber = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return isNaN(val) ? null : val;
+    const match = String(val).match(/-?\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : null;
+  };
+
+  // Xác thực trường dữ liệu tức thời (kiểm tra không được nhập số âm < 0)
   const validateField = (name, value) => {
-    const num = Number(value);
-    if (typeof value === 'number' || (typeof value === 'string' && !isNaN(num) && value.trim() !== '')) {
-      if (num < 0) return 'Không được nhập số âm (< 0)';
+    const num = extractNumber(value);
+    if (num !== null && num < 0) {
+      return 'Không được nhập số âm (< 0)';
     }
     return null;
   };
@@ -161,10 +194,31 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     setValidationErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  // Xử lý thay đổi input chuỗi
+  // Xử lý thay đổi input chuỗi (Mức phạt rách/hỏng nhẹ, vừa, nặng và Đền bù mất sách)
   const handleTextChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const parsedNum = extractNumber(value);
+
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      // Tự động đồng bộ số phần trăm sang trường tương ứng để lưu CSDL FineRules
+      if (name === 'damagePenaltyText' && parsedNum !== null && parsedNum >= 0) {
+        updated.damagePenaltyPercent = parsedNum;
+      }
+      if (name === 'damageMediumText' && parsedNum !== null && parsedNum >= 0) {
+        updated.damageMediumPercent = parsedNum;
+      }
+      if (name === 'damageSevereText' && parsedNum !== null && parsedNum >= 0) {
+        updated.damageSeverePercent = parsedNum;
+      }
+      if (name === 'compensationText' && parsedNum !== null && parsedNum >= 0) {
+        updated.compensationBasePercent = parsedNum;
+      }
+      return updated;
+    });
+
+    const error = validateField(name, value);
+    setValidationErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   // Bật/tắt checkbox boolean
@@ -187,11 +241,25 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     setIsResetting(true);
     try {
       const res = await rulesApi.resetDefaultRules();
-      if (res) {
-        setFormData(res);
-      } else {
-        setFormData(rulesApi.getDefaultRules());
-      }
+      const targetData = res || rulesApi.getDefaultRules();
+      const damagePercent = targetData.damagePenaltyPercent ?? 20;
+      const damageMed = targetData.damageMediumPercent ?? 40;
+      const damageSev = targetData.damageSeverePercent ?? 110;
+      const compPercent = targetData.compensationBasePercent ?? 110;
+      const compFee = targetData.compensationFixedFee ?? 20000;
+
+      setFormData({
+        ...targetData,
+        damagePenaltyPercent: damagePercent,
+        damageMediumPercent: damageMed,
+        damageSeverePercent: damageSev,
+        compensationBasePercent: compPercent,
+        compensationFixedFee: 0,
+        damagePenaltyText: `${damagePercent}% giá bìa`,
+        damageMediumText: `${damageMed}% giá bìa`,
+        damageSevereText: `${damageSev}% giá bìa`,
+        compensationText: `${compPercent}% giá bìa`
+      });
       setValidationErrors({});
       // Tự động làm mới lịch sử kiểm toán sau khi reset
       const updatedHistory = await rulesApi.getAuditHistory();
@@ -212,29 +280,60 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
 
   // Lưu cấu hình
   const handleSave = async () => {
-    // Kiểm tra lỗi số âm
+    // Kiểm tra lỗi số âm toàn diện (BUG-02 & BUG-05)
     let hasError = false;
     const newErrors = {};
 
-    ['borrowDays_Student', 'borrowDays_Teacher', 'borrowLimit_MaxTogether', 'finePerDay', 'aiRemindDaysBefore'].forEach(
-      (key) => {
-        const err = validateField(key, formData[key]);
-        if (err) {
-          newErrors[key] = err;
-          hasError = true;
-        }
+    [
+      'borrowDays_Student',
+      'borrowDays_Teacher',
+      'borrowLimit_MaxTogether',
+      'borrowLimit_Student',
+      'borrowLimit_Teacher',
+      'maxRenewalTimes',
+      'renewalExtraDays',
+      'finePerDay',
+      'damagePenaltyText',
+      'damageMediumText',
+      'damageSevereText',
+      'compensationText',
+      'debtLockAmount',
+      'aiRemindDaysBefore',
+      'aiDiscount_90',
+      'aiDiscount_100'
+    ].forEach((key) => {
+      const err = validateField(key, formData[key]);
+      if (err) {
+        newErrors[key] = err;
+        hasError = true;
       }
-    );
+    });
 
     if (hasError) {
       setValidationErrors(newErrors);
-      showToast('Vui lòng kiểm tra lại các giá trị có lỗi!', 'error');
+      showToast('Vui lòng kiểm tra lại các giá trị có lỗi (không được nhập số âm)!', 'error');
       return;
     }
 
     setIsSaving(true);
     try {
-      await rulesApi.updateSystemRules(formData);
+      // Đồng bộ tỷ lệ phần trăm từ chuỗi nhập để gửi lên CSDL FineRules (BUG-05)
+      const parsedDamage = extractNumber(formData.damagePenaltyText);
+      const parsedMedium = extractNumber(formData.damageMediumText);
+      const parsedSevere = extractNumber(formData.damageSevereText);
+      const parsedCompensation = extractNumber(formData.compensationText);
+      const payload = {
+        ...formData,
+        damagePenaltyPercent: (parsedDamage !== null && parsedDamage >= 0) ? parsedDamage : formData.damagePenaltyPercent,
+        damageMediumPercent: (parsedMedium !== null && parsedMedium >= 0) ? parsedMedium : (formData.damageMediumPercent ?? 40),
+        damageSeverePercent: (parsedSevere !== null && parsedSevere >= 0) ? parsedSevere : (formData.damageSeverePercent ?? 110),
+        compensationBasePercent: (parsedCompensation !== null && parsedCompensation >= 0) ? parsedCompensation : formData.compensationBasePercent
+      };
+
+      await rulesApi.updateSystemRules(payload);
+      // Lưu bộ nhớ cục bộ đồng bộ trạng thái hiển thị
+      localStorage.setItem('smartlib_rules_data', JSON.stringify(payload));
+
       const updatedHistory = await rulesApi.getAuditHistory();
       setAuditHistory(updatedHistory);
       showToast('Đã lưu toàn bộ cấu hình thư viện thành công!', 'success');
@@ -245,9 +344,9 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
         (Array.isArray(errorList) && errorList.length > 0)
           ? errorList.join(' | ')
           : err.response?.data?.message ||
-            (err.response?.status === 401 || err.response?.status === 403
-              ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để lưu cấu hình vào CSDL.'
-              : 'Không thể lưu cấu hình. Vui lòng kiểm tra kết nối mạng hoặc thử lại!');
+          (err.response?.status === 401 || err.response?.status === 403
+            ? 'Cần đăng nhập quyền Admin/Staff (tài khoản khoanv) để lưu cấu hình vào CSDL.'
+            : 'Không thể lưu cấu hình. Vui lòng kiểm tra kết nối mạng hoặc thử lại!');
       showToast(serverMsg, 'error');
     } finally {
       setIsSaving(false);
@@ -514,11 +613,60 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                     id="damagePenaltyText"
                     name="damagePenaltyText"
                     type="text"
-                    className="figma-input-control"
+                    className={`figma-input-control ${validationErrors.damagePenaltyText ? 'has-error' : ''}`}
                     value={formData.damagePenaltyText}
                     onChange={handleTextChange}
                   />
                 </div>
+                {validationErrors.damagePenaltyText && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.damagePenaltyText}
+                  </span>
+                )}
+              </div>
+
+              {/* Mức phạt làm hỏng sách vừa */}
+              <div className="figma-form-item">
+                <label className="figma-field-label" htmlFor="damageMediumText">
+                  Mức phạt làm hỏng sách vừa
+                </label>
+                <div className="figma-input-wrapper">
+                  <input
+                    id="damageMediumText"
+                    name="damageMediumText"
+                    type="text"
+                    className={`figma-input-control ${validationErrors.damageMediumText ? 'has-error' : ''}`}
+                    value={formData.damageMediumText}
+                    onChange={handleTextChange}
+                  />
+                </div>
+                {validationErrors.damageMediumText && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.damageMediumText}
+                  </span>
+                )}
+              </div>
+
+              {/* Mức phạt làm hỏng sách nặng */}
+              <div className="figma-form-item">
+                <label className="figma-field-label" htmlFor="damageSevereText">
+                  Mức phạt làm hỏng sách nặng
+                </label>
+                <div className="figma-input-wrapper">
+                  <input
+                    id="damageSevereText"
+                    name="damageSevereText"
+                    type="text"
+                    className={`figma-input-control ${validationErrors.damageSevereText ? 'has-error' : ''}`}
+                    value={formData.damageSevereText}
+                    onChange={handleTextChange}
+                  />
+                </div>
+                {validationErrors.damageSevereText && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.damageSevereText}
+                  </span>
+                )}
               </div>
 
               {/* Mức đền bù mất sách / hỏng hoàn toàn */}
@@ -531,11 +679,16 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                     id="compensationText"
                     name="compensationText"
                     type="text"
-                    className="figma-input-control"
+                    className={`figma-input-control ${validationErrors.compensationText ? 'has-error' : ''}`}
                     value={formData.compensationText}
                     onChange={handleTextChange}
                   />
                 </div>
+                {validationErrors.compensationText && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.compensationText}
+                  </span>
+                )}
               </div>
 
               {/* Dòng Toggle Khóa mượn nợ phạt */}
@@ -683,12 +836,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="borrowLimit_Student"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.borrowLimit_Student ? 'has-error' : ''}`}
                     value={formData.borrowLimit_Student}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">cuốn</span>
                 </div>
+                {validationErrors.borrowLimit_Student && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.borrowLimit_Student}
+                  </span>
+                )}
               </div>
               <div className="figma-form-item">
                 <label className="figma-field-label">Số ngày mượn tiêu chuẩn</label>
@@ -696,12 +855,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="borrowDays_Student"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.borrowDays_Student ? 'has-error' : ''}`}
                     value={formData.borrowDays_Student}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">ngày</span>
                 </div>
+                {validationErrors.borrowDays_Student && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.borrowDays_Student}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -718,12 +883,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="borrowLimit_Teacher"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.borrowLimit_Teacher ? 'has-error' : ''}`}
                     value={formData.borrowLimit_Teacher}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">cuốn</span>
                 </div>
+                {validationErrors.borrowLimit_Teacher && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.borrowLimit_Teacher}
+                  </span>
+                )}
               </div>
               <div className="figma-form-item">
                 <label className="figma-field-label">Số ngày mượn tiêu chuẩn</label>
@@ -731,12 +902,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="borrowDays_Teacher"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.borrowDays_Teacher ? 'has-error' : ''}`}
                     value={formData.borrowDays_Teacher}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">ngày</span>
                 </div>
+                {validationErrors.borrowDays_Teacher && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.borrowDays_Teacher}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -753,12 +930,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="maxRenewalTimes"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.maxRenewalTimes ? 'has-error' : ''}`}
                     value={formData.maxRenewalTimes}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">lần</span>
                 </div>
+                {validationErrors.maxRenewalTimes && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.maxRenewalTimes}
+                  </span>
+                )}
               </div>
               <div className="figma-form-item">
                 <label className="figma-field-label">Số ngày thêm mỗi lần</label>
@@ -766,12 +949,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="renewalExtraDays"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.renewalExtraDays ? 'has-error' : ''}`}
                     value={formData.renewalExtraDays}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">ngày</span>
                 </div>
+                {validationErrors.renewalExtraDays && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.renewalExtraDays}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -798,12 +987,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="aiDiscount_90"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.aiDiscount_90 ? 'has-error' : ''}`}
                     value={formData.aiDiscount_90}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">% giảm trừ</span>
                 </div>
+                {validationErrors.aiDiscount_90 && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.aiDiscount_90}
+                  </span>
+                )}
               </div>
 
               <div className="figma-form-item">
@@ -812,12 +1007,18 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <input
                     name="aiDiscount_100"
                     type="number"
-                    className="figma-input-control"
+                    min="0"
+                    className={`figma-input-control ${validationErrors.aiDiscount_100 ? 'has-error' : ''}`}
                     value={formData.aiDiscount_100}
                     onChange={handleNumberChange}
                   />
                   <span className="figma-input-tag">% giảm trừ</span>
                 </div>
+                {validationErrors.aiDiscount_100 && (
+                  <span className="figma-error-hint">
+                    <AlertTriangle size={12} /> {validationErrors.aiDiscount_100}
+                  </span>
+                )}
               </div>
             </div>
 

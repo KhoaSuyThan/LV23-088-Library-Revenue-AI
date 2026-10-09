@@ -414,8 +414,12 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
         department: (result.department && result.department !== 'Standard') ? result.department : 'Khoa Công nghệ Thông tin',
         rawBorrowDate: result.borrowDate,
         rawDueDate: result.dueDate,
-        borrowDate: result.borrowDate ? new Date(result.borrowDate).toLocaleDateString('vi-VN') : '',
-        dueDate: result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : '',
+        borrowDate: typeof result.borrowDate === 'string' && result.borrowDate.includes('/')
+          ? result.borrowDate
+          : (result.borrowDate ? new Date(result.borrowDate).toLocaleDateString('vi-VN') : ''),
+        dueDate: typeof result.dueDate === 'string' && result.dueDate.includes('/')
+          ? result.dueDate
+          : (result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : ''),
         returnDate: result.returnDate || new Date().toLocaleDateString('vi-VN'),
         fineAmount: result.totalFine || 0,
         statusText: (result.totalFine || 0) > 0
@@ -429,7 +433,9 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                 title: result.bookTitle,
                 author: result.author || 'Nhiều tác giả',
                 barcode: result.barcode,
-                dueDate: result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : '',
+                dueDate: typeof result.dueDate === 'string' && result.dueDate.includes('/')
+                  ? result.dueDate
+                  : (result.dueDate ? new Date(result.dueDate).toLocaleDateString('vi-VN') : ''),
                 returnDate: result.returnDate || new Date().toLocaleDateString('vi-VN'),
                 note: (result.totalFine || 0) > 0
                   ? `Thu phạt ${(result.totalFine || 0).toLocaleString('vi-VN')}đ`

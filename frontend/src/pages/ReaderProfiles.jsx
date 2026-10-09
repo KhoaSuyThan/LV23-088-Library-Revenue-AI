@@ -36,6 +36,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updatingLockId, setUpdatingLockId] = useState(null);
+  const [isSendingWarning, setIsSendingWarning] = useState(false);
 
   // Độc giả được chọn hiển thị chi tiết bên cột phải
   const [selectedReaderCode, setSelectedReaderCode] = useState('');
@@ -214,11 +215,12 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
     }
   };
 
-  // Xử lý Gửi email cảnh báo trễ hạn
+  // Xử lý Gửi email cảnh báo trễ hạn (BUG-01: Báo lỗi chính xác khi lỗi mạng/API)
   const handleSendWarningEmail = async (reader) => {
-    if (!reader) return;
+    if (!reader || isSendingWarning) return;
     const targetReaderId = reader.readerId || reader.readerID;
 
+    setIsSendingWarning(true);
     showToast(`📧 Đang gửi thông báo cảnh báo trễ hạn đến ${reader.email || reader.fullName}...`);
 
     try {
@@ -229,7 +231,15 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
         showToast(`⚠️ ${res?.message || 'Gửi cảnh báo không thành công'}`);
       }
     } catch (err) {
-      showToast(`✅ Đã gửi email cảnh báo trễ hạn đến ${reader.email}!`);
+      console.error('Lỗi khi gửi email cảnh báo:', err);
+      const errMsg =
+        err.response?.data?.message ||
+        err.response?.data?.title ||
+        err.message ||
+        'Lỗi mạng hoặc không thể kết nối đến máy chủ!';
+      showToast(`❌ Gửi cảnh báo thất bại: ${errMsg}`);
+    } finally {
+      setIsSendingWarning(false);
     }
   };
 
@@ -732,9 +742,20 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                   type="button"
                   className="btn-warning-email"
                   onClick={() => handleSendWarningEmail(selectedReader)}
+                  disabled={isSendingWarning}
+                  style={isSendingWarning ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
                 >
-                  <Mail size={16} />
-                  <span>Gửi cảnh báo Email</span>
+                  {isSendingWarning ? (
+                    <>
+                      <Loader2 size={16} className="spin-icon" />
+                      <span>Đang gửi email...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail size={16} />
+                      <span>Gửi cảnh báo Email</span>
+                    </>
+                  )}
                 </button>
 
                 <button

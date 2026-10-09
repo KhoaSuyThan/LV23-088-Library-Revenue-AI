@@ -169,6 +169,16 @@ using (var scope = app.Services.CreateScope())
                     ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0;
             END
 
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'DamageMediumPercent')
+            BEGIN
+                ALTER TABLE FineRules ADD DamageMediumPercent DECIMAL(5,2) NOT NULL DEFAULT 40.0;
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FineRules') AND name = 'DamageSeverePercent')
+            BEGIN
+                ALTER TABLE FineRules ADD DamageSeverePercent DECIMAL(5,2) NOT NULL DEFAULT 110.0;
+            END
+
             -- Tự động kiểm tra và tạo các chỉ mục Non-Clustered tối ưu hiệu năng phân trang
             IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_CategoryID' AND object_id = OBJECT_ID('Books'))
             BEGIN
@@ -307,7 +317,9 @@ using (var scope = app.Services.CreateScope())
                 StudentBorrowDays = 14,
                 LecturerBorrowLimit = 10,
                 LecturerBorrowDays = 30,
-                DamageFeePercent = 10.0m,
+                DamageFeePercent = 20.0m,
+                DamageMediumPercent = 40.0m,
+                DamageSeverePercent = 110.0m,
                 ConductScoreDiscountPercent = 20.0m,
                 MaxRenewalTimes = 1,
                 RenewalExtraDays = 7,
@@ -316,8 +328,8 @@ using (var scope = app.Services.CreateScope())
                 AiRiskThreshold = 80,
                 AiRemindDaysBefore = 3,
                 AiAutoEmailReminder = true,
-                CompensationFixedFee = 20000m,
-                CompensationBasePercent = 100.0m,
+                CompensationFixedFee = 0m,
+                CompensationBasePercent = 110.0m,
                 MaxFineCapPercent = 100.0m,
                 CompensationRatePercent = 200.0m,
                 AiDiscount_90 = 10.0m,

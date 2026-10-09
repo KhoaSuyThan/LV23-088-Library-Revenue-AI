@@ -17,8 +17,10 @@ public class SystemRulesDto
     // Biểu phí phạt vi phạm
     public decimal FinePerDay { get; set; } = 2000m;
     public decimal DamagePenaltyPercent { get; set; } = 20m;
-    public decimal CompensationBasePercent { get; set; } = 100m;
-    public decimal CompensationFixedFee { get; set; } = 20000m;
+    public decimal DamageMediumPercent { get; set; } = 40m;
+    public decimal DamageSeverePercent { get; set; } = 110m;
+    public decimal CompensationBasePercent { get; set; } = 110m;
+    public decimal CompensationFixedFee { get; set; } = 0m;
     public bool AutoLockDebtThreshold { get; set; } = true;
     public decimal DebtLockAmount { get; set; } = 50000m;
 

@@ -5,6 +5,23 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-09] - [UI & Rules Fix] Chuẩn Hóa Text Mức Đền Bù Mất Sách Về '110% Giá Bìa' (Loại Bỏ Phí Xử Lý 20.000 VNĐ)
+
+- **Giao diện Cài đặt ([`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
+  - **Loại bỏ chuỗi phụ thu `+ 20.000 VNĐ phí xử lý`:** Điều chỉnh giá trị hiển thị mặc định và quá trình nạp dữ liệu của ô "Mức đền bù mất sách / hỏng hoàn toàn" thành đúng nguyên bản **`110% giá bìa`**, không cộng dồn thêm 20.000 VNĐ.
+  - Đặt `compensationFixedFee = 0` trên cả frontend và backend.
+- **Backend .NET Core ([`SystemRulesDto.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/SystemRulesDto.cs), [`RulesService.cs`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs)):**
+  - Đồng bộ `CompensationFixedFee = 0m` và `CompensationBasePercent = 110m` trong DTO và dịch vụ khôi phục mặc định `ResetDefaultRulesAsync`.
+
+## [2026-10-09] - [Bug Fix - BUG-05] Khắc Phục Lỗi Cảnh Báo Số Âm & Đồng Bộ Mức Phạt Rách Sách, Đền Bù Mất Sách Vào CSDL FineRules
+
+- **Frontend & Giao diện ([`LibrarySettings.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
+  - **Khắc phục lỗi cảnh báo số âm tức thời:** Cải tiến hàm `extractNumber` và `validateField` để phát hiện số âm ngay khi người dùng nhập chuỗi (kể cả có chứa ký hiệu `%` hoặc chữ, ví dụ `-20%`, `-20`). Tự động hiển thị viền đỏ `.has-error` và dòng cảnh báo đỏ `<span className="figma-error-hint">⚠ Không được nhập số âm (< 0)</span>` cho cả 2 ô "Mức phạt làm rách / hỏng sách nhẹ" và "Mức đền bù mất sách / hỏng hoàn toàn".
+  - **Khắc phục BUG-05 (Khóa cứng chuỗi tĩnh & không lưu CSDL):** Tự động bóc tách số phần trăm từ chuỗi nhập (`damagePenaltyText` -> `damagePenaltyPercent`, `compensationText` -> `compensationBasePercent`) và gửi lên API Backend `PUT /api/rules` để lưu vào bảng `FineRules` trong CSDL SQL Server; đồng thời lưu đồng bộ vào bộ nhớ cục bộ để khi chuyển tab hoặc tải lại trang không bị nhảy ngược về chuỗi mặc định cũ.
+  - **Mở rộng phạm vi kiểm tra `handleSave`:** Đưa cả `damagePenaltyText`, `compensationText`, `debtLockAmount`, `aiDiscount_90`, `aiDiscount_100` vào danh sách bắt buộc kiểm tra số âm trước khi gửi yêu cầu lưu, ngăn chặn lưu dữ liệu không hợp lệ.
+- **Quầy lưu thông & Trả tài liệu ([`ReturnProcessing.jsx`](file:///c:/Users/ADMIN/source/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx)):**
+  - **Áp dụng tỷ lệ phạt thực tế từ CSDL:** Kết nối cách tính phí làm rách/hỏng sách và đền bù thất lạc với tỷ lệ cấu hình thực tế `lookupData.damageFeePercent` từ bảng `FineRules` thay vì giá trị cố định cứng 20%, đảm bảo mọi thay đổi của thủ thư trong Cài đặt được áp dụng ngay lập tức tại quầy trả sách.
+
 ## [2026-10-08] - [Optimization & Fixes] Nâng Cấp Hoàn Thiện Cấu Hình Quy Định & Quầy Lưu Thông (L0LRA-79 & L0LRA-72)
 
 - **Frontend & Giao diện ([`BorrowForm.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx), [`LibrarySettings.jsx`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**

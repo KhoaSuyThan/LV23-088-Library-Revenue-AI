@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
 import { invoiceApi } from '../api/invoiceApi';
+import { rulesApi } from '../api/rulesApi';
 import { playScannerBeep, generateBarcodeSvg } from '../utils/barcodeGenerator';
 import { decodeBarcodeFromImage, getImageFileFromClipboard } from '../utils/barcodeImageDecoder';
 import BarcodeCameraModal from './BarcodeCameraModal';
@@ -53,13 +54,18 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [barcodePreviewItem, setBarcodePreviewItem] = useState(null);
 
+  // Dữ liệu quy định hệ thống nạp từ rulesApi / LocalStorage để flex các tỷ lệ và text theo setting
+  const [systemRules, setSystemRules] = useState(rulesApi.getDefaultRules());
+
+  useEffect(() => {
+    rulesApi.getSystemRules().then((rules) => {
+      if (rules) setSystemRules(rules);
+    });
+  }, []);
+
   // Tình trạng vật lý thực tế khi kiểm tra sách (Quy tắc 10.3 - Tùy chọn)
-  // 'good': Nguyên vẹn/bình thường (0đ)
-  // 'damaged_light': Hư hỏng nhẹ hoặc vừa (sửa chữa, gia cố bìa) - 30% đến 50% giá bìa
-  // 'damaged_severe': Hư hỏng nặng (ngấm nước, mất trang nội dung chính) - 110% giá bìa
-  // 'lost': Thất lạc / Mất sách hoàn toàn - 110% giá bìa
   // Quản lý tình trạng vật lý cho từng cuốn sách độc lập: { [barcode]: { isDamaged: boolean, damageLevel: 1 | 2 | 3 } }
-  // damageLevel: 1 = Nhẹ (20%), 2 = Vừa (40%), 3 = Nặng (110%)
+  // damageLevel: 1 = Nhẹ, 2 = Vừa, 3 = Nặng
   const [bookConditions, setBookConditions] = useState({});
   const [showOverdueFormula, setShowOverdueFormula] = useState(false);
 
@@ -183,10 +189,14 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const isOverdue = overdueDays > 0;
   const isOnTime = overdueDays === 0;
 
+  // Tỷ lệ phạt rách/hỏng nhẹ, vừa, nặng và đền bù mất sách lấy động theo Cài đặt quy định (Flex theo Setting)
+  const damageLightPct = Number(lookupData?.damageFeePercent ?? systemRules.damagePenaltyPercent) || 20;
+  const damageMedPct = Number(lookupData?.damageMediumPercent ?? systemRules.damageMediumPercent) || 40;
+  const damageSeverePct = Number(lookupData?.damageSeverePercent ?? systemRules.damageSeverePercent) || 110;
+  const lostPct = Number(lookupData?.compensationBasePercent ?? systemRules.compensationBasePercent) || 110;
+  const surchargePct = Math.max(0, lostPct - 100);
+
   // 2. Tính toán tiền phạt trễ hạn và bồi thường trên các cuốn sách ĐƯỢC CHỌN TRẢ ĐỢT NÀY
-  // Nguyên vẹn: 0đ
-  // Hư hỏng 3 mức: Nhẹ 20%, Vừa 40%, Nặng 110% giá bìa
-  // Thất lạc / Mất sách: 110% giá bìa (100% bồi hoàn + 10% phụ thu nghiệp vụ)
   let totalOverdueFine = 0;
   let rawOverdueFineSum = 0;
   let totalDamageFee = 0;
@@ -206,18 +216,18 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     const cond = getBookCondition(b.barcode);
     if (cond.status === 'damaged') {
       if (cond.damageLevel === 1) {
-        // Nhẹ: 20% giá bìa
-        totalDamageFee += Math.round((bPrice * 0.20) / 1000) * 1000;
+        // Nhẹ: Tỷ lệ phạt nhẹ cấu hình
+        totalDamageFee += Math.round((bPrice * (damageLightPct / 100)) / 1000) * 1000;
       } else if (cond.damageLevel === 2) {
-        // Vừa: 40% giá bìa
-        totalDamageFee += Math.round((bPrice * 0.40) / 1000) * 1000;
+        // Vừa: Tỷ lệ phạt vừa cấu hình
+        totalDamageFee += Math.round((bPrice * (damageMedPct / 100)) / 1000) * 1000;
       } else if (cond.damageLevel === 3) {
-        // Nặng: 110% giá bìa
-        totalDamageFee += Math.round((bPrice * 1.10) / 1000) * 1000;
+        // Nặng: Tỷ lệ phạt nặng cấu hình
+        totalDamageFee += Math.round((bPrice * (damageSeverePct / 100)) / 1000) * 1000;
       }
     } else if (cond.status === 'lost') {
-      // Thất lạc / Mất: 110% giá bìa (100% bồi hoàn + 10% phụ thu)
-      totalLostFee += Math.round((bPrice * 1.10) / 1000) * 1000;
+      // Thất lạc / Mất: Tỷ lệ bồi thường mất sách cấu hình (mặc định 110%)
+      totalLostFee += Math.round((bPrice * (lostPct / 100)) / 1000) * 1000;
     }
   });
 
@@ -314,11 +324,11 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
       } else if (!isSelected) {
         note = 'Chưa trả (Giữ lại đọc tiếp)';
       } else if (cond.status === 'damaged') {
-        if (cond.damageLevel === 1) note = 'Hư hỏng nhẹ (20%)';
-        else if (cond.damageLevel === 2) note = 'Hư hỏng vừa (40%)';
-        else if (cond.damageLevel === 3) note = 'Hư hỏng nặng (110%)';
+        if (cond.damageLevel === 1) note = `Hư hỏng nhẹ (${damageLightPct}%)`;
+        else if (cond.damageLevel === 2) note = `Hư hỏng vừa (${damageMedPct}%)`;
+        else if (cond.damageLevel === 3) note = `Hư hỏng nặng (${damageSeverePct}%)`;
       } else if (cond.status === 'lost') {
-        note = 'Thất lạc / Báo mất (110%)';
+        note = `Thất lạc / Báo mất (${lostPct}%)`;
       } else if (isOverdue) {
         note = `Trễ ${overdueDays} ngày`;
       }
@@ -356,21 +366,21 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         if (cond.status === 'damaged') {
           if (cond.damageLevel === 1) {
             condition = 'DamagedLight';
-            damagePct = 20;
-            noteText = 'Hư hỏng nhẹ (Đền bù 20% giá bìa)';
+            damagePct = damageLightPct;
+            noteText = `Hư hỏng nhẹ (Đền bù ${damageLightPct}% giá bìa)`;
           } else if (cond.damageLevel === 2) {
-            condition = 'DamagedLight';
-            damagePct = 40;
-            noteText = 'Hư hỏng vừa (Đền bù 40% giá bìa)';
+            condition = 'DamagedMedium';
+            damagePct = damageMedPct;
+            noteText = `Hư hỏng vừa (Đền bù ${damageMedPct}% giá bìa)`;
           } else if (cond.damageLevel === 3) {
             condition = 'DamagedSevere';
-            damagePct = undefined; // Backend tự động tính 110% (100% bồi hoàn + 10% phụ thu)
-            noteText = 'Hư hỏng nặng (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
+            damagePct = damageSeverePct;
+            noteText = `Hư hỏng nặng (${damageSeverePct}% giá bìa)`;
           }
         } else if (cond.status === 'lost') {
           condition = 'Lost';
-          damagePct = undefined; // Backend tự động tính 110% (100% bồi hoàn + 10% phụ thu)
-          noteText = 'Báo mất tài liệu (110% giá bìa: 100% bồi hoàn + 10% phụ thu)';
+          damagePct = lostPct;
+          noteText = `Báo mất tài liệu (${lostPct}% giá bìa)`;
         }
 
         const payload = {
@@ -742,18 +752,22 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 const level = cond.damageLevel || 1; // 1: 20%, 2: 40%, 3: 110%
                 const isSelected = selectedReturnBarcodes.includes(item.barcode);
 
-                const fee20 = Math.round((bPrice * 0.20) / 1000) * 1000;
-                const fee40 = Math.round((bPrice * 0.40) / 1000) * 1000;
-                const fee110 = Math.round((bPrice * 1.10) / 1000) * 1000;
+                const fee20 = Math.round((bPrice * (damageLightPct / 100)) / 1000) * 1000;
+                const fee40 = Math.round((bPrice * (damageMedPct / 100)) / 1000) * 1000;
+                const fee110 = Math.round((bPrice * (damageSeverePct / 100)) / 1000) * 1000;
+                const feeLost = Math.round((bPrice * (lostPct / 100)) / 1000) * 1000;
+                const feeLight = fee20;
+                const feeMed = fee40;
+                const feeSevere = fee110;
 
-                let currentDamageFee = fee20;
-                let currentDamagePct = '20%';
+                let currentDamageFee = feeLight;
+                let currentDamagePct = `${damageLightPct}%`;
                 if (level === 2) {
-                  currentDamageFee = fee40;
-                  currentDamagePct = '40%';
+                  currentDamageFee = feeMed;
+                  currentDamagePct = `${damageMedPct}%`;
                 } else if (level === 3) {
-                  currentDamageFee = fee110;
-                  currentDamagePct = '110%';
+                  currentDamageFee = feeSevere;
+                  currentDamagePct = `${damageSeverePct}%`;
                 }
 
                 return (
@@ -905,17 +919,17 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                                     <span
                                       className={`slider-dot-mark dot-start ${level >= 1 ? 'dot-active' : ''}`}
                                       onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 1)}
-                                      title="Mức nhẹ (20%)"
+                                      title={`Mức nhẹ (${damageLightPct}%)`}
                                     />
                                     <span
                                       className={`slider-dot-mark dot-middle ${level >= 2 ? 'dot-active' : ''}`}
                                       onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 2)}
-                                      title="Mức vừa (40%)"
+                                      title={`Mức vừa (${damageMedPct}%)`}
                                     />
                                     <span
                                       className={`slider-dot-mark dot-end ${level >= 3 ? 'dot-active' : ''}`}
                                       onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 3)}
-                                      title="Mức nặng (110%)"
+                                      title={`Mức nặng (${damageSeverePct}%)`}
                                     />
                                   </div>
                                 </div>
@@ -924,25 +938,25 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                                     type="button"
                                     className={`tri-tick-btn ${level === 1 ? 'tick-active' : ''}`}
                                     onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 1)}
-                                    title="Mức nhẹ: 20% giá bìa"
+                                    title={`Mức nhẹ: ${damageLightPct}% giá bìa`}
                                   >
-                                    <span className="tick-name">Nhẹ (20%)</span>
+                                    <span className="tick-name">{`Nhẹ (${damageLightPct}%)`}</span>
                                   </button>
                                   <button
                                     type="button"
                                     className={`tri-tick-btn ${level === 2 ? 'tick-active' : ''}`}
                                     onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 2)}
-                                    title="Mức vừa: 40% giá bìa"
+                                    title={`Mức vừa: ${damageMedPct}% giá bìa`}
                                   >
-                                    <span className="tick-name">Vừa (40%)</span>
+                                    <span className="tick-name">{`Vừa (${damageMedPct}%)`}</span>
                                   </button>
                                   <button
                                     type="button"
                                     className={`tri-tick-btn ${level === 3 ? 'tick-active' : ''}`}
                                     onClick={() => handleUpdateBookCondition(item.barcode, 'damaged', 3)}
-                                    title="Mức nặng: 110% giá bìa"
+                                    title={`Mức nặng: ${damageSeverePct}% giá bìa`}
                                   >
-                                    <span className="tick-name">Nặng (110%)</span>
+                                    <span className="tick-name">{`Nặng (${damageSeverePct}%)`}</span>
                                   </button>
                                 </div>
                               </div>
@@ -965,12 +979,12 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                               <span className="tri-cond-label">Thất lạc / Mất</span>
                             </div>
                             <span className="tri-cond-badge badge-lost">
-                              +{fee110.toLocaleString('vi-VN')}đ
+                              +{feeLost.toLocaleString('vi-VN')}đ
                             </span>
                           </div>
                           <div className="tri-cond-body">
                             <p className="tri-cond-desc">
-                              110% giá bìa (100% bồi hoàn + 10% phụ thu tài liệu)
+                              {`${lostPct}% giá bìa (100% bồi hoàn + ${surchargePct}% phụ thu tài liệu)`}
                             </p>
                           </div>
                         </div>
@@ -1013,7 +1027,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                     ) : ''}
                     {totalLostFee > 0 ? (
                       <span>
-                        Bồi hoàn mất sách = <strong>{totalLostFee.toLocaleString('vi-VN')}đ</strong> (110%)
+                        Bồi hoàn mất sách = <strong>{totalLostFee.toLocaleString('vi-VN')}đ</strong> ({lostPct}%)
                       </span>
                     ) : ''}
                     {waiverDiscountPercent > 0 ? (

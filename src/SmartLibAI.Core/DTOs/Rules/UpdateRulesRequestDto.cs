@@ -35,6 +35,12 @@ public class UpdateRulesRequestDto
     [Range(0, 500, ErrorMessage = "Tỷ lệ phụ thu đền bù sách mất/hỏng phải từ 0% đến 500%.")]
     public decimal? DamagePenaltyPercent { get; set; }
 
+    [Range(0, 500, ErrorMessage = "Tỷ lệ đền bù hư hỏng vừa phải từ 0% đến 500%.")]
+    public decimal? DamageMediumPercent { get; set; }
+
+    [Range(0, 500, ErrorMessage = "Tỷ lệ đền bù hư hỏng nặng phải từ 0% đến 500%.")]
+    public decimal? DamageSeverePercent { get; set; }
+
     [Range(0, 500, ErrorMessage = "Tỷ lệ đền bù cơ bản phải từ 0% đến 500%.")]
     public decimal? CompensationBasePercent { get; set; }
 

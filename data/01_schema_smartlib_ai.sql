@@ -139,7 +139,9 @@ CREATE TABLE FineRules (
     StudentBorrowDays INT NOT NULL DEFAULT 14, -- Thời hạn mượn Sinh viên: 14 ngày
     LecturerBorrowLimit INT NOT NULL DEFAULT 10, -- Hạn mức mượn Giảng viên: tối đa 10 cuốn
     LecturerBorrowDays INT NOT NULL DEFAULT 30, -- Thời hạn mượn Giảng viên: 30 ngày
-    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 10.0, -- Mức phụ thu đền bù sách mất/hỏng (10%)
+    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Mức phụ thu đền bù sách rách/hỏng nhẹ (20%)
+    DamageMediumPercent DECIMAL(5,2) NOT NULL DEFAULT 40.0, -- Mức phạt làm hỏng sách vừa (40%)
+    DamageSeverePercent DECIMAL(5,2) NOT NULL DEFAULT 110.0, -- Mức phạt làm hỏng sách nặng (110%)
     ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Tỷ lệ giảm trừ tiền phạt theo điểm rèn luyện
     MaxRenewalTimes INT NOT NULL DEFAULT 1, -- Số lần gia hạn tối đa
     RenewalExtraDays INT NOT NULL DEFAULT 7, -- Số ngày gia hạn thêm
@@ -148,8 +150,8 @@ CREATE TABLE FineRules (
     AiRiskThreshold INT NOT NULL DEFAULT 80, -- Ngưỡng kích hoạt rủi ro cao AI (%)
     AiRemindDaysBefore INT NOT NULL DEFAULT 3, -- Số ngày gửi nhắc nhở trước hạn
     AiAutoEmailReminder BIT NOT NULL DEFAULT 1,
-    CompensationFixedFee DECIMAL(18,2) NOT NULL DEFAULT 20000, -- Phí xử lý đền bù
-    CompensationBasePercent DECIMAL(5,2) NOT NULL DEFAULT 100.0, -- Tỷ lệ đền bù cơ bản (%)
+    CompensationFixedFee DECIMAL(18,2) NOT NULL DEFAULT 0, -- Phí xử lý đền bù
+    CompensationBasePercent DECIMAL(5,2) NOT NULL DEFAULT 110.0, -- Tỷ lệ đền bù cơ bản mất sách / hỏng hoàn toàn (%)
     MaxFineCapPercent DECIMAL(5,2) NOT NULL DEFAULT 100.0, -- Mức trần tiền phạt tối đa (%)
     CompensationRatePercent DECIMAL(5,2) NOT NULL DEFAULT 200.0, -- Tỷ lệ bồi thường mất sách (%)
     AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0, -- Tỷ lệ giảm trừ AI điểm rèn luyện 90-99 (%)

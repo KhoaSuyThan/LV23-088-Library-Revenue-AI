@@ -337,8 +337,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
       setBorrowError('');
       if (showToast) {
         showToast(
-          `➕ Đã thêm cuốn sách [${copyData.barcode}] - "${copyData.bookTitle}" vào phiếu mượn (${
-            selectedBarcodes.length + 1
+          `➕ Đã thêm cuốn sách [${copyData.barcode}] - "${copyData.bookTitle}" vào phiếu mượn (${selectedBarcodes.length + 1
           }/${maxBorrowLimit})`
         );
       }
@@ -349,7 +348,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
         `Mã vạch [${code}] không tồn tại trên hệ thống thư viện! Vui lòng kiểm tra lại.`;
       setBorrowError(notFoundMsg);
       if (showToast) showToast(`❌ ${notFoundMsg}`);
-      
+
       // BUG-04: Giữ nguyên chuỗi mã vạch vừa gõ và bôi đen toàn bộ (select) để người dùng sửa nhanh thay vì xóa trắng
       setCurrentBookBarcode(code);
       setTimeout(() => {
@@ -676,7 +675,9 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
             {readerInfo && (
               <>
                 <span className={`reader-member-badge ${memberType === 'Lecturer' ? 'badge-lecturer' : 'badge-student'}`}>
-                  {memberType === 'Lecturer' ? '👨‍🏫 Giảng viên (Tối đa 10 cuốn)' : '🎓 Sinh viên (Tối đa 5 cuốn)'}
+                  {memberType === 'Lecturer'
+                    ? ` Giảng viên (Tối đa ${maxBorrowLimit} cuốn)`
+                    : ` Sinh viên (Tối đa ${maxBorrowLimit} cuốn)`}
                 </span>
                 {!readerInfo.isActive && (
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 800, border: '1px solid #fecaca', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

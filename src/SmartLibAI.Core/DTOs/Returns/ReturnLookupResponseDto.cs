@@ -69,9 +69,24 @@ public class ReturnLookupResponseDto
     public decimal DamageMultiplier { get; set; } = 1.0m;
 
     /// <summary>
-    /// Mức phụ thu chi phí nghiệp vụ mua sắm thay thế từ bảng FineRules (mặc định 10%).
+    /// Mức phạt hư hỏng nhẹ từ bảng FineRules (mặc định 20%).
     /// </summary>
-    public decimal DamageFeePercent { get; set; } = 10.0m;
+    public decimal DamageFeePercent { get; set; } = 20.0m;
+
+    /// <summary>
+    /// Mức phạt hư hỏng vừa từ bảng FineRules (mặc định 40%).
+    /// </summary>
+    public decimal DamageMediumPercent { get; set; } = 40.0m;
+
+    /// <summary>
+    /// Mức phạt hư hỏng nặng từ bảng FineRules (mặc định 110%).
+    /// </summary>
+    public decimal DamageSeverePercent { get; set; } = 110.0m;
+
+    /// <summary>
+    /// Mức đền bù mất sách từ bảng FineRules (mặc định 110%).
+    /// </summary>
+    public decimal CompensationBasePercent { get; set; } = 110.0m;
 
     public string CurrentItemStatus { get; set; } = "Borrowed";
 

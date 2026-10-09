@@ -13,9 +13,11 @@ const DEFAULT_SYSTEM_RULES = {
 
   // Biểu phí phạt vi phạm (chuẩn CSDL FineRules)
   finePerDay: 5000,
-  damagePenaltyPercent: 10,
-  compensationBasePercent: 100,
-  compensationFixedFee: 20000,
+  damagePenaltyPercent: 20,
+  damageMediumPercent: 40,
+  damageSeverePercent: 110,
+  compensationBasePercent: 110,
+  compensationFixedFee: 0,
   autoLockDebtThreshold: true,
   debtLockAmount: 50000,
 

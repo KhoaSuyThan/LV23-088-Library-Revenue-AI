@@ -48,6 +48,10 @@ public class RulesService : IRulesService
             return ApiResponse<SystemRulesDto>.ErrorResult("Ngưỡng nợ phạt khóa quyền mượn không được âm.");
         if (request.DamagePenaltyPercent.HasValue && (request.DamagePenaltyPercent.Value < 0 || request.DamagePenaltyPercent.Value > 500))
             return ApiResponse<SystemRulesDto>.ErrorResult("Tỷ lệ phụ thu đền bù phải từ 0% đến 500%.");
+        if (request.DamageMediumPercent.HasValue && (request.DamageMediumPercent.Value < 0 || request.DamageMediumPercent.Value > 500))
+            return ApiResponse<SystemRulesDto>.ErrorResult("Mức phạt làm hỏng sách vừa phải từ 0% đến 500%.");
+        if (request.DamageSeverePercent.HasValue && (request.DamageSeverePercent.Value < 0 || request.DamageSeverePercent.Value > 500))
+            return ApiResponse<SystemRulesDto>.ErrorResult("Mức phạt làm hỏng sách nặng phải từ 0% đến 500%.");
         if (request.CompensationFixedFee.HasValue && request.CompensationFixedFee.Value < 0)
             return ApiResponse<SystemRulesDto>.ErrorResult("Phí xử lý đền bù không được âm.");
         if (request.AiRiskThreshold.HasValue && (request.AiRiskThreshold.Value < 1 || request.AiRiskThreshold.Value > 100))
@@ -270,6 +274,36 @@ public class RulesService : IRulesService
             rule.DamageFeePercent = request.DamagePenaltyPercent.Value;
         }
 
+        if (request.DamageMediumPercent.HasValue && request.DamageMediumPercent.Value != rule.DamageMediumPercent)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "damageMediumPercent",
+                RuleName = "Mức phạt làm hỏng sách vừa",
+                OldValue = $"{rule.DamageMediumPercent}%",
+                NewValue = $"{request.DamageMediumPercent.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.DamageMediumPercent = request.DamageMediumPercent.Value;
+        }
+
+        if (request.DamageSeverePercent.HasValue && request.DamageSeverePercent.Value != rule.DamageSeverePercent)
+        {
+            auditLogs.Add(new RuleAuditLog
+            {
+                RuleKey = "damageSeverePercent",
+                RuleName = "Mức phạt làm hỏng sách nặng",
+                OldValue = $"{rule.DamageSeverePercent}%",
+                NewValue = $"{request.DamageSeverePercent.Value}%",
+                ChangedBy = actor,
+                ChangedAt = now,
+                IpAddress = clientIp
+            });
+            rule.DamageSeverePercent = request.DamageSeverePercent.Value;
+        }
+
         if (request.CompensationFixedFee.HasValue && request.CompensationFixedFee.Value != rule.CompensationFixedFee)
         {
             auditLogs.Add(new RuleAuditLog
@@ -405,7 +439,9 @@ public class RulesService : IRulesService
         rule.StudentBorrowDays = 14;
         rule.LecturerBorrowLimit = 10;
         rule.LecturerBorrowDays = 30;
-        rule.DamageFeePercent = 10.0m;
+        rule.DamageFeePercent = 20.0m;
+        rule.DamageMediumPercent = 40.0m;
+        rule.DamageSeverePercent = 110.0m;
         rule.ConductScoreDiscountPercent = 20.0m;
         rule.MaxRenewalTimes = 1;
         rule.RenewalExtraDays = 7;
@@ -414,8 +450,8 @@ public class RulesService : IRulesService
         rule.AiRiskThreshold = 80;
         rule.AiRemindDaysBefore = 3;
         rule.AiAutoEmailReminder = true;
-        rule.CompensationFixedFee = 20000m;
-        rule.CompensationBasePercent = 100.0m;
+        rule.CompensationFixedFee = 0m;
+        rule.CompensationBasePercent = 110.0m;
         rule.MaxFineCapPercent = 100.0m;
         rule.CompensationRatePercent = 200.0m;
         rule.AiDiscount_90 = 10.0m;
@@ -513,7 +549,9 @@ public class RulesService : IRulesService
 
             FinePerDay = rule.FinePerDay,
             DamagePenaltyPercent = rule.DamageFeePercent,
-            CompensationBasePercent = rule.CompensationBasePercent,
+            DamageMediumPercent = rule.DamageMediumPercent > 0 ? rule.DamageMediumPercent : 40m,
+            DamageSeverePercent = rule.DamageSeverePercent > 0 ? rule.DamageSeverePercent : 110m,
+            CompensationBasePercent = rule.CompensationBasePercent > 0 ? rule.CompensationBasePercent : 110m,
             CompensationFixedFee = rule.CompensationFixedFee,
             AutoLockDebtThreshold = rule.AutoLockDebtThreshold,
             DebtLockAmount = rule.DebtLockAmount,

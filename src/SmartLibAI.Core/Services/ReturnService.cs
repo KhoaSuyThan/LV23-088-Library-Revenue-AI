@@ -106,7 +106,10 @@ public class ReturnService : IReturnService
             IsFineCapped = isFineCapped,
             FinePerDay = finePerDay,
             DamageMultiplier = rule?.DamageMultiplier ?? 1.0m,
-            DamageFeePercent = rule?.DamageFeePercent ?? 10.0m,
+            DamageFeePercent = rule?.DamageFeePercent ?? 20.0m,
+            DamageMediumPercent = rule?.DamageMediumPercent ?? 40.0m,
+            DamageSeverePercent = rule?.DamageSeverePercent ?? 110.0m,
+            CompensationBasePercent = rule?.CompensationBasePercent ?? 110.0m,
             CurrentItemStatus = detail.ItemStatus,
             TotalItemsInBorrowing = totalItems,
             ReturnedItemsCount = returnedItems,
@@ -192,33 +195,38 @@ public class ReturnService : IReturnService
         decimal damageMultiplier = rule?.DamageMultiplier ?? 1.0m;
         decimal damageFeePercent = rule?.DamageFeePercent ?? 10.0m;
 
-        if (condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase) ||
-            condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase))
+        if (condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase))
         {
-            // Trường hợp sách hư hỏng nhẹ hoặc vừa (có thể sửa chữa, gia cố bìa):
-            // Phí khắc phục = Giá bìa gốc x Tỷ lệ đền bù hư hỏng (mặc định từ 30% đến 50% tùy mức độ)
-            decimal damageRate = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
-                ? (request.DamagePercent.Value / 100m)
-                : 0.4m; // Mặc định 40%
-
-            if (damageRate < 0.2m) damageRate = 0.2m;
-            if (damageRate > 0.5m && condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase)) damageRate = 0.5m;
-
-            damageFee = basePrice * damageRate;
+            // Trường hợp 1: Hư hỏng nhẹ (rách nhẹ bìa/mép trang) - mặc định 20%
+            decimal lightPct = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
+                ? request.DamagePercent.Value
+                : (rule?.DamageFeePercent ?? 20.0m);
+            damageFee = basePrice * (lightPct / 100m);
+        }
+        else if (condition.Equals("DamagedMedium", StringComparison.OrdinalIgnoreCase) ||
+                 condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase))
+        {
+            // Trường hợp 2: Hư hỏng vừa (gãy gáy, vẽ bẩn một số trang) - mặc định 40%
+            decimal medPct = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
+                ? request.DamagePercent.Value
+                : (rule?.DamageMediumPercent ?? 40.0m);
+            damageFee = basePrice * (medPct / 100m);
         }
         else if (condition.Equals("DamagedSevere", StringComparison.OrdinalIgnoreCase))
         {
-            // Trường hợp sách hư hỏng nặng (mất trang nội dung chính, ngấm nước rách nát):
-            // Tiền bồi hoàn tài liệu = Giá bìa gốc x Hệ số đền bù sách mất (1.0 lần giá bìa)
-            // Phụ thu chi phí nghiệp vụ mua sắm thay thế = Giá bìa gốc x Mức phụ thu (10%)
-            // Tổng phí bồi thường mất sách/hư hỏng nặng = 110% giá bìa gốc
-            damageFee = (basePrice * damageMultiplier) + (basePrice * damageFeePercent / 100m);
+            // Trường hợp 3: Hư hỏng nặng (rách nát, ngấm nước hỏng hoàn toàn) - mặc định 110%
+            decimal severePct = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
+                ? request.DamagePercent.Value
+                : (rule?.DamageSeverePercent ?? 110.0m);
+            damageFee = basePrice * (severePct / 100m);
         }
         else if (condition.Equals("Lost", StringComparison.OrdinalIgnoreCase))
         {
-            // Thất lạc hoàn toàn:
-            // Tiền bồi hoàn tài liệu (1.0 lần giá bìa) + Phụ thu mua sắm thay thế (10% giá bìa) = 110% giá bìa
-            lostFee = (basePrice * damageMultiplier) + (basePrice * damageFeePercent / 100m);
+            // Trường hợp 4: Thất lạc / Báo mất tài liệu - mặc định 110%
+            decimal lostPct = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
+                ? request.DamagePercent.Value
+                : (rule?.CompensationBasePercent ?? 110.0m);
+            lostFee = basePrice * (lostPct / 100m);
         }
 
         // Quy tắc: Nếu sách vừa trễ hạn vừa bị mất/hỏng:
