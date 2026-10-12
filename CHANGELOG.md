@@ -5,6 +5,36 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-12] - [Ràng Buộc & Tùy Chỉnh Số Ngày Mượn Tiêu Chuẩn Theo Setting]
+
+- **Phân hệ Nghiệp vụ Mượn sách Backend (`BorrowService.cs`, `BorrowReaderEligibilityDto.cs`):**
+  - **Bổ sung trường `StandardBorrowDays`:** Thêm thuộc tính `StandardBorrowDays` vào `BorrowReaderEligibilityDto` và tự động lấy giá trị từ `FineRules` theo đối tượng bạn đọc (`StudentBorrowDays` cho Sinh viên, `LecturerBorrowDays` cho Cán bộ & Giảng viên) khi gọi API kiểm tra tư cách bạn đọc (`CheckReaderEligibilityAsync`).
+  - **Ràng buộc thời hạn trả dự kiến (`CreateBorrowingAsync`):** Thêm logic kiểm tra ngày hẹn trả `request.DueDate` không được vượt quá số ngày mượn tiêu chuẩn cấu hình trong Setting. Nếu vượt quá, hệ thống từ chối tạo phiếu mượn và thông báo lỗi rõ ràng.
+
+- **Phân hệ Giao diện Quầy Mượn Sách Frontend (`BorrowForm.jsx`, `BorrowForm.css`):**
+  - **Tự động áp dụng hạn trả theo đối tượng & Setting:** Khi người dùng quét mã thẻ độc giả, hệ thống tự động nhận diện số ngày mượn tiêu chuẩn và gán `dueDate` mặc định đúng bằng `hôm nay + số ngày tiêu chuẩn`.
+  - **Khóa giới hạn tối đa trên Date Picker:** Bổ sung thuộc tính `max={getMaxIsoDate()}` cho Date Picker HTML5 để ngăn chọn ngày vượt quá hạn mượn tiêu chuẩn cho phép.
+  - **Xác thực hạn trả chặt chẽ (`validateDueDate`):** Báo lỗi tức thời nếu người dùng gõ tay ngày hẹn trả vượt quá số ngày mượn tiêu chuẩn cấu hình cho đối tượng (Sinh viên / Giảng viên).
+  - **Thanh chọn nhanh thời hạn (Quick Chips) linh hoạt:** Các chip gợi ý thời hạn được sinh tự động dựa trên số ngày tiêu chuẩn (`+X ngày (Chuẩn SV/GV)`, `+7 ngày`, `+14 ngày`), đảm bảo luôn nằm trong giới hạn cho phép.
+  - **Cân bằng giao diện 2 cột (`Mã vạch` & `Hạn trả`):** Tinh gọn header cột Hạn trả dự kiến thành 1 dòng (chỉ giữ nhãn và badge Hôm nay, chuyển thông tin số ngày chuẩn xuống thanh thời hạn), đồng bộ chiều cao nhãn 2 bên `min-height: 20px` để hai ô nhập liệu thẳng hàng ngang tuyệt đối, không còn bị lệch hay rớt dòng.
+
+## [2026-10-12] - [Task L0LRA-103] Cải Thiện UI/UX Chi Tiết Độc Giả & Cài Đặt Quy Định (Setting)
+
+- **Phân hệ Hồ sơ & Chi tiết Độc giả (`ReaderProfiles.jsx`, `ReaderProfiles.css`, `ReaderService.cs`, `ReaderDto.cs`):**
+  - **Loại bỏ thuật ngữ kỹ thuật/CSDL (Ảnh 14 & 17):** Đổi tiêu đề danh sách thành `Danh sách hồ sơ độc giả toàn hệ thống ({count} kết quả)` (bỏ chữ "từ SQL Server"), đổi thẻ KPI thành `trong toàn hệ thống` (bỏ chữ "hệ thống SQL"), và nút thao tác đổi thành `Làm mới` (bỏ chữ "CSDL").
+  - **Chuẩn hóa ngôn ngữ thuần tiếng Việt (Ảnh 15):** Đổi mức rủi ro AI từ `Cao (High)`, `Vừa (Medium)`, `Thấp (Low)` thành `Cao`, `Trung bình`, `Thấp` ở cả Backend (`ReaderService.cs`, `ReaderDto.cs`) và giao diện Frontend.
+  - **Hộp thoại xác nhận Khóa/Mở khóa thẻ (Ảnh 16):** Bổ sung Modal xác nhận bảo vệ trước khi thực hiện thao tác Khóa hoặc Mở khóa thẻ bạn đọc, hiển thị rõ họ tên, mã thẻ và cảnh báo chặn mượn sách.
+  - **Tách nhãn bộ lọc (Ảnh 18):** Tách biệt các tiêu đề nhãn `Khoa/Viện:`, `Trạng thái:`, `Mức rủi ro AI:` ra bên ngoài ô `<select>`, các thẻ `<option>` chỉ chứa giá trị cần chọn.
+
+- **Phân hệ Cài đặt Quy định - Setting (`LibrarySettings.jsx`, `LibrarySettings.css`, `rulesApi.js`, `RulesController.cs`, `RulesService.cs`):**
+  - **Slider rủi ro AI 2 màu (Ảnh 19):** Cập nhật dải màu động cho thanh kéo Slider với track bên trái núm kéo màu xanh `#2563eb` và track bên phải màu xám nhạt `#e2e8f0` biểu diễn tiến độ trực quan.
+  - **Xóa text bản vẽ dư thừa (Ảnh 20):** Bỏ chữ `(Figma)` trên tab, chuẩn hóa tên tab thành `Cấu hình chung & AI`.
+  - **Loại bỏ trường trùng lặp (Ảnh 21):** Bỏ trường "Số sách tối đa được mượn cùng lúc" ở Tab 1 do đã được cấu hình chi tiết theo Sinh viên / Giảng viên ở Tab 2.
+  - **Bổ sung nút & Modal thêm lý do miễn giảm (Ảnh 22):** Thêm nút `+ Thêm lý do`, Modal nhập thông tin lý do miễn giảm mới (Mã lý do, Tên lý do, % giảm trừ) và endpoint API `POST /api/rules/waivers`.
+  - **Tự động ẩn thông báo lưu cấu hình (Ảnh 23):** Loại bỏ banner tĩnh cố định ở đầu trang; chuyển thông điệp sang Toast tự động ẩn sau 3.5 giây khi nhấn "Lưu cấu hình".
+  - **Khắc phục lỗi đè hạn mức mượn sách sinh viên:** Sửa thứ tự ưu tiên trong `RulesService.cs` (`request.BorrowLimit_Student ?? request.BorrowLimit_MaxTogether`) và đồng bộ `borrowLimit_Student` / `borrowLimit_MaxTogether` trong `LibrarySettings.jsx` để tránh việc giá trị mặc định `5` của trường cũ ghi đè lên giá trị người dùng vừa sửa.
+  - **Ẩn thanh tìm kiếm thừa trên Header (Ảnh 24 - `DashboardPage.jsx`):** Hiển thị Breadcrumb `Trang chủ / Cài đặt Quy định` thay vì ô tìm kiếm chung khi truy cập trang Settings.
+
 ## [2026-10-09] - [Refactor & Bug Fix] Hoàn Thiện BUG-04, Chuẩn Hóa Đền Bù & Cảnh Báo Số Âm
 
 - **Khắc phục triệt để BUG-04 (Khoa/Bộ phận thực tế của độc giả):**

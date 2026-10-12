@@ -38,6 +38,13 @@ public class RulesRepository : IRulesRepository
             .ToListAsync();
     }
 
+    public async Task<WaiverReason> AddWaiverReasonAsync(WaiverReason reason)
+    {
+        _context.WaiverReasons.Add(reason);
+        await _context.SaveChangesAsync();
+        return reason;
+    }
+
     public async Task<List<RuleAuditLog>> GetAuditLogsAsync()
     {
         return await _context.RuleAuditLogs

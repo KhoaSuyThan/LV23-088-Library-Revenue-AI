@@ -16,7 +16,9 @@ import {
   Sparkles,
   User,
   Clock,
-  Globe
+  Globe,
+  Plus,
+  X
 } from 'lucide-react';
 import { rulesApi } from '../api/rulesApi';
 import './LibrarySettings.css';
@@ -103,6 +105,15 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
   const [waiverReasons, setWaiverReasons] = useState([]);
   const [auditHistory, setAuditHistory] = useState([]);
 
+  // State thêm lý do miễn giảm mới (Ảnh 22)
+  const [isAddWaiverModalOpen, setIsAddWaiverModalOpen] = useState(false);
+  const [isAddingWaiver, setIsAddingWaiver] = useState(false);
+  const [newWaiverForm, setNewWaiverForm] = useState({
+    reasonCode: '',
+    reasonName: '',
+    defaultDiscountPercent: 100
+  });
+
   // State tương tác UI
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -127,9 +138,12 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
           const compPercent = rulesData.compensationBasePercent ?? 110;
           const compFee = rulesData.compensationFixedFee ?? 20000;
 
+          const studentLimit = rulesData.borrowLimit_Student ?? rulesData.borrowLimit_MaxTogether ?? 5;
           setFormData((prev) => ({
             ...prev,
             ...rulesData,
+            borrowLimit_Student: studentLimit,
+            borrowLimit_MaxTogether: studentLimit,
             damagePenaltyPercent: damagePercent,
             damageMediumPercent: damageMed,
             damageSeverePercent: damageSev,
@@ -188,7 +202,14 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     const { name, value } = e.target;
     const numValue = value === '' ? '' : Number(value);
 
-    setFormData((prev) => ({ ...prev, [name]: numValue }));
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: numValue };
+      // Đồng bộ hai trường hạn mức mượn của sinh viên để không bị đè giá trị
+      if (name === 'borrowLimit_Student') {
+        updated.borrowLimit_MaxTogether = numValue;
+      }
+      return updated;
+    });
 
     const error = validateField(name, numValue);
     setValidationErrors((prev) => ({ ...prev, [name]: error }));
@@ -324,6 +345,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       const parsedCompensation = extractNumber(formData.compensationText);
       const payload = {
         ...formData,
+        borrowLimit_MaxTogether: formData.borrowLimit_Student ?? formData.borrowLimit_MaxTogether,
         damagePenaltyPercent: (parsedDamage !== null && parsedDamage >= 0) ? parsedDamage : formData.damagePenaltyPercent,
         damageMediumPercent: (parsedMedium !== null && parsedMedium >= 0) ? parsedMedium : (formData.damageMediumPercent ?? 40),
         damageSeverePercent: (parsedSevere !== null && parsedSevere >= 0) ? parsedSevere : (formData.damageSeverePercent ?? 110),
@@ -336,7 +358,8 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
 
       const updatedHistory = await rulesApi.getAuditHistory();
       setAuditHistory(updatedHistory);
-      showToast('Đã lưu toàn bộ cấu hình thư viện thành công!', 'success');
+      // Thông báo lưu thành công sẽ tự động ẩn sau 3.5s (Thay thế banner cố định theo Ảnh 23)
+      showToast('Đã lưu cấu hình thư viện thành công! Các thay đổi đã được áp dụng cho toàn bộ hệ thống.', 'success');
     } catch (err) {
       console.error(err);
       const errorList = err.response?.data?.errors;
@@ -374,21 +397,45 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     }
   };
 
+  // Xử lý thêm lý do miễn giảm mới (Ảnh 22)
+  const handleAddWaiver = async (e) => {
+    e.preventDefault();
+    if (!newWaiverForm.reasonName.trim()) {
+      showToast('Vui lòng nhập tên lý do miễn giảm!', 'error');
+      return;
+    }
+
+    setIsAddingWaiver(true);
+    try {
+      const code = newWaiverForm.reasonCode.trim() || `WR-${Date.now().toString().slice(-4)}`;
+      const payload = {
+        reasonCode: code.toUpperCase(),
+        reasonName: newWaiverForm.reasonName.trim(),
+        defaultDiscountPercent: Number(newWaiverForm.defaultDiscountPercent) || 100,
+        isActive: true
+      };
+
+      const res = await rulesApi.addWaiverReason(payload);
+      setWaiverReasons((prev) => [...prev, res || { id: Date.now(), ...payload }]);
+      setIsAddWaiverModalOpen(false);
+      setNewWaiverForm({ reasonCode: '', reasonName: '', defaultDiscountPercent: 100 });
+      showToast('Đã thêm lý do miễn giảm mới thành công!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Không thể thêm lý do miễn giảm. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsAddingWaiver(false);
+    }
+  };
+
   // Kiểm tra cảnh báo mức phạt trễ > 20.000 VNĐ
   const isFineHighWarning = Number(formData.finePerDay) > 20000;
 
   return (
     <div className="settings-wrapper">
       {/* --------------------------------------------------------------------
-          1. BANNER THÔNG BÁO XANH NHẠT (ĐÚNG 100% ẢNH FIGMA)
-          -------------------------------------------------------------------- */}
-      <div className="settings-info-banner">
-        <Info size={18} className="settings-info-banner-icon" />
-        <span>Các thay đổi sẽ áp dụng cho toàn bộ thư viện sau khi lưu cấu hình.</span>
-      </div>
-
-      {/* --------------------------------------------------------------------
-          2. THANH 4 SUB-TABS NHỎ GỌN & NÚT THAO TÁC LƯU
+          1. THANH 4 SUB-TABS NHỎ GỌN & NÚT THAO TÁC LƯU
+          (Đã loại bỏ banner tĩnh cố định theo đề xuất Ảnh 23)
           -------------------------------------------------------------------- */}
       <div className="settings-top-bar">
         <div className="settings-subtabs-nav">
@@ -398,7 +445,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
             onClick={() => handleTabNavigate('figma_overview')}
           >
             <Sliders size={15} />
-            <span>Cấu hình chung & AI (Figma)</span>
+            <span>Cấu hình chung & AI</span>
           </button>
 
           <button
@@ -536,30 +583,6 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                     </span>
                   )}
                 </div>
-              </div>
-
-              {/* Hàng 2: Số sách tối đa được mượn cùng lúc */}
-              <div className="figma-form-item">
-                <label className="figma-field-label" htmlFor="borrowLimit_MaxTogether">
-                  Số sách tối đa được mượn cùng lúc
-                </label>
-                <div className="figma-input-wrapper">
-                  <input
-                    id="borrowLimit_MaxTogether"
-                    name="borrowLimit_MaxTogether"
-                    type="number"
-                    min="0"
-                    className={`figma-input-control ${validationErrors.borrowLimit_MaxTogether ? 'has-error' : ''}`}
-                    value={formData.borrowLimit_MaxTogether}
-                    onChange={handleNumberChange}
-                  />
-                  <span className="figma-input-tag">cuốn</span>
-                </div>
-                {validationErrors.borrowLimit_MaxTogether && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.borrowLimit_MaxTogether}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -728,12 +751,16 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   <span className="ai-slider-value-badge">{formData.aiRiskThreshold}%</span>
                 </div>
 
+                {/* Thanh kéo Slider Ngưỡng kích hoạt rủi ro cao (Style 2 màu theo Ảnh 19) */}
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="1"
                   className="ai-range-input"
+                  style={{
+                    background: `linear-gradient(to right, #2563eb 0%, #2563eb ${formData.aiRiskThreshold}%, #e2e8f0 ${formData.aiRiskThreshold}%, #e2e8f0 100%)`
+                  }}
                   value={formData.aiRiskThreshold}
                   onChange={handleSliderChange}
                 />
@@ -1023,11 +1050,22 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
             </div>
 
             <div className="figma-card">
-              <div className="figma-card-header">
-                <div className="figma-card-icon-box">
-                  <Info size={20} />
+              <div className="figma-card-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="figma-card-icon-box">
+                    <Info size={20} />
+                  </div>
+                  <h3 className="figma-card-title">Danh mục lý do miễn giảm thủ công</h3>
                 </div>
-                <h3 className="figma-card-title">Danh mục lý do miễn giảm thủ công</h3>
+                <button
+                  type="button"
+                  className="btn-add-waiver"
+                  onClick={() => setIsAddWaiverModalOpen(true)}
+                  title="Thêm lý do miễn giảm mới"
+                >
+                  <Plus size={15} />
+                  <span>Thêm lý do</span>
+                </button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1127,7 +1165,118 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       )}
 
       {/* --------------------------------------------------------------------
-          7. TOAST NOTIFICATION
+          7. MODAL THÊM LÝ DO MIỄN GIẢM MỚI (ẢNH 22)
+          -------------------------------------------------------------------- */}
+      {isAddWaiverModalOpen && (
+        <div
+          className="settings-modal-overlay"
+          onClick={() => setIsAddWaiverModalOpen(false)}
+        >
+          <div className="settings-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="settings-modal-icon-wrap">
+                  <Plus size={18} />
+                </div>
+                <h4 className="settings-modal-title">Thêm lý do miễn giảm thủ công</h4>
+              </div>
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={() => setIsAddWaiverModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddWaiver}>
+              <div className="settings-modal-body">
+                <div className="figma-form-item">
+                  <label className="figma-field-label">Mã lý do (Reason Code)</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      type="text"
+                      className="figma-input-control"
+                      placeholder="VD: WR-FLOOD, WR-POLICY..."
+                      value={newWaiverForm.reasonCode}
+                      onChange={(e) =>
+                        setNewWaiverForm((prev) => ({ ...prev, reasonCode: e.target.value.toUpperCase() }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="figma-form-item">
+                  <label className="figma-field-label">Tên lý do miễn giảm *</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      type="text"
+                      required
+                      className="figma-input-control"
+                      placeholder="VD: Hỗ trợ sinh viên vùng bão lũ, thiên tai..."
+                      value={newWaiverForm.reasonName}
+                      onChange={(e) =>
+                        setNewWaiverForm((prev) => ({ ...prev, reasonName: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="figma-form-item">
+                  <label className="figma-field-label">Tỷ lệ giảm trừ mặc định (%)</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      className="figma-input-control"
+                      value={newWaiverForm.defaultDiscountPercent}
+                      onChange={(e) =>
+                        setNewWaiverForm((prev) => ({
+                          ...prev,
+                          defaultDiscountPercent: Number(e.target.value)
+                        }))
+                      }
+                    />
+                    <span className="figma-input-tag">% giảm</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-modal-footer">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setIsAddWaiverModalOpen(false)}
+                  disabled={isAddingWaiver}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-submit"
+                  disabled={isAddingWaiver}
+                >
+                  {isAddingWaiver ? (
+                    <>
+                      <RotateCw size={14} className="spinner-spin" />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} />
+                      <span>Thêm lý do</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------
+          8. TOAST NOTIFICATION
           -------------------------------------------------------------------- */}
       {toastMessage && (
         <div className={`figma-toast toast-${toastMessage.type}`}>
