@@ -191,6 +191,17 @@ export const rulesApi = {
     }
   },
 
+  // Thêm mới lý do miễn giảm tiền phạt thủ công (Ảnh 22)
+  addWaiverReason: async (payload) => {
+    try {
+      const response = await apiClient.post('/api/rules/waivers', payload);
+      return response.data?.data ?? response.data;
+    } catch {
+      const newId = Date.now();
+      return { id: newId, ...payload };
+    }
+  },
+
   // Lấy nhật ký kiểm toán thay đổi quy định
   getAuditHistory: async () => {
     try {

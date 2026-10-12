@@ -10,6 +10,7 @@ public interface IRulesRepository
     Task<FineRule?> GetActiveFineRuleAsync();
     Task<FineRule> UpdateFineRuleAsync(FineRule fineRule);
     Task<List<WaiverReason>> GetWaiverReasonsAsync();
+    Task<WaiverReason> AddWaiverReasonAsync(WaiverReason reason);
     Task<List<RuleAuditLog>> GetAuditLogsAsync();
     Task AddAuditLogAsync(RuleAuditLog log);
     Task AddAuditLogsAsync(IEnumerable<RuleAuditLog> logs);

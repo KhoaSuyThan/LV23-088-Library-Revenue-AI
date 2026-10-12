@@ -64,6 +64,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
   // Hạn mức và quy định mượn trả động (đồng bộ từ rulesApi.getSystemRules())
   const [systemRules, setSystemRules] = useState(null);
   const [maxBorrowLimit, setMaxBorrowLimit] = useState(5);
+  const [standardBorrowDays, setStandardBorrowDays] = useState(14);
   const [memberType, setMemberType] = useState('Student');
   const [readerInfo, setReaderInfo] = useState(null);
   const [isLoadingReader, setIsLoadingReader] = useState(false);
@@ -87,8 +88,9 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
           const studentDays = Number(rules.borrowDays_Student) || 14;
           const studentLimit = Number(rules.borrowLimit_Student) || Number(rules.borrowLimit_MaxTogether) || 5;
 
-          // Cập nhật hạn mức mượn mặc định cho độc giả sinh viên
+          // Cập nhật hạn mức mượn và số ngày mượn tiêu chuẩn mặc định cho độc giả sinh viên
           setMaxBorrowLimit(studentLimit);
+          setStandardBorrowDays(studentDays);
 
           // Cập nhật thời hạn mượn mặc định theo cấu hình Admin
           const d = getToday();
@@ -138,7 +140,14 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
     return obj ? formatDateToIso(obj) : '';
   };
 
-  // Hàm kiểm tra hợp lệ hạn trả dự kiến (phải đúng định dạng dd/mm/yyyy và KHÔNG được trong quá khứ)
+  // Lấy ngày tối đa cho phép mượn theo cấu hình quy định hiện hành (YYYY-MM-DD)
+  const getMaxIsoDate = () => {
+    const maxD = getToday();
+    maxD.setDate(maxD.getDate() + (Number(standardBorrowDays) || 14));
+    return formatDateToIso(maxD);
+  };
+
+  // Hàm kiểm tra hợp lệ hạn trả dự kiến (phải đúng định dạng dd/mm/yyyy, không ở quá khứ và không vượt quá số ngày mượn tiêu chuẩn)
   const validateDueDate = (str) => {
     if (!str || !str.trim()) {
       return 'Vui lòng nhập hoặc chọn Hạn trả dự kiến!';
@@ -155,6 +164,12 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
     const todayMidnight = getToday();
     if (dateObj.getTime() < todayMidnight.getTime()) {
       return `⚠️ Hạn trả không được ở trong quá khứ! Phải từ hôm nay (${todayStr}) trở đi.`;
+    }
+    const maxAllowedDate = getToday();
+    maxAllowedDate.setDate(maxAllowedDate.getDate() + (Number(standardBorrowDays) || 14));
+    if (dateObj.getTime() > maxAllowedDate.getTime()) {
+      const roleText = memberType === 'Lecturer' ? 'Cán bộ & Giảng viên' : 'Bạn đọc Sinh viên';
+      return `⚠️ Hạn trả không được vượt quá số ngày mượn tiêu chuẩn (${standardBorrowDays} ngày) quy định cho ${roleText}!`;
     }
     return '';
   };
@@ -198,6 +213,11 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
       setReaderInfo(null);
       setMaxBorrowLimit(defaultStudentLimit);
       setMemberType('Student');
+      setStandardBorrowDays(defaultStudentDays);
+      const d = getToday();
+      d.setDate(d.getDate() + defaultStudentDays);
+      setDueDate(formatDateToVn(d));
+      setDueDateError('');
       return;
     }
 
@@ -209,15 +229,16 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
         setReaderInfo(data);
         const isLecturer = data.memberType === 'Lecturer';
         const limit = data.maxBorrowLimit || (isLecturer ? defaultLecturerLimit : defaultStudentLimit);
+        const borrowDays = data.standardBorrowDays || (isLecturer ? defaultLecturerDays : defaultStudentDays);
         setMaxBorrowLimit(limit);
         setMemberType(data.memberType || 'Student');
+        setStandardBorrowDays(borrowDays);
 
-        // Tự động gợi ý thời hạn chuẩn theo đối tượng bạn đọc (Giảng viên <-> Sinh viên)
-        if (isLecturer && (activeQuickDays === defaultStudentDays || activeQuickDays === 14)) {
-          handleQuickDueDate(defaultLecturerDays);
-        } else if (!isLecturer && (activeQuickDays === defaultLecturerDays || activeQuickDays === 30)) {
-          handleQuickDueDate(defaultStudentDays);
-        }
+        // Tự động gán Hạn trả dự kiến bằng đúng số ngày mượn tiêu chuẩn cấu hình cho đối tượng này
+        const d = getToday();
+        d.setDate(d.getDate() + borrowDays);
+        setDueDate(formatDateToVn(d));
+        setDueDateError('');
 
         if (!data.canBorrow || !data.isActive) {
           const reason = data.rejectionReason || (!data.isActive ? 'Tài khoản thẻ thư viện đang bị khóa. Hệ thống từ chối mượn sách.' : 'Độc giả không đủ điều kiện mượn sách!');
@@ -734,10 +755,18 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
                   const defaultStudentLimit = systemRules
                     ? (Number(systemRules.borrowLimit_Student) || Number(systemRules.borrowLimit_MaxTogether) || 5)
                     : 5;
+                  const defaultStudentDays = systemRules
+                    ? (Number(systemRules.borrowDays_Student) || 14)
+                    : 14;
                   setReaderCode('');
                   setReaderInfo(null);
                   setMaxBorrowLimit(defaultStudentLimit);
                   setMemberType('Student');
+                  setStandardBorrowDays(defaultStudentDays);
+                  const d = getToday();
+                  d.setDate(d.getDate() + defaultStudentDays);
+                  setDueDate(formatDateToVn(d));
+                  setDueDateError('');
                 }}
                 title="Xóa mã độc giả"
               >
@@ -799,7 +828,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
                 Hạn trả dự kiến
               </label>
               <span className="today-indicator-tag" title="Ngày hiện tại theo thời gian thực hệ thống">
-                📅 Hôm nay: <strong>{todayStr}</strong>
+                Hôm nay: <strong>{todayStr}</strong>
               </span>
             </div>
 
@@ -835,11 +864,12 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
                 }}
               />
 
-              {/* Hộp thoại Date Picker HTML5 với thuộc tính min={todayIso} để khóa 100% các ngày trong quá khứ */}
+              {/* Hộp thoại Date Picker HTML5 với thuộc tính min={todayIso} và max={getMaxIsoDate()} để khóa chọn ngày quá khứ hoặc vượt quá hạn tiêu chuẩn */}
               <input
                 ref={datePickerInputRef}
                 type="date"
                 min={todayIso}
+                max={getMaxIsoDate()}
                 value={getIsoFromDueDate(dueDate)}
                 onChange={handleDatePickerChange}
                 className="native-hidden-date-picker"
@@ -863,7 +893,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               </button>
             </div>
 
-            {/* Thông báo lỗi nếu chọn hoặc nhập ngày trong quá khứ */}
+            {/* Thông báo lỗi nếu chọn hoặc nhập ngày trong quá khứ hoặc vượt quá tiêu chuẩn */}
             {dueDateError && (
               <div className="due-date-alert-msg">
                 <AlertTriangle size={13} className="alert-inline-icon" />
@@ -873,30 +903,36 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
 
             {/* Thanh chọn nhanh số ngày thời hạn mượn (đồng bộ theo cấu hình Admin FineRules) */}
             <div className="quick-due-chips-bar">
-              <span className="quick-due-title">Thời hạn:</span>
+              <span className="quick-due-title" title={`Số ngày mượn tiêu chuẩn cấu hình hệ thống: ${standardBorrowDays} ngày`}>
+                Thời hạn (chuẩn {standardBorrowDays}N):
+              </span>
+              {standardBorrowDays > 7 && (
+                <button
+                  type="button"
+                  className={`quick-due-chip ${activeQuickDays === 7 ? 'chip-active' : ''}`}
+                  onClick={() => handleQuickDueDate(7)}
+                  title="Mượn 7 ngày (1 tuần)"
+                >
+                  +7 ngày
+                </button>
+              )}
+              {standardBorrowDays > 14 && standardBorrowDays !== 14 && (
+                <button
+                  type="button"
+                  className={`quick-due-chip ${activeQuickDays === 14 ? 'chip-active' : ''}`}
+                  onClick={() => handleQuickDueDate(14)}
+                  title="Mượn 14 ngày (2 tuần)"
+                >
+                  +14 ngày
+                </button>
+              )}
               <button
                 type="button"
-                className={`quick-due-chip ${activeQuickDays === 7 ? 'chip-active' : ''}`}
-                onClick={() => handleQuickDueDate(7)}
-                title="Mượn 7 ngày (1 tuần)"
+                className={`quick-due-chip ${activeQuickDays === standardBorrowDays ? 'chip-active' : ''}`}
+                onClick={() => handleQuickDueDate(standardBorrowDays)}
+                title={`Mượn ${standardBorrowDays} ngày (Chuẩn quy định ${memberType === 'Lecturer' ? 'Giảng viên' : 'Sinh viên'})`}
               >
-                +7 ngày
-              </button>
-              <button
-                type="button"
-                className={`quick-due-chip ${activeQuickDays === (Number(systemRules?.borrowDays_Student) || 14) ? 'chip-active' : ''}`}
-                onClick={() => handleQuickDueDate(Number(systemRules?.borrowDays_Student) || 14)}
-                title={`Mượn ${Number(systemRules?.borrowDays_Student) || 14} ngày (chuẩn Sinh viên)`}
-              >
-                +{Number(systemRules?.borrowDays_Student) || 14} ngày
-              </button>
-              <button
-                type="button"
-                className={`quick-due-chip ${activeQuickDays === (Number(systemRules?.borrowDays_Teacher) || 30) ? 'chip-active' : ''}`}
-                onClick={() => handleQuickDueDate(Number(systemRules?.borrowDays_Teacher) || 30)}
-                title={`Mượn ${Number(systemRules?.borrowDays_Teacher) || 30} ngày (chuẩn Giảng viên)`}
-              >
-                +{Number(systemRules?.borrowDays_Teacher) || 30} ngày
+                +{standardBorrowDays} ngày (Chuẩn {memberType === 'Lecturer' ? 'GV' : 'SV'})
               </button>
             </div>
           </div>

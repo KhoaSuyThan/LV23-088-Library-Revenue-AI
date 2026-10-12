@@ -12,6 +12,7 @@ public interface IRulesService
     Task<ApiResponse<SystemRulesDto>> UpdateRulesAsync(UpdateRulesRequestDto request, string? username = null, string? ipAddress = null);
     Task<ApiResponse<SystemRulesDto>> ResetDefaultRulesAsync(string? username = null, string? ipAddress = null);
     Task<ApiResponse<List<WaiverReasonDto>>> GetWaiverReasonsAsync();
+    Task<ApiResponse<WaiverReasonDto>> AddWaiverReasonAsync(WaiverReasonDto dto);
     Task<ApiResponse<List<RuleAuditLogDto>>> GetAuditHistoryAsync();
     Task<ApiResponse<AiRetrainResponseDto>> RetrainAiModelAsync();
 }

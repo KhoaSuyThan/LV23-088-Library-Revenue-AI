@@ -85,7 +85,7 @@ public class ReaderDto
     /// <summary>
     /// Chuỗi hiển thị mức độ rủi ro: "Cao (High)", "Vừa (Medium)", "Thấp (Low)"
     /// </summary>
-    public string RiskLevelText { get; set; } = "Thấp (Low)";
+    public string RiskLevelText { get; set; } = "Thấp";
     public string RiskLevel
     {
         get => RiskLevelText;

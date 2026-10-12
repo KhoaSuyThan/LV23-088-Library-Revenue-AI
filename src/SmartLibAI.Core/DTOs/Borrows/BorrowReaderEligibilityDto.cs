@@ -40,6 +40,11 @@ public class BorrowReaderEligibilityDto
     public decimal UnpaidFineAmount { get; set; }
 
     /// <summary>
+    /// Số ngày mượn tiêu chuẩn áp dụng cho đối tượng bạn đọc này theo cấu hình hệ thống.
+    /// </summary>
+    public int StandardBorrowDays { get; set; } = 14;
+
+    /// <summary>
     /// Cho biết độc giả có đủ điều kiện tạo phiếu mượn mới hay không.
     /// </summary>
     public bool CanBorrow => IsActive && !IsExpired && !HasUnpaidFines && RemainingBorrowLimit > 0;

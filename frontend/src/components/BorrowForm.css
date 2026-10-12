@@ -297,6 +297,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 20px;
+  margin-bottom: 6px;
+}
+
+.due-date-header-row .form-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.form-two-cols .form-group > .form-label {
+  margin-bottom: 6px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .today-indicator-tag {
@@ -310,6 +324,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  white-space: nowrap;
 }
 
 .today-indicator-tag strong {
@@ -550,5 +565,22 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Badge hiển thị số ngày mượn tiêu chuẩn cấu hình hệ thống */
+.standard-borrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #0369a1;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  padding: 1px 7px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 
 

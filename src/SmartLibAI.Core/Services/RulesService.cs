@@ -95,7 +95,7 @@ public class RulesService : IRulesService
             rule.FinePerDay = request.FinePerDay.Value;
         }
 
-        var newStudentLimit = request.BorrowLimit_MaxTogether ?? request.BorrowLimit_Student;
+        var newStudentLimit = request.BorrowLimit_Student ?? request.BorrowLimit_MaxTogether;
         if (newStudentLimit.HasValue && newStudentLimit.Value > 0 && newStudentLimit.Value != rule.StudentBorrowLimit)
         {
             auditLogs.Add(new RuleAuditLog
@@ -490,6 +490,25 @@ public class RulesService : IRulesService
         }).ToList();
 
         return ApiResponse<List<WaiverReasonDto>>.SuccessResult(dtos, "Lấy danh mục lý do miễn giảm thành công");
+    }
+
+    public async Task<ApiResponse<WaiverReasonDto>> AddWaiverReasonAsync(WaiverReasonDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ReasonName))
+            return ApiResponse<WaiverReasonDto>.ErrorResult("Tên lý do miễn giảm không được để trống");
+
+        var entity = new WaiverReason
+        {
+            ReasonCode = string.IsNullOrWhiteSpace(dto.ReasonCode) ? "WR-" + Guid.NewGuid().ToString("N")[..6].ToUpper() : dto.ReasonCode.Trim().ToUpper(),
+            ReasonName = dto.ReasonName.Trim(),
+            DefaultDiscountPercent = Math.Clamp(dto.DefaultDiscountPercent, 0m, 100m),
+            IsActive = dto.IsActive
+        };
+
+        var created = await _rulesRepository.AddWaiverReasonAsync(entity);
+        dto.Id = created.Id;
+        dto.ReasonCode = created.ReasonCode;
+        return ApiResponse<WaiverReasonDto>.SuccessResult(dto, "Thêm lý do miễn giảm thành công");
     }
 
     public async Task<ApiResponse<List<RuleAuditLogDto>>> GetAuditHistoryAsync()

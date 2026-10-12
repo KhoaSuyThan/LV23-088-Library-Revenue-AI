@@ -844,6 +844,13 @@ export default function DashboardPage({
               <span className="breadcrumb-sep">/</span>
               <span className="breadcrumb-current">Quản lý Sách</span>
             </div>
+          ) : activeTab === 'settings' ? (
+            /* Breadcrumbs cho phân hệ Cài đặt Quy định */
+            <div className="header-breadcrumb">
+              <span className="breadcrumb-root">Trang chủ</span>
+              <span className="breadcrumb-sep">/</span>
+              <span className="breadcrumb-current">Cài đặt Quy định</span>
+            </div>
           ) : (
             /* Ô tìm kiếm thông minh cho Dashboard */
             <div className="header-search-box">

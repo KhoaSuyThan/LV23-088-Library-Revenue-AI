@@ -44,12 +44,47 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   // Toast feedback
   const [toastMessage, setToastMessage] = useState('');
 
+  // Hộp thoại xác nhận Khóa / Mở khóa thẻ độc giả (Ảnh 16)
+  const [confirmModalData, setConfirmModalData] = useState({
+    isOpen: false,
+    reader: null,
+    action: 'lock' // 'lock' | 'unlock'
+  });
+
+  // Chuyển đổi mức độ rủi ro AI sang thuần tiếng Việt (Ảnh 15)
+  const getRiskLabel = (riskType) => {
+    if (riskType === 'high') return 'Cao';
+    if (riskType === 'medium') return 'Trung bình';
+    return 'Thấp';
+  };
+
   const showToast = useCallback((msg) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage('');
     }, 3800);
   }, []);
+
+  // Mở hộp thoại xác nhận trước khi khóa hoặc mở khóa
+  const requestToggleLock = (reader, e) => {
+    if (e) e.stopPropagation();
+    if (!reader || updatingLockId) return;
+    const isLocked = !reader.isActive;
+    setConfirmModalData({
+      isOpen: true,
+      reader,
+      action: isLocked ? 'unlock' : 'lock'
+    });
+  };
+
+  // Xác nhận hành động từ Modal
+  const handleConfirmModalAction = () => {
+    const { reader } = confirmModalData;
+    setConfirmModalData({ isOpen: false, reader: null, action: 'lock' });
+    if (reader) {
+      handleToggleLock(reader);
+    }
+  };
 
   // Tải danh sách độc giả và số liệu thống kê từ Backend SQL Server
   const fetchReadersData = useCallback(async (isSilent = false) => {
@@ -246,71 +281,83 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   return (
     <div className="reader-page-container">
       {/* ====================================================================
-          1. BỘ LỌC DANH SÁCH (FILTER BAR) & NÚT LÀM MỚI TỪ SQL SERVER
+          1. BỘ LỌC DANH SÁCH (FILTER BAR) & NÚT LÀM MỚI (ẢNH 17 & 18)
           ==================================================================== */}
       <div className="reader-filter-bar">
         <span className="filter-label">Lọc danh sách:</span>
 
         {/* Dropdown Khoa/Viện */}
-        <div className="filter-select-wrapper">
-          <select
-            className="filter-select"
-            value={facultyFilter}
-            onChange={(e) => setFacultyFilter(e.target.value)}
-          >
-            <option value="all">Khoa/Viện: Tất cả</option>
-            <option value="CNTT">Khoa/Viện: CNTT</option>
-            <option value="Kinh Tế">Khoa/Viện: Kinh Tế</option>
-            <option value="Cơ Khí">Khoa/Viện: Cơ Khí</option>
-            <option value="Ngoại Ngữ">Khoa/Viện: Ngoại Ngữ</option>
-          </select>
-          <ChevronDown size={14} className="filter-chevron" />
+        <div className="filter-group-item">
+          <label className="filter-item-title" htmlFor="filter-faculty">Khoa/Viện:</label>
+          <div className="filter-select-wrapper">
+            <select
+              id="filter-faculty"
+              className="filter-select"
+              value={facultyFilter}
+              onChange={(e) => setFacultyFilter(e.target.value)}
+            >
+              <option value="all">Tất cả</option>
+              <option value="CNTT">CNTT</option>
+              <option value="Kinh Tế">Kinh Tế</option>
+              <option value="Cơ Khí">Cơ Khí</option>
+              <option value="Ngoại Ngữ">Ngoại Ngữ</option>
+            </select>
+            <ChevronDown size={14} className="filter-chevron" />
+          </div>
         </div>
 
         {/* Dropdown Trạng thái Thẻ */}
-        <div className="filter-select-wrapper">
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Trạng thái: Tất cả</option>
-            <option value="active">Trạng thái: Hoạt động</option>
-            <option value="locked">Trạng thái: Đang khóa thẻ</option>
-          </select>
-          <ChevronDown size={14} className="filter-chevron" />
+        <div className="filter-group-item">
+          <label className="filter-item-title" htmlFor="filter-status">Trạng thái:</label>
+          <div className="filter-select-wrapper">
+            <select
+              id="filter-status"
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Tất cả</option>
+              <option value="active">Hoạt động</option>
+              <option value="locked">Đang khóa thẻ</option>
+            </select>
+            <ChevronDown size={14} className="filter-chevron" />
+          </div>
         </div>
 
         {/* Dropdown Mức rủi ro AI */}
-        <div className="filter-select-wrapper">
-          <select
-            className="filter-select"
-            value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value)}
-          >
-            <option value="all">Mức rủi ro AI: Tất cả</option>
-            <option value="high">Mức rủi ro AI: Cao (High)</option>
-            <option value="medium">Mức rủi ro AI: Vừa (Medium)</option>
-            <option value="low">Mức rủi ro AI: Thấp (Low)</option>
-          </select>
-          <ChevronDown size={14} className="filter-chevron" />
+        <div className="filter-group-item">
+          <label className="filter-item-title" htmlFor="filter-risk">Mức rủi ro AI:</label>
+          <div className="filter-select-wrapper">
+            <select
+              id="filter-risk"
+              className="filter-select"
+              value={riskFilter}
+              onChange={(e) => setRiskFilter(e.target.value)}
+            >
+              <option value="all">Tất cả</option>
+              <option value="high">Cao</option>
+              <option value="medium">Trung bình</option>
+              <option value="low">Thấp</option>
+            </select>
+            <ChevronDown size={14} className="filter-chevron" />
+          </div>
         </div>
 
-        {/* Nút Làm mới dữ liệu từ SQL Server */}
+        {/* Nút Làm mới dữ liệu */}
         <button
           type="button"
           className="btn-refresh-readers"
           onClick={() => fetchReadersData(true)}
           disabled={isLoading || isRefreshing}
-          title="Tải lại danh sách độc giả từ SQL Server"
+          title="Tải lại danh sách độc giả"
         >
           <RotateCw size={14} className={isRefreshing ? 'spin-icon' : ''} />
-          <span>{isRefreshing ? 'Đang đồng bộ...' : 'Làm mới CSDL'}</span>
+          <span>{isRefreshing ? 'Đang đồng bộ...' : 'Làm mới'}</span>
         </button>
       </div>
 
       {/* ====================================================================
-          2. HÀNG 4 THẺ KPI THỐNG KÊ (METRIC CARDS) TỪ SQL SERVER
+          2. HÀNG 4 THẺ KPI THỐNG KÊ (METRIC CARDS)
           ==================================================================== */}
       <div className="reader-kpi-grid">
         {/* Thẻ 1: Tổng độc giả hoạt động */}
@@ -328,7 +375,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
             <span className="kpi-badge-growth">
               Tổng số: {summary ? summary.totalReaders : readers.length}
             </span>
-            <span>trong hệ thống SQL</span>
+            <span>trong toàn hệ thống</span>
           </div>
         </div>
 
@@ -394,7 +441,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
         <div className="reader-card">
           <div className="reader-card-header">
             <h3 className="reader-card-title">
-              Danh sách hồ sơ độc giả toàn hệ thống ({filteredReaders.length} kết quả từ SQL Server)
+              Danh sách hồ sơ độc giả toàn hệ thống ({filteredReaders.length} kết quả)
             </h3>
           </div>
 
@@ -520,7 +567,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                             </span>
                           </td>
 
-                          {/* Rủi ro AI */}
+                          {/* Rủi ro AI (Thuần tiếng Việt - Ảnh 15) */}
                           <td>
                             <span
                               className={`risk-badge ${
@@ -531,7 +578,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                                   : 'risk-low'
                               }`}
                             >
-                              {r.riskLevelText}
+                              {getRiskLabel(r.riskType)}
                             </span>
                           </td>
 
@@ -574,12 +621,12 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                               <button
                                 type="button"
                                 className={isLocked ? 'action-link-unlock' : 'action-link-lock'}
-                                onClick={(e) => handleToggleLock(r, e)}
+                                onClick={(e) => requestToggleLock(r, e)}
                                 disabled={isUpdating}
                                 title={
                                   isLocked
                                     ? 'Nhấn để mở khóa thẻ cho độc giả mượn sách lại'
-                                    : 'Nhấn để KHÓA THẺ ngay lập tức (Chặn mượn sách tại quầy lưu thông)'
+                                    : 'Nhấn để KHÓA THẺ (Chặn mượn sách tại quầy lưu thông)'
                                 }
                               >
                                 {isUpdating ? (
@@ -761,7 +808,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                 <button
                   type="button"
                   className={!selectedReader.isActive ? 'btn-unlock-account' : 'btn-lock-account'}
-                  onClick={() => handleToggleLock(selectedReader)}
+                  onClick={() => requestToggleLock(selectedReader)}
                   disabled={updatingLockId === (selectedReader.readerId || selectedReader.readerID)}
                 >
                   {!selectedReader.isActive ? (
@@ -785,6 +832,63 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
           )}
         </div>
       </div>
+
+      {/* Modal xác nhận Khóa / Mở khóa thẻ độc giả (Ảnh 16) */}
+      {confirmModalData.isOpen && confirmModalData.reader && (
+        <div
+          className="reader-modal-overlay"
+          onClick={() => setConfirmModalData({ isOpen: false, reader: null, action: 'lock' })}
+        >
+          <div className="reader-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className={`reader-modal-header ${confirmModalData.action === 'lock' ? 'header-lock' : 'header-unlock'}`}>
+              <div className="reader-modal-icon-wrap">
+                {confirmModalData.action === 'lock' ? <Lock size={22} /> : <Unlock size={22} />}
+              </div>
+              <h4 className="reader-modal-title">
+                {confirmModalData.action === 'lock' ? 'Xác nhận Khóa thẻ độc giả' : 'Xác nhận Mở khóa thẻ'}
+              </h4>
+            </div>
+
+            <div className="reader-modal-body">
+              <p className="reader-modal-text">
+                Bạn có chắc chắn muốn {confirmModalData.action === 'lock' ? 'KHÓA THẺ' : 'mở khóa thẻ'} của độc giả{' '}
+                <strong>{confirmModalData.reader.fullName}</strong> (Mã thẻ:{' '}
+                <code>{confirmModalData.reader.readerCode}</code>)?
+              </p>
+              {confirmModalData.action === 'lock' ? (
+                <div className="reader-modal-warning-note">
+                  <ShieldAlert size={16} />
+                  <span>
+                    Sau khi khóa, độc giả sẽ bị <strong>CHẶN MƯỢN SÁCH</strong> ngay lập tức tại quầy lưu thông.
+                  </span>
+                </div>
+              ) : (
+                <div className="reader-modal-info-note">
+                  <CheckCircle2 size={16} />
+                  <span>Độc giả sẽ được khôi phục quyền mượn sách bình thường tại quầy lưu thông.</span>
+                </div>
+              )}
+            </div>
+
+            <div className="reader-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setConfirmModalData({ isOpen: false, reader: null, action: 'lock' })}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className={`btn-modal-confirm ${confirmModalData.action === 'lock' ? 'btn-confirm-lock' : 'btn-confirm-unlock'}`}
+                onClick={handleConfirmModalAction}
+              >
+                {confirmModalData.action === 'lock' ? 'Xác nhận Khóa thẻ' : 'Xác nhận Mở khóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast thông báo hành động */}
       {toastMessage && (

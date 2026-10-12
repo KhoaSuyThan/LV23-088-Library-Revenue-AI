@@ -121,18 +121,27 @@ public class BorrowService : IBorrowService
             }
         }
 
-        // 7. Xác định ngày hẹn trả sách (DueDate)
+        // 7. Xác định ngày hẹn trả sách (DueDate) và ràng buộc theo quy định FineRules
+        var standardBorrowDays = fineRule != null
+            ? (isLecturer ? fineRule.LecturerBorrowDays : fineRule.StudentBorrowDays)
+            : (isLecturer ? 30 : 14);
+
         DateTime dueDate;
         if (request.DueDate.HasValue && request.DueDate.Value > DateTime.UtcNow)
         {
+            // Kiểm tra ràng buộc: ngày hẹn trả không được vượt quá số ngày mượn tiêu chuẩn cấu hình
+            var maxAllowedDate = DateTime.UtcNow.Date.AddDays(standardBorrowDays);
+            if (request.DueDate.Value.Date > maxAllowedDate)
+            {
+                var roleName = isLecturer ? "Cán bộ & Giảng viên" : "Bạn đọc Sinh viên";
+                return ApiResponse<BorrowResponseDto>.ErrorResult(
+                    $"Hạn trả dự kiến ({request.DueDate.Value:dd/MM/yyyy}) vượt quá số ngày mượn tiêu chuẩn quy định cho {roleName} ({standardBorrowDays} ngày). Vui lòng điều chỉnh lại.");
+            }
             dueDate = request.DueDate.Value;
         }
         else
         {
-            var borrowDays = fineRule != null
-                ? (isLecturer ? fineRule.LecturerBorrowDays : fineRule.StudentBorrowDays)
-                : (isLecturer ? 30 : 14);
-            dueDate = DateTime.UtcNow.AddDays(borrowDays);
+            dueDate = DateTime.UtcNow.AddDays(standardBorrowDays);
         }
 
         // 8. Xác định thủ thư phụ trách giao dịch
@@ -181,6 +190,9 @@ public class BorrowService : IBorrowService
         var maxLimit = fineRule != null
             ? (isLecturer ? fineRule.LecturerBorrowLimit : fineRule.StudentBorrowLimit)
             : (isLecturer ? 10 : 5);
+        var standardBorrowDays = fineRule != null
+            ? (isLecturer ? fineRule.LecturerBorrowDays : fineRule.StudentBorrowDays)
+            : (isLecturer ? 30 : 14);
 
         var currentBorrowCount = await _borrowRepository.GetActiveBorrowCountByReaderIdAsync(reader.ReaderID);
         var unpaidFines = await _borrowRepository.CheckUnpaidFinesByReaderIdAsync(reader.ReaderID);
@@ -197,6 +209,7 @@ public class BorrowService : IBorrowService
             ExpiryDate = reader.ExpiryDate,
             CurrentBorrowCount = currentBorrowCount,
             MaxBorrowLimit = maxLimit,
+            StandardBorrowDays = standardBorrowDays,
             HasUnpaidFines = unpaidFines.HasUnpaidFines,
             UnpaidFineAmount = unpaidFines.TotalUnpaidAmount
         };

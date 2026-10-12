@@ -602,19 +602,19 @@ public class ReaderService : IReaderService
         if (riskScore >= 70)
         {
             riskType = "high";
-            riskLevelText = "Cao (High)";
+            riskLevelText = "Cao";
             aiDiagnosis = "* AI nhận diện: Thường trễ sách hoặc có nợ phạt chưa hoàn tất. Điểm tín nhiệm hệ thống bị sụt giảm.";
         }
         else if (riskScore >= 40)
         {
             riskType = "medium";
-            riskLevelText = "Vừa (Medium)";
+            riskLevelText = "Trung bình";
             aiDiagnosis = "* AI nhận diện: Có nguy cơ phát sinh trễ hạn 1-2 ngày ở giai đoạn thi đồ án. Cần hệ thống gửi email nhắc nhở sớm.";
         }
         else
         {
             riskType = "low";
-            riskLevelText = "Thấp (Low)";
+            riskLevelText = "Thấp";
             aiDiagnosis = "* AI nhận diện: Độc giả hiện không nợ sách hay phí phạt. Lịch sử mượn trả luôn chuẩn xác trước hạn.";
         }
 
