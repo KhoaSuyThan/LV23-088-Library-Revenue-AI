@@ -5,6 +5,24 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-13] - [Documentation & AI Phase 1] Hoàn Thiện Kế Hoạch & Tiền Xử Lý Dữ Liệu AI (Sprint 6.1)
+
+- **Tài liệu Kế hoạch Tổng thể 4 giai đoạn phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md)):**
+  - Đặc tả kiến trúc Decoupled: Huấn luyện offline bằng Python và suy luận in-process trong C# Backend .NET 10 qua thư viện `Microsoft.ML.OnnxRuntime` (không cần duy trì Python server nền, độ trễ $< 1\text{ms}$).
+  - Phân tích và lựa chọn thuật toán **Random Forest Classifier** tối ưu cho dữ liệu dạng bảng (Tabular Data) với khả năng giải thích cao (Feature Importance) và tương thích định dạng ONNX.
+  - Ánh xạ chi tiết 4 giai đoạn tương ứng với các User Stories / Tasks trên Jira (`L0LRA-106`, `L0LRA-20`, `L0LRA-107`, `L0LRA-86`, `L0LRA-87`, `L0LRA-100`, `L0LRA-88`, `L0LRA-21`).
+- **Tài liệu Kế hoạch Hành động chi tiết Giai đoạn 1 ([`PHASE_1_DATA_GENERATION_PLAN.md`](docs/PHASE_1_DATA_GENERATION_PLAN.md)):**
+  - Thiết kế Schema 8 thuộc tính đặc trưng hành vi (`Faculty`, `MemberType`, `CreditScore`, `CurrentHoldingBooks`, `HistoricalOverdueCount`, `BorrowDurationDays`, `TotalCurrentDebt`, `IsExamSeason`) và nhãn mục tiêu `IsOverdue`.
+  - Xác lập quy trình sinh 10.000 bản ghi dữ liệu mô phỏng theo phân phối xác suất thực tế (Synthetic Probabilistic Simulation), xử lý bài toán Cold-start mà không làm ảnh hưởng đến CSDL SQL Server và màn hình Quầy lưu thông.
+  - Định nghĩa pipeline mã hóa Encoders JSON và phân chia dữ liệu Train/Test theo tỷ lệ $80/20$ bằng `StratifiedShuffleSplit`.
+- **Chuẩn hóa Bộ Quy tắc & Tiêu chuẩn Dự án ([`.agents/rules/project_guidelines.md`](.agents/rules/project_guidelines.md)):**
+  - Đồng bộ các nguyên tắc: Giao tiếp, An toàn CSDL & Hệ thống, Tiêu chuẩn code, Dev workflow (React 19 + .NET 10 + In-process ONNX), Tối ưu công cụ và Quy tắc CHANGELOG 1 ngày 1 mục.
+  - Ưu tiên duy trì chuẩn Jira Conventions của nhóm (`L0LRA-<Số>-<slug>` và `L0LRA-<Số> <Tiêu đề>`).
+- **Hoàn thành Giai đoạn 1: Sinh & Tiền xử lý Dữ liệu AI (L0LRA-106 & L0LRA-20):**
+  - Xây dựng script [`generate_borrowing_dataset.py`](data/generate_borrowing_dataset.py) sinh thành công 10.000 bản ghi dữ liệu mượn trả (`borrowing_behavior_dataset.csv`) với tỷ lệ trễ hạn 20.66% theo phân phối xác suất thực tế.
+  - Xây dựng script [`preprocess_borrowing_dataset.py`](data/preprocess_borrowing_dataset.py) mã hóa nhãn danh mục `Faculty` và `MemberType`, xuất file từ điển [`encoders_metadata.json`](data/encoders_metadata.json).
+  - Phân tách thành công tập huấn luyện [`train_data.csv`](data/train_data.csv) (8.000 dòng) và kiểm thử [`test_data.csv`](data/test_data.csv) (2.000 dòng) bằng `StratifiedShuffleSplit`.
+
 ## [2026-10-12] - [Ràng Buộc & Tùy Chỉnh Số Ngày Mượn Tiêu Chuẩn Theo Setting]
 
 - **Phân hệ Nghiệp vụ Mượn sách Backend (`BorrowService.cs`, `BorrowReaderEligibilityDto.cs`):**
@@ -34,6 +52,7 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - **Tự động ẩn thông báo lưu cấu hình (Ảnh 23):** Loại bỏ banner tĩnh cố định ở đầu trang; chuyển thông điệp sang Toast tự động ẩn sau 3.5 giây khi nhấn "Lưu cấu hình".
   - **Khắc phục lỗi đè hạn mức mượn sách sinh viên:** Sửa thứ tự ưu tiên trong `RulesService.cs` (`request.BorrowLimit_Student ?? request.BorrowLimit_MaxTogether`) và đồng bộ `borrowLimit_Student` / `borrowLimit_MaxTogether` trong `LibrarySettings.jsx` để tránh việc giá trị mặc định `5` của trường cũ ghi đè lên giá trị người dùng vừa sửa.
   - **Ẩn thanh tìm kiếm thừa trên Header (Ảnh 24 - `DashboardPage.jsx`):** Hiển thị Breadcrumb `Trang chủ / Cài đặt Quy định` thay vì ô tìm kiếm chung khi truy cập trang Settings.
+
 
 ## [2026-10-09] - [Refactor & Bug Fix] Hoàn Thiện BUG-04, Chuẩn Hóa Đền Bù & Cảnh Báo Số Âm
 
