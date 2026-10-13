@@ -56,7 +56,7 @@
   },
   "dataset_summary": {
     "total_samples": 10000,
-    "overdue_samples": 2066,
-    "overdue_rate_percent": 20.66
+    "overdue_samples": 1964,
+    "overdue_rate_percent": 19.64
   }
 }

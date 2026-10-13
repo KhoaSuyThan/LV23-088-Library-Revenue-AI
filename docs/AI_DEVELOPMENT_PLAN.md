@@ -47,7 +47,7 @@ Hệ thống **SmartLib AI** áp dụng mô hình phân tách độc lập giữ
 | :--- | :---: | :--- | :--- |
 | **L0LRA-106** | **6.1** | Xây dựng tập dữ liệu mô phỏng 10.000 bản ghi mượn trả | File script `generate_data.py` & file `borrowing_behavior_dataset.csv` |
 | **L0LRA-20** | **6.1** | Thu thập & Tiền xử lý dữ liệu hành vi độc giả | Pipeline làm sạch, mã hóa Encoders, chia Train/Test 80/20 |
-| **L0LRA-107** | **6.1** | Huấn luyện đối sánh hiệu năng các mô hình (Baseline) | Bảng đối sánh (Logistic Reg, Decision Tree, Random Forest, XGBoost) |
+| **L0LRA-107** | **6.1** | Huấn luyện đối sánh hiệu năng các mô hình (Baseline) | Bảng đối sánh (Logistic Reg, Decision Tree, Random Forest, Gradient Boosting) |
 | **L0LRA-86** | **6.1** | Huấn luyện & Tối ưu mô hình Random Forest Classifier | Tinh chỉnh siêu tham số GridSearchCV, vẽ Feature Importance |
 | **L0LRA-87** | **6.1** | Kiểm thử đánh giá mô hình AI & Đo kiểm F1-Score | Báo cáo Classification Report ($F_1 \ge 90\%$), Confusion Matrix |
 | **L0LRA-100** | **6.1** | Đóng gói & Export mô hình trained sang ONNX Format | Tệp `smartlib_risk_model.onnx`, `model_metadata.json`, script Smoke Test |
@@ -93,11 +93,11 @@ flowchart TD
 * **Mục tiêu:** Tạo lập bộ dữ liệu chuẩn 10.000 bản ghi và hoàn thiện pipeline chuẩn hóa dữ liệu đầu vào.
 * **Các đặc trưng đầu vào (Input Features):**
   1. `Faculty` (Phân loại: CNTT, Kinh tế, Cơ khí, Ngoại ngữ, Luật, Y dược).
-  2. `MemberType` (Phân loại: Sinh viên, Giảng viên, Nghiên cứu sinh).
+  2. `MemberType` (Phân loại: Sinh viên, Giảng viên, Học viên SĐH).
   3. `CreditScore` (Số nguyên: 0 - 100, điểm tín nhiệm độc giả).
   4. `CurrentHoldingBooks` (Số nguyên: 1 - 5, số sách đang giữ tại thời điểm mượn).
   5. `HistoricalOverdueCount` (Số nguyên: Số lần từng trễ hạn trong quá khứ).
-  6. `BorrowDurationDays` (Số nguyên: Thời hạn mượn quy định: 14 hoặc 30 ngày).
+  6. `BorrowDurationDays` (Số nguyên: Thời hạn mượn quy định: 7, 14, 21 hoặc 30 ngày tương ứng từng loại tài liệu/chính sách lưu thông).
   7. `TotalCurrentDebt` (Số thực: Số tiền phạt hiện còn nợ, 0 - 100.000 VNĐ).
   8. `IsExamSeason` (Nhị phân: 1 nếu rơi vào tháng 5/tháng 11, 0 nếu tháng khác).
 * **Nhãn mục tiêu (Target Label):** `IsOverdue` (0 = Trả đúng hạn, 1 = Bị trễ hạn).
@@ -114,12 +114,12 @@ flowchart TD
   1. *Logistic Regression:* Mô hình tuyến tính chuẩn đối chiếu.
   2. *Decision Tree:* Cây quyết định đơn lẻ.
   3. *Random Forest Classifier:* Rừng cây kết hợp.
-  4. *XGBoost / Gradient Boosting:* Tăng cường độ dốc.
+  4. *Gradient Boosting Classifier (sklearn):* Mô hình tăng cường độ dốc (sử dụng thư viện scikit-learn để đảm bảo tính gọn nhẹ, ổn định và đồng nhất môi trường triển khai).
 * **Tối ưu siêu tham số Random Forest:**
   * Thuật toán: `GridSearchCV` hoặc `RandomizedSearchCV` kết hợp `5-Fold Cross Validation`.
   * Không gian tìm kiếm: `n_estimators: [100, 200, 300]`, `max_depth: [10, 15, 20, None]`, `min_samples_split: [2, 5, 10]`, `class_weight: ['balanced', 'balanced_subsample']`.
 * **Tiêu chí nghiệm thu Giai đoạn 2:**
-  * Bảng số liệu và biểu đồ so sánh 4 mô hình để đưa vào báo cáo chương 6.
+  * Bảng số liệu và biểu đồ so sánh 4 mô hình để đưa vào báo cáo chương 6 (`model_comparison_results.csv`, `model_comparison_chart.png`).
   * Tệp mô hình Python huấn luyện tối ưu nhất `best_random_forest.pkl`.
   * Báo cáo trọng số `Feature Importance` chỉ rõ các yếu tố ảnh hưởng mạnh nhất đến trễ hạn.
 

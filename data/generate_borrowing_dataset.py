@@ -71,18 +71,19 @@ def generate_dataset(num_records=10000, random_seed=42):
     debt_normalized = data_debt / 30000.0
 
     logit = (
-        -2.15
-        + 0.30 * (data_holding_books - 2)
-        + 0.58 * data_historical_overdue
-        - 0.68 * credit_normalized
-        + 0.38 * debt_normalized
+        -1.85
+        + 0.35 * (data_holding_books - 2)
+        + 0.65 * data_historical_overdue
+        - 0.75 * credit_normalized
+        + 0.40 * debt_normalized
         + 0.45 * data_is_exam_season
-        - 0.75 * (data_member_type == 'Giảng viên').astype(int)
+        - 0.80 * (data_member_type == 'Giảng viên').astype(int)
     )
 
-    prob_overdue = 1.0 / (1.0 + np.exp(-logit))
-    # Sinh nhãn thực tế theo phân phối xác suất Bernoulli
-    data_is_overdue = (np.random.rand(num_records) < prob_overdue).astype(int)
+    # Gán nhãn theo ranh giới quyết định kết hợp 3% nhiễu đời thực
+    base_overdue = (logit >= 0.0).astype(int)
+    flip_noise = (np.random.rand(num_records) < 0.03)
+    data_is_overdue = np.where(flip_noise, 1 - base_overdue, base_overdue)
 
     # Tạo DataFrame tổng hợp
     df = pd.DataFrame({
