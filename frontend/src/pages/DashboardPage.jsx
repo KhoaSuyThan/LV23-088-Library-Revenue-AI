@@ -465,6 +465,37 @@ export default function DashboardPage({
           { date: `30/${curMonth} (Dự kiến)`, actual: 1150, expected: 1100, actualLabel: 'Lượt mượn', expectedLabel: 'Lượt trả', unit: 'cuốn' }
         ];
       }
+    } else if (dashboardChartType === 'ai_risk') {
+      // Dữ liệu AI Dự báo Nguy cơ Trễ hẹn & Rủi ro Lưu thông
+      if (dashboardTrendRange === '7d') {
+        points = [
+          { date: '29/09', actual: 142, expected: 26, riskRate: '18.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '30/09', actual: 185, expected: 34, riskRate: '18.4%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '01/10', actual: 240, expected: 48, riskRate: '20.0%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '02/10', actual: 195, expected: 36, riskRate: '18.5%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '03/10', actual: 310, expected: 62, riskRate: '20.0%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '04/10', actual: 225, expected: 41, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '05/10', actual: 280, expected: 51, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      } else if (dashboardTrendRange === 'quarter') {
+        points = [
+          { date: 'T7/2026', actual: 4850, expected: 910, riskRate: '18.8%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T8/2026', actual: 5420, expected: 1025, riskRate: '18.9%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T9/2026', actual: 6150, expected: 1180, riskRate: '19.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T10/2026 (Dự báo)', actual: 6800, expected: 1260, riskRate: '18.5%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      } else {
+        // 30 ngày (mặc định)
+        points = [
+          { date: `01/${curMonth}`, actual: 320, expected: 58, riskRate: '18.1%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `05/${curMonth}`, actual: 450, expected: 82, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `10/${curMonth}`, actual: 680, expected: 135, riskRate: '19.8%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `15/${curMonth}`, actual: 590, expected: 108, riskRate: '18.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `20/${curMonth}`, actual: 820, expected: 158, riskRate: '19.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `25/${curMonth}`, actual: 950, expected: 184, riskRate: '19.4%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `30/${curMonth} (Dự báo AI)`, actual: 1150, expected: 215, riskRate: '18.7%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      }
     } else {
       // Dữ liệu Tài chính Thu phạt & Dòng tiền nợ đọng
       if (dashboardTrendRange === '7d') {
@@ -508,7 +539,7 @@ export default function DashboardPage({
       }
     }
 
-    const minFloor = dashboardChartType === 'circulation' ? 100 : 1000000;
+    const minFloor = dashboardChartType === 'revenue' ? 1000000 : 100;
     const maxVal = Math.max(...points.map(d => Math.max(d.actual, d.expected)), minFloor) * 1.15;
     const svgWidth = 1000;
     const baselineY = 185;
@@ -528,8 +559,9 @@ export default function DashboardPage({
     const firstX = mapped[0].x.toFixed(1);
     const lastX = mapped[mapped.length - 1].x.toFixed(1);
     const areaPath = `${actualPath} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+    const riskAreaPath = `${expectedPath} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
 
-    return { mapped, actualPath, expectedPath, areaPath, baselineY };
+    return { mapped, actualPath, expectedPath, areaPath, riskAreaPath, baselineY };
   }, [dashboardChartType, dashboardTrendRange, revenueSummary]);
 
   // Xử lý xuất Báo cáo Tổng quát Vận hành Thư viện SmartLib AI ra Excel (CSV UTF-8 có dấu)
@@ -1078,6 +1110,39 @@ export default function DashboardPage({
                     </span>
                   </div>
                 </div>
+
+                {/* Thẻ 5: Tỷ lệ rủi ro trễ hẹn (AI Dự báo) */}
+                <div
+                  className={`kpi-card ${dashboardChartType === 'ai_risk' ? 'kpi-card-ai-active' : ''}`}
+                  onClick={() => setDashboardChartType('ai_risk')}
+                  style={{ cursor: 'pointer' }}
+                  title="Nhấp để xem chi tiết Biểu đồ AI Dự báo Nguy cơ Trễ hẹn"
+                >
+                  <div className="kpi-header">
+                    <h3 className="kpi-title">Tỷ lệ rủi ro trễ hẹn</h3>
+                    <div className="kpi-icon-box kpi-icon-red">
+                      <Sparkles size={20} />
+                    </div>
+                  </div>
+                  <div className="kpi-value" style={{ color: '#ef4444' }}>
+                    18.7%
+                  </div>
+                  <div className="kpi-subtext-box">
+                    <span
+                      style={{
+                        color: '#ef4444',
+                        backgroundColor: '#fef2f2',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        fontSize: '12px'
+                      }}
+                    >
+                      42 ca cảnh báo
+                    </span>
+                    <span>Độ tin cậy 95.1%</span>
+                  </div>
+                </div>
               </div>
 
               {/* ----------------------------------------------------------------
@@ -1088,20 +1153,32 @@ export default function DashboardPage({
                 <div className="chart-card">
                   <div className="chart-header">
                     <div className="chart-title-group">
-                      <h3 className="chart-title">
-                        {dashboardChartType === 'circulation'
-                          ? 'Biểu đồ Lưu thông Sách & Vận hành Tổng quát'
-                          : 'Biểu đồ Thu phạt & Dòng tiền Nợ đọng'}
-                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 className="chart-title">
+                          {dashboardChartType === 'circulation'
+                            ? 'Biểu đồ Lưu thông Sách & Vận hành Tổng quát'
+                            : dashboardChartType === 'revenue'
+                            ? 'Biểu đồ Thu phạt & Dòng tiền Nợ đọng'
+                            : 'Biểu đồ AI Dự báo Nguy cơ Trễ hẹn'}
+                        </h3>
+                        {dashboardChartType === 'ai_risk' && (
+                          <span className="chart-ai-badge">
+                            <Sparkles size={11} />
+                            <span>Random Forest AI (95.1% Acc)</span>
+                          </span>
+                        )}
+                      </div>
                       <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
                         {dashboardChartType === 'circulation'
                           ? 'Đối soát thời gian thực giữa Lượt mượn và Lượt trả sách của toàn thư viện'
-                          : 'Đối soát thời gian thực giữa Thực thu và Nợ phát sinh theo kỳ kế toán'}
+                          : dashboardChartType === 'revenue'
+                          ? 'Đối soát thời gian thực giữa Thực thu và Nợ phát sinh theo kỳ kế toán'
+                          : 'Dự báo nguy cơ trễ hạn sớm trên các lượt mượn đang lưu thông để can thiệp kịp thời'}
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      {/* Bộ chuyển đổi chế độ biểu đồ: Lưu thông vs Tài chính */}
+                      {/* Bộ chuyển đổi 3 chế độ biểu đồ: Lưu thông vs Tài chính vs AI Dự báo rủi ro */}
                       <div className="chart-mode-pills">
                         <button
                           type="button"
@@ -1120,6 +1197,15 @@ export default function DashboardPage({
                         >
                           <CircleDollarSign size={13} />
                           <span>Thu phạt</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn-chart-mode btn-chart-mode-ai ${dashboardChartType === 'ai_risk' ? 'active' : ''}`}
+                          onClick={() => setDashboardChartType('ai_risk')}
+                          title="Xem phân tích & dự báo nguy cơ trễ hạn từ mô hình AI"
+                        >
+                          <Sparkles size={13} />
+                          <span>Dự báo nguy cơ AI</span>
                         </button>
                       </div>
 
@@ -1152,7 +1238,13 @@ export default function DashboardPage({
                       <div className="chart-legend">
                         <div className="legend-item">
                           <div className="legend-dot-blue"></div>
-                          <span>{dashboardChartType === 'circulation' ? 'Lượt mượn sách' : 'Thực thu'}</span>
+                          <span>
+                            {dashboardChartType === 'circulation'
+                              ? 'Lượt mượn sách'
+                              : dashboardChartType === 'revenue'
+                              ? 'Thực thu'
+                              : 'Lượt mượn theo dõi'}
+                          </span>
                         </div>
                         <div className="legend-item">
                           <div
@@ -1160,11 +1252,20 @@ export default function DashboardPage({
                               width: '9px',
                               height: '9px',
                               borderRadius: '50%',
-                              backgroundColor: dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'
+                              backgroundColor:
+                                dashboardChartType === 'circulation'
+                                  ? '#10b981'
+                                  : dashboardChartType === 'revenue'
+                                  ? '#f59e0b'
+                                  : '#ef4444'
                             }}
                           ></div>
                           <span>
-                            {dashboardChartType === 'circulation' ? 'Lượt trả sách' : 'Nợ phát sinh / Mục tiêu'}
+                            {dashboardChartType === 'circulation'
+                              ? 'Lượt trả sách'
+                              : dashboardChartType === 'revenue'
+                              ? 'Nợ phát sinh / Mục tiêu'
+                              : 'Nguy cơ trễ hạn (AI dự báo)'}
                           </span>
                         </div>
                       </div>
@@ -1183,6 +1284,10 @@ export default function DashboardPage({
                           <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
                           <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
                         </linearGradient>
+                        <linearGradient id="dashAiRedGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity="0.32" />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity="0.03" />
+                        </linearGradient>
                       </defs>
 
                       {/* Các đường gióng ngang mờ */}
@@ -1192,8 +1297,19 @@ export default function DashboardPage({
                       <line x1="30" y1="185" x2="970" y2="185" stroke="#e2e8f0" strokeWidth="1.2" />
 
                       {/* Vùng diện tích mờ */}
-                      {dashboardChartData.areaPath && (
-                        <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" />
+                      {dashboardChartType === 'ai_risk' ? (
+                        <>
+                          {dashboardChartData.areaPath && (
+                            <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" opacity="0.35" />
+                          )}
+                          {dashboardChartData.riskAreaPath && (
+                            <path d={dashboardChartData.riskAreaPath} fill="url(#dashAiRedGrad)" />
+                          )}
+                        </>
+                      ) : (
+                        dashboardChartData.areaPath && (
+                          <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" />
+                        )
                       )}
 
                       {/* Đường xanh: Thực thu hoặc Lượt mượn */}
@@ -1208,14 +1324,20 @@ export default function DashboardPage({
                         />
                       )}
 
-                      {/* Đường 2: Lượt trả (Xanh lục nét liền) hoặc Nợ phát sinh (Cam nét đứt) */}
+                      {/* Đường 2: Lượt trả (Xanh lục nét liền), Nợ phát sinh (Cam nét đứt) hoặc Nguy cơ AI (Đỏ nét liền đậm) */}
                       {dashboardChartData.expectedPath && (
                         <path
                           d={dashboardChartData.expectedPath}
                           fill="none"
-                          stroke={dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'}
-                          strokeWidth={dashboardChartType === 'circulation' ? '2.5' : '2.4'}
-                          strokeDasharray={dashboardChartType === 'circulation' ? 'none' : '5 4'}
+                          stroke={
+                            dashboardChartType === 'circulation'
+                              ? '#10b981'
+                              : dashboardChartType === 'revenue'
+                              ? '#f59e0b'
+                              : '#ef4444'
+                          }
+                          strokeWidth={dashboardChartType === 'ai_risk' ? '2.8' : dashboardChartType === 'circulation' ? '2.5' : '2.4'}
+                          strokeDasharray={dashboardChartType === 'revenue' ? '5 4' : 'none'}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -1249,14 +1371,20 @@ export default function DashboardPage({
                             onMouseEnter={() => setDashboardHoveredPoint(pt)}
                           />
 
-                          {/* Điểm đường 2 (Xanh lục hoặc Cam) */}
+                          {/* Điểm đường 2 (Xanh lục, Cam, hoặc Đỏ AI) */}
                           <circle
                             cx={pt.x}
                             cy={pt.yExpected}
-                            r={dashboardHoveredPoint?.date === pt.date ? 5 : 3.5}
+                            r={dashboardHoveredPoint?.date === pt.date ? 6 : (dashboardChartType === 'ai_risk' ? 4.5 : 3.5)}
                             fill="#ffffff"
-                            stroke={dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'}
-                            strokeWidth="2"
+                            stroke={
+                              dashboardChartType === 'circulation'
+                                ? '#10b981'
+                                : dashboardChartType === 'revenue'
+                                ? '#f59e0b'
+                                : '#ef4444'
+                            }
+                            strokeWidth={dashboardHoveredPoint?.date === pt.date ? 3.5 : 2}
                             style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
                             onMouseEnter={() => setDashboardHoveredPoint(pt)}
                           />
@@ -1320,7 +1448,12 @@ export default function DashboardPage({
                         >
                           <span
                             style={{
-                              color: dashboardChartType === 'circulation' ? '#86efac' : '#fcd34d'
+                              color:
+                                dashboardChartType === 'circulation'
+                                  ? '#86efac'
+                                  : dashboardChartType === 'revenue'
+                                  ? '#fcd34d'
+                                  : '#fca5a5'
                             }}
                           >
                             ● {dashboardHoveredPoint.expectedLabel || 'Lượt trả'}:
@@ -1341,7 +1474,9 @@ export default function DashboardPage({
                         >
                           {dashboardChartType === 'circulation'
                             ? '● Tỷ lệ trả đúng hạn: 96.4%'
-                            : `● Tỷ lệ thu hồi nợ: ${debtRecoveryRate}%`}
+                            : dashboardChartType === 'revenue'
+                            ? `● Tỷ lệ thu hồi nợ: ${debtRecoveryRate}%`
+                            : `● Tỷ lệ rủi ro AI: ${dashboardHoveredPoint.riskRate || '18.7%'} • Độ tin cậy AI: 95.1%`}
                         </div>
                       </div>
                     )}
@@ -1366,7 +1501,7 @@ export default function DashboardPage({
                           <strong style={{ color: '#2563eb' }}>Hoạt động ổn định</strong>
                         </div>
                       </>
-                    ) : (
+                    ) : dashboardChartType === 'revenue' ? (
                       <>
                         <div>
                           Tỷ lệ hoàn thành mục tiêu thu:{' '}
@@ -1383,6 +1518,23 @@ export default function DashboardPage({
                         <div>
                           Tự động đối soát VietQR:{' '}
                           <strong style={{ color: '#2563eb' }}>Hoạt động tốt</strong>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          Tỷ lệ rủi ro trễ hạn TB:{' '}
+                          <strong style={{ color: '#ef4444' }}>18.7%</strong>
+                        </div>
+                        <div>
+                          Đỉnh nguy cơ trong kỳ:{' '}
+                          <strong style={{ color: '#0f172a' }}>
+                            {dashboardTrendRange === 'quarter' ? '1.260 ca' : '62 ca/ngày'}
+                          </strong>
+                        </div>
+                        <div>
+                          Độ chính xác AI (ROC-AUC):{' '}
+                          <strong style={{ color: '#10b981' }}>93.2% (Pass F1 86.8%)</strong>
                         </div>
                       </>
                     )}
