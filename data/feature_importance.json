@@ -1,0 +1,28 @@
+{
+  "model_name": "RandomForestClassifier_Optimized",
+  "evaluation_metrics": {
+    "accuracy": 95.1,
+    "precision": 92.51,
+    "recall": 81.68,
+    "f1_score": 86.76,
+    "roc_auc": 93.17
+  },
+  "best_hyperparameters": {
+    "class_weight": "balanced_subsample",
+    "criterion": "entropy",
+    "max_depth": 16,
+    "min_samples_leaf": 1,
+    "min_samples_split": 5,
+    "n_estimators": 100
+  },
+  "feature_importance_percent": {
+    "CreditScore": 38.49,
+    "HistoricalOverdueCount": 28.62,
+    "TotalCurrentDebt": 12.33,
+    "CurrentHoldingBooks": 10.02,
+    "Faculty": 5.7,
+    "IsExamSeason": 2.38,
+    "MemberType": 1.65,
+    "BorrowDurationDays": 0.8
+  }
+}
