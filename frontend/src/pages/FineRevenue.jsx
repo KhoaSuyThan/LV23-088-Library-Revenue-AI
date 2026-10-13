@@ -17,6 +17,7 @@ import {
   Award
 } from 'lucide-react';
 import { invoiceApi } from '../api/invoiceApi';
+import { exportExcelWorkbook } from '../utils/excelExporter';
 import ReceiptModal from '../components/ReceiptModal';
 import RevenueAiForecastTab from '../components/revenue/RevenueAiForecastTab';
 import RevenueArrearsTab from '../components/revenue/RevenueArrearsTab';
@@ -487,10 +488,13 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     );
   };
 
-  // Xuất file báo cáo thống kê Excel / CSV chuẩn UTF-8 từ dữ liệu thực tế SQL Server
+  // Xuất file báo cáo thống kê Excel định dạng chuẩn SpreadsheetML (hàng cột thẳng tắp, viền ô sắc nét, format tiền tệ)
   const handleExportExcel = async (type = 'auto') => {
     try {
       const exportType = type === 'auto' ? (currentSubTab === 'arrears' ? 'arrears' : 'receipts') : type;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const nowFormatted = new Date().toLocaleString('vi-VN');
+      const currentUser = user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)';
 
       if (exportType === 'arrears') {
         // Xuất toàn bộ danh sách nợ phạt thực tế từ SQL Server
@@ -499,51 +503,63 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
           return;
         }
 
-        const headers = [
-          'STT',
-          'Mã phiếu phạt',
-          'Mã phiếu mượn',
-          'Mã độc giả',
-          'Họ tên độc giả',
-          'Đối tượng / Khoa',
-          'Tên sách / Tài liệu',
-          'Ngày đến hạn',
-          'Số ngày quá hạn',
-          'Tiền phạt (VNĐ)',
-          'Lý do vi phạm',
-          'Trạng thái'
+        const totalArrears = backendPendingFines.reduce((sum, f) => sum + (f.finalAmount || 0), 0);
+
+        const columns = [
+          { header: 'STT', width: 45, align: 'center', type: 'number' },
+          { header: 'Mã phiếu phạt', width: 105, align: 'center' },
+          { header: 'Mã phiếu mượn', width: 105, align: 'center' },
+          { header: 'Mã độc giả', width: 95, align: 'center' },
+          { header: 'Họ tên độc giả', width: 160, align: 'left' },
+          { header: 'Đối tượng / Khoa', width: 160, align: 'left' },
+          { header: 'Tên sách / Tài liệu', width: 240, align: 'left' },
+          { header: 'Ngày đến hạn', width: 100, align: 'center' },
+          { header: 'Quá hạn (ngày)', width: 85, align: 'center', type: 'number' },
+          { header: 'Tiền phạt (VNĐ)', width: 120, align: 'right', type: 'currency' },
+          { header: 'Lý do vi phạm', width: 170, align: 'left' },
+          { header: 'Trạng thái', width: 120, align: 'center' }
         ];
 
         const rows = backendPendingFines.map((f, idx) => [
           idx + 1,
-          `"${f.receiptId || ''}"`,
-          `"${f.borrowCode || ''}"`,
-          `"${f.readerCode || ''}"`,
-          `"${(f.readerName || '').replace(/"/g, '""')}"`,
-          `"${(f.department || '').replace(/"/g, '""')}"`,
-          `"${(f.bookTitle || '').replace(/"/g, '""')}"`,
-          `"${f.dueDate ? new Date(f.dueDate).toLocaleDateString('vi-VN') : ''}"`,
+          f.receiptId || '',
+          f.borrowCode || '',
+          f.readerCode || '',
+          f.readerName || '',
+          f.department || '',
+          f.bookTitle || '',
+          f.dueDate ? new Date(f.dueDate).toLocaleDateString('vi-VN') : '',
           f.daysOverdue || 0,
           f.finalAmount || 0,
-          `"${(f.reason || '').replace(/"/g, '""')}"`,
-          `"${f.status === 'Pending' ? 'Chưa nộp (Pending)' : f.status}"`
+          f.reason || '',
+          f.status === 'Pending' ? 'Chưa nộp (Pending)' : f.status
         ]);
 
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `So_No_Dong_Va_Phat_Qua_Han_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const summaryRows = [
+          ['TỔNG CỘNG NỢ ĐỌNG', '', '', '', '', '', '', '', '', totalArrears, '', '']
+        ];
 
-        triggerToast(`✅ Đã xuất thành công ${backendPendingFines.length} khoản nợ phạt từ SQL Server sang file Excel!`);
+        exportExcelWorkbook({
+          fileName: `So_No_Dong_Va_Phat_Qua_Han_${todayStr}.xls`,
+          sheets: [
+            {
+              name: 'Sổ nợ phạt tồn đọng',
+              title: 'SỔ THEO DÕI NỢ ĐỌNG VÀ TIỀN PHẠT QUÁ HẠN - SMARTLIB AI',
+              subtitles: [
+                `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`,
+                `Tổng số khoản nợ: ${backendPendingFines.length} | Tổng tiền nợ đọng chờ thu: ${totalArrears.toLocaleString('vi-VN')} VNĐ`
+              ],
+              columns,
+              rows,
+              summaryRows
+            }
+          ]
+        });
+
+        triggerToast(`✅ Đã xuất thành công ${backendPendingFines.length} khoản nợ phạt sang file Excel có định dạng chuẩn!`);
       } else {
         // Xuất toàn bộ danh sách biên lai thực tế từ SQL Server
         triggerToast('⏳ Đang chuẩn bị dữ liệu biên lai từ SQL Server để kết xuất Excel...');
-        // Tải toàn bộ biên lai từ backend để đảm bảo không bị thiếu bản ghi
         const res = await invoiceApi.getInvoiceHistory({ pageSize: 1000 });
         const itemsToExport = (res.success && res.data?.items?.length > 0) ? res.data.items : rawReceipts;
 
@@ -552,21 +568,26 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
           return;
         }
 
-        const headers = [
-          'STT',
-          'Mã biên lai',
-          'Thời gian thu',
-          'Mã độc giả',
-          'Họ tên độc giả',
-          'Đối tượng / Khoa',
-          'Mã phiếu mượn',
-          'Tên sách / Tài liệu',
-          'Mã cá biệt (Barcode)',
-          'Lý do thu phạt',
-          'Số tiền nộp (VNĐ)',
-          'Phương thức',
-          'Thủ thư tiếp nhận',
-          'Ghi chú nghiệp vụ'
+        const totalRevenue = itemsToExport.reduce((sum, r) => {
+          const val = r.amountPaid != null ? r.amountPaid : (parseInt(String(r.amount).replace(/[^0-9]/g, ''), 10) || 0);
+          return sum + val;
+        }, 0);
+
+        const columns = [
+          { header: 'STT', width: 45, align: 'center', type: 'number' },
+          { header: 'Mã biên lai', width: 110, align: 'center' },
+          { header: 'Thời gian thu', width: 135, align: 'center' },
+          { header: 'Mã độc giả', width: 95, align: 'center' },
+          { header: 'Họ tên độc giả', width: 160, align: 'left' },
+          { header: 'Đối tượng / Khoa', width: 160, align: 'left' },
+          { header: 'Mã phiếu mượn', width: 105, align: 'center' },
+          { header: 'Tên sách / Tài liệu', width: 230, align: 'left' },
+          { header: 'Mã cá biệt (Barcode)', width: 115, align: 'center' },
+          { header: 'Lý do thu phạt', width: 170, align: 'left' },
+          { header: 'Số tiền nộp (VNĐ)', width: 125, align: 'right', type: 'currency' },
+          { header: 'Phương thức', width: 100, align: 'center' },
+          { header: 'Thủ thư tiếp nhận', width: 130, align: 'left' },
+          { header: 'Ghi chú nghiệp vụ', width: 140, align: 'left' }
         ];
 
         const rows = itemsToExport.map((r, idx) => {
@@ -588,33 +609,44 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
 
           return [
             idx + 1,
-            `"${code}"`,
-            `"${dateStr}"`,
-            `"${readerCode}"`,
-            `"${readerName.replace(/"/g, '""')}"`,
-            `"${department.replace(/"/g, '""')}"`,
-            `"${borrowCode}"`,
-            `"${bookTitle.replace(/"/g, '""')}"`,
-            `"${bookCode}"`,
-            `"${reason.replace(/"/g, '""')}"`,
+            code,
+            dateStr,
+            readerCode,
+            readerName,
+            department,
+            borrowCode,
+            bookTitle,
+            bookCode,
+            reason,
             amount,
-            `"${method}"`,
-            `"${cashier.replace(/"/g, '""')}"`,
-            `"${note.replace(/"/g, '""')}"`
+            method,
+            cashier,
+            note
           ];
         });
 
-        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `Bao_Cao_Bien_Lai_Thu_Phat_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const summaryRows = [
+          ['TỔNG CỘNG DOANH THU', '', '', '', '', '', '', '', '', '', totalRevenue, '', '', '']
+        ];
 
-        triggerToast(`✅ Đã xuất thành công ${itemsToExport.length} biên lai thu phạt thật từ SQL Server sang file Excel!`);
+        exportExcelWorkbook({
+          fileName: `Bao_Cao_Bien_Lai_Thu_Phat_${todayStr}.xls`,
+          sheets: [
+            {
+              name: 'Biên lai thu phạt',
+              title: 'BÁO CÁO BIÊN LAI THU PHẠT VÀ ĐỐI SOÁT TÀI CHÍNH - SMARTLIB AI',
+              subtitles: [
+                `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`,
+                `Tổng số biên lai: ${itemsToExport.length} | Tổng tiền đã thực thu: ${totalRevenue.toLocaleString('vi-VN')} VNĐ`
+              ],
+              columns,
+              rows,
+              summaryRows
+            }
+          ]
+        });
+
+        triggerToast(`✅ Đã xuất thành công ${itemsToExport.length} biên lai thu phạt thật sang file Excel có định dạng chuẩn!`);
       }
     } catch (err) {
       triggerToast(`❌ Lỗi khi xuất tệp: ${err.message}`);

@@ -447,8 +447,36 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     }
   };
 
-  // State & Hàm Xuất toàn bộ sách ra file CSV
+  // State & Hàm Xuất toàn bộ sách ra file Excel / CSV
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+
+  const handleExportExcel = async () => {
+    setIsExportingExcel(true);
+    try {
+      showToast('Đang kết xuất danh mục sách ra tệp Excel...');
+      const response = await apiClient.get('/api/Books/export-excel', {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `smartlib_books_${new Date().toISOString().slice(0, 10)}.xls`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showToast('✅ Đã xuất thành công toàn bộ danh mục sách ra file Excel có định dạng chuẩn!');
+    } catch (err) {
+      showToast('❌ Có lỗi xảy ra khi xuất file Excel.');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {
@@ -468,9 +496,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      showToast('Đã xuất thành công toàn bộ danh mục sách ra file CSV!');
+      showToast('✅ Đã xuất thành công danh mục sách ra file CSV chuẩn UTF-8!');
     } catch (err) {
-      showToast('Có lỗi xảy ra khi xuất file CSV.');
+      showToast('❌ Có lỗi xảy ra khi xuất file CSV.');
     } finally {
       setIsExporting(false);
     }
@@ -1235,10 +1263,25 @@ export default function BookCatalog({ user, externalSearch = '' }) {
 
             <button
               type="button"
+              className="btn-export-excel"
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              title="Xuất danh mục sách ra tệp Excel (.xls) có kẻ viền, căn hàng cột và định dạng tiền tệ chuyên nghiệp"
+            >
+              {isExportingExcel ? (
+                <Loader2 size={16} className="spinner-rotate" />
+              ) : (
+                <FileSpreadsheet size={16} />
+              )}
+              <span>{isExportingExcel ? 'Đang xuất...' : 'Xuất Excel'}</span>
+            </button>
+
+            <button
+              type="button"
               className="btn-export-csv"
               onClick={handleExportCsv}
               disabled={isExporting}
-              title="Xuất toàn bộ danh sách sách ra file CSV để sao lưu hoặc gửi cho bạn bè"
+              title="Xuất toàn bộ danh sách sách ra file CSV chuẩn UTF-8 (có phân tách sep=,)"
             >
               {isExporting ? (
                 <Loader2 size={16} className="spinner-rotate" />
