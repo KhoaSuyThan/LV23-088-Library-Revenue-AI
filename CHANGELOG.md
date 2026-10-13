@@ -5,6 +5,18 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-13] - [AI Sprint 6.1] Hoàn Thành Giai Đoạn 3: Đánh Giá Toàn Diện & Đóng Gói ONNX (L0LRA-87 & L0LRA-100)
+
+- **Đo kiểm Chuyên sâu & Tinh chỉnh Ngưỡng Xác suất (Task L0LRA-87):**
+  - Xây dựng script [`data/evaluate_model_comprehensive.py`](data/evaluate_model_comprehensive.py) đánh giá trên tập kiểm thử độc lập 2.000 mẫu: đạt Accuracy **95.10%**, Precision **92.02%**, Recall **82.19%**, F1-Score **86.83%**, ROC-AUC **93.17%**.
+  - Tinh chỉnh ngưỡng xác suất (Threshold Tuning): Xác định ngưỡng tối ưu $T^* = 0.50$ tối đa hóa F1-Score trên dữ liệu mất cân bằng.
+  - Xuất 2 biểu đồ phân giải cao 300 DPI: Ma trận nhầm lẫn ([`data/confusion_matrix.png`](data/confusion_matrix.png)) và Đường cong ROC ([`data/roc_curve.png`](data/roc_curve.png)).
+  - Xuất báo cáo số liệu JSON chi tiết: [`data/evaluation_metrics.json`](data/evaluation_metrics.json).
+- **Đóng gói Mô hình ONNX & Kiểm thử Đối chiếu (Task L0LRA-100):**
+  - Xây dựng script [`data/export_onnx_model.py`](data/export_onnx_model.py): Đóng gói thành công mô hình nhị phân [`data/smartlib_risk_model.onnx`](data/smartlib_risk_model.onnx) (dung lượng chỉ **4.32 MB** < 15MB, cấu hình `zipmap=False` tối ưu cho C# .NET 10).
+  - Xuất file đặc tả hợp đồng dữ liệu [`data/model_metadata.json`](data/model_metadata.json) quy định thứ tự 8 tensor đầu vào (`Float32`), tên input/output tensors và 3 phân tầng rủi ro nghiệp vụ (Cao $\ge 70\%$, Trung bình $40-69\%$, Thấp $< 40\%$).
+  - Xây dựng script [`data/smoke_test_onnx.py`](data/smoke_test_onnx.py): Chạy đối chiếu suy luận 20 mẫu ngẫu nhiên giữa file `.pkl` và `.onnx`, đạt độ lệch lớn nhất chỉ **$5.66 \times 10^{-7} < 10^{-5}$** (100% Pass), khẳng định tính tương đương toán học tuyệt đối.
+
 ## [2026-10-13] - [AI Sprint 6.1] Đồng Bộ Kế Hoạch AI & Trực Quan Hóa Đối Sánh Mô Hình (L0LRA-107 & L0LRA-86)
 
 - **Đồng bộ Kế hoạch Phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md), [`PHASE_2_MODEL_TRAINING_PLAN.md`](docs/PHASE_2_MODEL_TRAINING_PLAN.md)):**
