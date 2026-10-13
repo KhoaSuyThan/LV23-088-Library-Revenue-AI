@@ -95,6 +95,7 @@ htmlcov/
 *.h5
 *.keras
 *.onnx
+!data/smartlib_risk_model.onnx
 *.pt
 *.pth
 # Cho phép lưu models metadata nếu có cấu trúc models/README.md

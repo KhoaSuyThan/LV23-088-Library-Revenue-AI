@@ -1,0 +1,71 @@
+{
+  "model_information": {
+    "model_name": "SmartLib AI Risk Assessment Model",
+    "model_file": "smartlib_risk_model.onnx",
+    "file_size_mb": 4.32,
+    "algorithm": "RandomForestClassifier (Ensemble Bagging)",
+    "onnx_opset_version": 15,
+    "runtime_environment": "Microsoft.ML.OnnxRuntime (.NET 10 / C#)"
+  },
+  "tensor_contract": {
+    "input_tensor_name": "float_input",
+    "input_tensor_shape": [
+      null,
+      8
+    ],
+    "input_tensor_data_type": "System.Single (Float32)",
+    "output_label_name": "output_label",
+    "output_probability_name": "output_probability",
+    "output_probability_shape": [
+      null,
+      2
+    ]
+  },
+  "feature_order": [
+    "Faculty",
+    "MemberType",
+    "CreditScore",
+    "CurrentHoldingBooks",
+    "HistoricalOverdueCount",
+    "BorrowDurationDays",
+    "TotalCurrentDebt",
+    "IsExamSeason"
+  ],
+  "feature_descriptions": {
+    "Faculty": "Mã khoa đào tạo (0: CNTT, 1: Cơ khí, 2: Kinh tế, 3: Luật, 4: Ngoại ngữ, 5: Y dược)",
+    "MemberType": "Mã loại độc giả (0: Giảng viên, 1: Học viên SĐH, 2: Sinh viên)",
+    "CreditScore": "Điểm tín nhiệm độc giả (Thang điểm 0 - 100)",
+    "CurrentHoldingBooks": "Số lượng sách hiện đang giữ tại thời điểm mượn (1 - 5 cuốn)",
+    "HistoricalOverdueCount": "Tổng số lần độc giả từng trễ hạn trong quá khứ",
+    "BorrowDurationDays": "Thời hạn mượn quy định (7, 14, 21 hoặc 30 ngày)",
+    "TotalCurrentDebt": "Tổng số tiền nợ phạt hiện tại (VNĐ, 0 - 100.000)",
+    "IsExamSeason": "Cờ mùa thi cử cao điểm (1: Tháng 5 hoặc Tháng 11, 0: Tháng thông thường)"
+  },
+  "classification_settings": {
+    "decision_threshold": 0.5,
+    "risk_tiers": {
+      "high_risk": {
+        "condition": "prob_overdue >= 0.70",
+        "badge_color": "danger (red)",
+        "action_recommendation": "Cảnh báo cao: Khóa mượn tài liệu quý/giáo trình hot, yêu cầu thủ thư xét duyệt trực tiếp."
+      },
+      "medium_risk": {
+        "condition": "0.40 <= prob_overdue < 0.70",
+        "badge_color": "warning (yellow)",
+        "action_recommendation": "Cảnh báo vừa: Cho phép mượn nhưng thủ thư nhắc nhở hạn trả và gửi email cảnh báo sớm."
+      },
+      "low_risk": {
+        "condition": "prob_overdue < 0.40",
+        "badge_color": "success (green)",
+        "action_recommendation": "An toàn: Độc giả có điểm tín nhiệm tốt, cho phép mượn sách nhanh tự động."
+      }
+    }
+  },
+  "model_performance": {
+    "accuracy_percent": 95.1,
+    "precision_percent": 92.02,
+    "recall_percent": 82.19,
+    "f1_score_percent": 86.83,
+    "roc_auc_percent": 93.17
+  }
+}
