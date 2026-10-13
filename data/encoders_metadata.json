@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "generated_for": "LV23-088 SmartLib AI Risk Prediction",
+  "feature_order": [
+    "Faculty",
+    "MemberType",
+    "CreditScore",
+    "CurrentHoldingBooks",
+    "HistoricalOverdueCount",
+    "BorrowDurationDays",
+    "TotalCurrentDebt",
+    "IsExamSeason"
+  ],
+  "target_column": "IsOverdue",
+  "categorical_encoders": {
+    "Faculty": {
+      "classes": [
+        "CNTT",
+        "Cơ khí",
+        "Kinh tế",
+        "Luật",
+        "Ngoại ngữ",
+        "Y dược"
+      ],
+      "mapping": {
+        "CNTT": 0,
+        "Cơ khí": 1,
+        "Kinh tế": 2,
+        "Luật": 3,
+        "Ngoại ngữ": 4,
+        "Y dược": 5
+      }
+    },
+    "MemberType": {
+      "classes": [
+        "Giảng viên",
+        "Học viên SĐH",
+        "Sinh viên"
+      ],
+      "mapping": {
+        "Giảng viên": 0,
+        "Học viên SĐH": 1,
+        "Sinh viên": 2
+      }
+    }
+  },
+  "feature_types": {
+    "Faculty": "int64",
+    "MemberType": "int64",
+    "CreditScore": "int64",
+    "CurrentHoldingBooks": "int64",
+    "HistoricalOverdueCount": "int64",
+    "BorrowDurationDays": "int64",
+    "TotalCurrentDebt": "float64",
+    "IsExamSeason": "int64"
+  },
+  "dataset_summary": {
+    "total_samples": 10000,
+    "overdue_samples": 2066,
+    "overdue_rate_percent": 20.66
+  }
+}
