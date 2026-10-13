@@ -5,6 +5,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-13] - [AI Sprint 6.1] Đồng Bộ Kế Hoạch AI & Trực Quan Hóa Đối Sánh Mô Hình (L0LRA-107 & L0LRA-86)
+
+- **Đồng bộ Kế hoạch Phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md), [`PHASE_2_MODEL_TRAINING_PLAN.md`](docs/PHASE_2_MODEL_TRAINING_PLAN.md)):**
+  - Đồng bộ 100% tài liệu kỹ thuật khớp với nghiệp vụ thực tế: Cập nhật `MemberType` ('Học viên SĐH'), chuẩn hóa `BorrowDurationDays` với 4 mức thời hạn mượn (7, 14, 21, 30 ngày) theo chính sách lưu thông tài liệu thư viện trường đại học.
+  - Làm rõ thuật toán đối sánh thứ 4 là `Gradient Boosting Classifier (sklearn)` đảm bảo tính gọn nhẹ, ổn định và đồng nhất môi trường triển khai in-process.
+- **Trực quan hóa Đối sánh Mô hình AI & Độ Quan Trọng Đặc Trưng (L0LRA-107 & L0LRA-86):**
+  - Xây dựng script [`plot_model_comparison.py`](data/plot_model_comparison.py) sử dụng `matplotlib`: Xuất biểu đồ cột nhóm phân giải cao 300 DPI ([`data/model_comparison_chart.png`](data/model_comparison_chart.png)) so sánh chi tiết 4 mô hình cơ sở (Logistic Regression, Decision Tree, Random Forest, Gradient Boosting) trên 5 chỉ số đo kiểm (Accuracy, Precision, Recall, F1-Score, ROC-AUC). Tự động kích hoạt trong [`compare_baseline_models.py`](data/compare_baseline_models.py).
+  - Xây dựng script [`plot_feature_importance.py`](data/plot_feature_importance.py): Xuất biểu đồ thanh ngang phân giải cao 300 DPI ([`data/feature_importance_chart.png`](data/feature_importance_chart.png)) minh họa trực quan tỷ lệ đóng góp của 8 đặc trưng rủi ro trễ hạn. Tự động kích hoạt trong [`train_optimize_random_forest.py`](data/train_optimize_random_forest.py).
+
 ## [2026-10-13] - [Documentation & AI Phase 1] Hoàn Thiện Kế Hoạch & Tiền Xử Lý Dữ Liệu AI (Sprint 6.1)
 
 - **Tài liệu Kế hoạch Tổng thể 4 giai đoạn phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md)):**
@@ -22,6 +31,22 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Xây dựng script [`generate_borrowing_dataset.py`](data/generate_borrowing_dataset.py) sinh thành công 10.000 bản ghi dữ liệu mượn trả (`borrowing_behavior_dataset.csv`) với tỷ lệ trễ hạn 20.66% theo phân phối xác suất thực tế.
   - Xây dựng script [`preprocess_borrowing_dataset.py`](data/preprocess_borrowing_dataset.py) mã hóa nhãn danh mục `Faculty` và `MemberType`, xuất file từ điển [`encoders_metadata.json`](data/encoders_metadata.json).
   - Phân tách thành công tập huấn luyện [`train_data.csv`](data/train_data.csv) (8.000 dòng) và kiểm thử [`test_data.csv`](data/test_data.csv) (2.000 dòng) bằng `StratifiedShuffleSplit`.
+- **Hoàn thành Bước 1 - Giai đoạn 2: Huấn luyện đối sánh 4 mô hình cơ sở (L0LRA-107):**
+  - Hiệu chỉnh ranh giới quyết định (Decision Boundary) trong [`generate_borrowing_dataset.py`](data/generate_borrowing_dataset.py) kết hợp 3% nhiễu ngẫu nhiên, đưa tỷ lệ trễ hạn về mức chuẩn thực tế 19.64%.
+  - Xây dựng script [`compare_baseline_models.py`](data/compare_baseline_models.py) huấn luyện thử nghiệm 4 thuật toán: Logistic Regression (F1: 87.10%), Gradient Boosting (F1: 85.83%), Random Forest Default (F1: 85.48%, ROC-AUC: 93.01% cao nhất) và Decision Tree (F1: 80.63%).
+- **Hoàn thành Bước 2 - Giai đoạn 2: Tinh chỉnh siêu tham số Random Forest với GridSearchCV (L0LRA-86):**
+  - Xây dựng script [`train_optimize_random_forest.py`](data/train_optimize_random_forest.py) thực hiện tìm kiếm trên 128 tổ hợp siêu tham số qua 640 lượt huấn luyện (5-Fold Stratified Cross-Validation).
+  - Tìm ra bộ tham số tối ưu (`class_weight='balanced_subsample'`, `criterion='entropy'`, `max_depth=16`, `n_estimators=100`, `min_samples_split=5`), kiểm soát hiện tượng Overfitting.
+  - Đo kiểm trên tập kiểm thử độc lập 2.000 bản ghi: đạt Accuracy 95.10%, Precision 92.51%, Recall 81.68%, ROC-AUC 93.17% và F1-Score 86.76%.
+- **Hoàn thành Bước 3 - Giai đoạn 2: Phân tích độ quan trọng đặc trưng & Lưu trữ mô hình (L0LRA-86):**
+  - Trích xuất bảng xếp hạng Feature Importance: `CreditScore` (38.49%) và `HistoricalOverdueCount` (28.62%) là 2 nhân tố chi phối chính; tiếp theo là `TotalCurrentDebt` (12.33%) và `CurrentHoldingBooks` (10.02%).
+  - Lưu cấu hình giải thích nghiệp vụ ra [`data/feature_importance.json`](data/feature_importance.json) phục vụ tính minh bạch của AI (Explainable AI).
+  - Đóng gói mô hình tối ưu ra [`data/best_random_forest.pkl`](data/best_random_forest.pkl), hoàn thành 100% Giai đoạn 2 và sẵn sàng cho Giai đoạn 3 (Export ONNX).
+
+
+
+
+
 
 ## [2026-10-12] - [Ràng Buộc & Tùy Chỉnh Số Ngày Mượn Tiêu Chuẩn Theo Setting]
 
