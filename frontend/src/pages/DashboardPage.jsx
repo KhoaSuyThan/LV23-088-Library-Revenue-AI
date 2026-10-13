@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { authApi, apiClient } from '../api/authApi';
 import { invoiceApi } from '../api/invoiceApi';
+import { exportExcelWorkbook } from '../utils/excelExporter';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
@@ -564,7 +565,7 @@ export default function DashboardPage({
     return { mapped, actualPath, expectedPath, areaPath, riskAreaPath, baselineY };
   }, [dashboardChartType, dashboardTrendRange, revenueSummary]);
 
-  // Xử lý xuất Báo cáo Tổng quát Vận hành Thư viện SmartLib AI ra Excel (CSV UTF-8 có dấu)
+  // Xử lý xuất Báo cáo Tổng quát Vận hành Thư viện SmartLib AI ra file Excel chuẩn SpreadsheetML (4 Worksheets chuyên biệt)
   const handleExportDashboardReport = async () => {
     try {
       setIsExportingExcel(true);
@@ -591,7 +592,11 @@ export default function DashboardPage({
           ? (sumRes.value?.data?.data || sumRes.value?.data)
           : bookCatalogSummary;
 
-      // 1. Dữ liệu phần 1: Chỉ số KPI toàn diện
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const nowFormatted = new Date().toLocaleString('vi-VN');
+      const currentUser = user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)';
+
+      // 1. Dữ liệu Sheet 1: Chỉ số KPI toàn diện
       const totalBooksCount = summary?.totalBooks || 11123;
       const totalCopiesCount = 28540;
       const borrowedCopies = summary?.borrowedBooks || 16250;
@@ -604,7 +609,30 @@ export default function DashboardPage({
       const collectedRev = revenueSummary?.totalCollectedRevenue || 490000;
       const pendingRev = revenueSummary?.totalPendingArrears || 31300000;
 
-      // 2. Dữ liệu phần 2: Cơ cấu Thể loại Kho sách
+      const kpiColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Hạng mục chỉ số vận hành', width: 260, align: 'left' },
+        { header: 'Giá trị / Số lượng', width: 140, align: 'right' },
+        { header: 'Đơn vị tính', width: 90, align: 'center' },
+        { header: 'Đánh giá / Tỷ lệ ghi chú', width: 260, align: 'left' }
+      ];
+
+      const kpiRows = [
+        [1, 'Tổng số đầu sách trong danh mục', totalBooksCount, 'Đầu sách', '10 Thể loại chuyên ngành'],
+        [2, 'Tổng số lượng bản sao sách vật lý', totalCopiesCount, 'Bản sao', 'Đầy đủ mã vạch Barcode'],
+        [3, 'Bản sao sẵn sàng phục vụ tại kệ', availableCopies, 'Cuốn', `${pctAvailable}% tổng kho`],
+        [4, 'Bản sao đang lưu hành (được mượn)', borrowedCopies, 'Cuốn', `${pctBorrowed}% tổng kho`],
+        [5, 'Bản sao quá hạn lưu thông cần thu hồi', overdueCopies, 'Cuốn', `${pctOverdue}% tổng lưu hành (Ngưỡng an toàn)`],
+        [6, 'Tổng số hồ sơ bạn đọc đã kích hoạt', 1280, 'Bạn đọc', 'Sinh viên & Giảng viên toàn trường'],
+        [7, 'Bạn đọc đang có sách mượn hoạt động', 842, 'Bạn đọc', '65.8% tỷ lệ bạn đọc tích cực'],
+        [8, 'Tỷ lệ hoàn trả sách đúng hạn', '96.4', '%', 'Chỉ số lưu thông tích cực'],
+        [9, 'Đỉnh điểm lưu thông mượn trả trong kỳ', 310, 'Cuốn/ngày', 'Cao điểm đầu tuần và kỳ thi'],
+        [10, 'Tổng doanh thu tiền phạt thực thu trong kỳ', collectedRev.toLocaleString('vi-VN') + ' đ', 'VNĐ', 'Thanh toán trực tiếp & VietQR'],
+        [11, 'Tổng tiền phạt nợ đọng chờ thu hồi', pendingRev.toLocaleString('vi-VN') + ' đ', 'VNĐ', 'Dòng tiền chờ thu hồi'],
+        [12, 'Tỷ lệ thu hồi nợ phạt tổng thể', `${debtRecoveryRate}`, '%', 'Hiệu quả thu hồi tốt']
+      ];
+
+      // 2. Dữ liệu Sheet 2: Cơ cấu Thể loại Kho sách
       const catListToUse =
         Array.isArray(categories) && categories.length > 0
           ? categories
@@ -621,89 +649,140 @@ export default function DashboardPage({
               { categoryID: 10, categoryName: 'Y học & Sức khỏe', totalBooks: 1116 }
             ];
       const catTotal = catListToUse.reduce((s, c) => s + (c.totalBooks || 0), 0) || 11123;
+
+      const categoryColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã thể loại', width: 95, align: 'center' },
+        { header: 'Tên thể loại sách', width: 220, align: 'left' },
+        { header: 'Số lượng đầu sách', width: 140, align: 'right', type: 'number' },
+        { header: 'Tỷ trọng đóng góp (%)', width: 140, align: 'right' }
+      ];
+
       const categoryRows = catListToUse.map((cat, idx) => {
         const cnt = cat.totalBooks || 0;
         const pct = ((cnt / catTotal) * 100).toFixed(1);
-        return `${idx + 1},"CAT-${String(cat.categoryID || idx + 1).padStart(2, '0')}","${cat.categoryName}",${cnt},${pct}%`;
+        return [
+          idx + 1,
+          `CAT-${String(cat.categoryID || idx + 1).padStart(2, '0')}`,
+          cat.categoryName,
+          cnt,
+          `${pct}%`
+        ];
       });
 
-      // 3. Dữ liệu phần 3: Độc giả nguy cơ trễ hạn (AI phân tích)
+      const categorySummary = [
+        ['TỔNG CỘNG KHO SÁCH', '', '', catTotal, '100.0%']
+      ];
+
+      // 3. Dữ liệu Sheet 3: Độc giả nguy cơ trễ hạn (AI phân tích)
+      const aiColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã phiếu mượn', width: 110, align: 'center' },
+        { header: 'Họ tên độc giả', width: 160, align: 'left' },
+        { header: 'Mã sinh viên', width: 100, align: 'center' },
+        { header: 'Tựa sách đang mượn', width: 260, align: 'left' },
+        { header: 'Hạn hoàn trả', width: 100, align: 'center' },
+        { header: 'Điểm nguy cơ AI (%)', width: 125, align: 'right' },
+        { header: 'Mức độ cảnh báo', width: 140, align: 'center' }
+      ];
+
       const aiRiskRows = (aiRiskReaders || []).map((reader, idx) => {
         const riskLevel =
           reader.score >= 80 ? 'Rất cao (Đỏ)' : reader.score >= 65 ? 'Cao (Cam)' : 'Trung bình (Vàng)';
-        return `${idx + 1},"${reader.id}","${reader.name}","${reader.studentCode}","${reader.bookTitle}","${reader.dueDate}",${reader.score}%,"${riskLevel}"`;
+        return [
+          idx + 1,
+          reader.id,
+          reader.name,
+          reader.studentCode,
+          reader.bookTitle,
+          reader.dueDate,
+          `${reader.score}%`,
+          riskLevel
+        ];
       });
 
-      // 4. Dữ liệu phần 4: Lịch sử biên lai thu phạt
-      const invoiceRows =
-        invoices.length > 0
-          ? invoices.map((inv, idx) =>
-              [
-                idx + 1,
-                `"${inv.invoiceCode || ''}"`,
-                `"${inv.readerCode || ''}"`,
-                `"${inv.readerName || ''}"`,
-                `"${inv.violationReason || ''}"`,
-                inv.amount || 0,
-                `"${inv.paymentMethod || ''}"`,
-                `"${inv.paymentDate ? new Date(inv.paymentDate).toLocaleString('vi-VN') : ''}"`,
-                `"${inv.processedBy || ''}"`,
-                `"${inv.status || ''}"`
-              ].join(',')
-            )
-          : [
-              '1,"INV-2026-0001","DG-102220184","Nguyễn Văn Minh","Phí dịch vụ & thẻ khác",490000,"VietQR","05/10/2026 09:30:00","Thủ thư (Admin)","Đã thanh toán"'
-            ];
-
-      // Tổ hợp nội dung CSV UTF-8 đa tầng hoàn chỉnh
-      const reportLines = [
-        'BÁO CÁO TỔNG QUÁT HOẠT ĐỘNG VẬN HÀNH THƯ VIỆN - SMARTLIB AI',
-        `"Thời gian kết xuất:","${new Date().toLocaleString('vi-VN')}"`,
-        `"Kỳ thống kê:","${currentMonthText}"`,
-        `"Người lập báo cáo:","${user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)'}"`,
-        `"Tình trạng toàn hệ thống:","Vận hành bình thường - Tự động đối soát VietQR hoạt động tốt"`,
-        '',
-        '=== PHẦN I: BÁO CÁO CÁC CHỈ SỐ VẬN HÀNH TỔNG QUAN (KPI TOÀN HỆ THỐNG) ===',
-        'STT,Hạng mục chỉ số,Số lượng / Giá trị,Đơn vị tính,Đánh giá / Tỷ lệ ghi chú',
-        `1,Tổng số đầu sách trong danh mục,${totalBooksCount},Đầu sách,10 Thể loại chuyên ngành`,
-        `2,Tổng số lượng bản sao sách vật lý,${totalCopiesCount},Bản sao,Đầy đủ mã vạch Barcode`,
-        `3,Bản sao sẵn sàng phục vụ tại kệ,${availableCopies},Cuốn,${pctAvailable}% tổng kho`,
-        `4,Bản sao đang lưu hành (được mượn),${borrowedCopies},Cuốn,${pctBorrowed}% tổng kho`,
-        `5,Bản sao quá hạn lưu thông cần thu hồi,${overdueCopies},Cuốn,${pctOverdue}% tổng lưu hành (Ngưỡng an toàn)`,
-        `6,Tổng số hồ sơ bạn đọc đã kích hoạt,1280,Bạn đọc,Sinh viên & Giảng viên toàn trường`,
-        `7,Bạn đọc đang có sách mượn hoạt động,842,Bạn đọc,65.8% tỷ lệ bạn đọc tích cực`,
-        `8,Tỷ lệ hoàn trả sách đúng hạn,96.4,%,Chỉ số lưu thông tích cực`,
-        `9,Đỉnh điểm lưu thông mượn trả trong kỳ,310,Cuốn/ngày,Cao điểm đầu tuần và kỳ thi`,
-        `10,Tổng doanh thu tiền phạt thực thu trong kỳ,${collectedRev},VNĐ,Thanh toán trực tiếp & VietQR`,
-        `11,Tổng tiền phạt nợ đọng chờ thu hồi,${pendingRev},VNĐ,Dòng tiền chờ thu hồi`,
-        `12,Tỷ lệ thu hồi nợ phạt tổng thể,${debtRecoveryRate},%,Hiệu quả thu hồi tốt`,
-        '',
-        '=== PHẦN II: THỐNG KÊ CƠ CẤU 10 THỂ LOẠI KHO SÁCH (CSDL THỰC TẾ) ===',
-        'STT,Mã thể loại,Tên thể loại sách,Số lượng đầu sách,Tỷ trọng đóng góp (%)',
-        ...categoryRows,
-        '',
-        '=== PHẦN III: DANH SÁCH ĐỘC GIẢ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH & DỰ BÁO) ===',
-        'STT,Mã phiếu mượn,Họ tên độc giả,Mã sinh viên,Tựa sách đang mượn,Hạn hoàn trả,Điểm nguy cơ AI,Mức độ cảnh báo',
-        ...aiRiskRows,
-        '',
-        '=== PHẦN IV: DANH SÁCH BIÊN LAI THU PHẠT & ĐỐI SOÁT TÀI CHÍNH ===',
-        'STT,Mã biên lai,Mã bạn đọc,Họ tên bạn đọc,Lý do vi phạm,Số tiền (VNĐ),Phương thức thanh toán,Ngày thanh toán,Thủ thư xử lý,Trạng thái',
-        ...invoiceRows,
-        '',
-        '=== HẾT BÁO CÁO TỔNG QUÁT ==='
+      // 4. Dữ liệu Sheet 4: Lịch sử biên lai thu phạt
+      const invoiceColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã biên lai', width: 110, align: 'center' },
+        { header: 'Mã bạn đọc', width: 95, align: 'center' },
+        { header: 'Họ tên bạn đọc', width: 160, align: 'left' },
+        { header: 'Lý do vi phạm', width: 180, align: 'left' },
+        { header: 'Số tiền nộp (VNĐ)', width: 130, align: 'right', type: 'currency' },
+        { header: 'Phương thức thanh toán', width: 140, align: 'center' },
+        { header: 'Ngày thanh toán', width: 135, align: 'center' },
+        { header: 'Thủ thư xử lý', width: 130, align: 'left' },
+        { header: 'Trạng thái', width: 110, align: 'center' }
       ];
 
-      const csvContent = '\uFEFF' + reportLines.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const todayStr = new Date().toISOString().slice(0, 10);
-      link.setAttribute('download', `Bao_cao_tong_quat_thu_vien_SmartLib_${todayStr}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const invoiceRows =
+        invoices.length > 0
+          ? invoices.map((inv, idx) => [
+              idx + 1,
+              inv.invoiceCode || '',
+              inv.readerCode || '',
+              inv.readerName || '',
+              inv.violationReason || '',
+              inv.amount || 0,
+              inv.paymentMethod || '',
+              inv.paymentDate ? new Date(inv.paymentDate).toLocaleString('vi-VN') : '',
+              inv.processedBy || '',
+              inv.status || ''
+            ])
+          : [
+              [1, 'INV-2026-0001', 'DG-102220184', 'Nguyễn Văn Minh', 'Phí dịch vụ & thẻ khác', 490000, 'VietQR', '05/10/2026 09:30:00', 'Thủ thư (Admin)', 'Đã thanh toán']
+            ];
+
+      const totalInvoiceRevenue = invoiceRows.reduce((sum, r) => sum + (typeof r[5] === 'number' ? r[5] : 0), 0);
+      const invoiceSummary = [
+        ['TỔNG CỘNG DOANH THU', '', '', '', '', totalInvoiceRevenue, '', '', '', '']
+      ];
+
+      // Kết xuất Workbook 4 Sheet hoàn chỉnh
+      exportExcelWorkbook({
+        fileName: `Bao_cao_tong_quat_thu_vien_SmartLib_${todayStr}.xls`,
+        sheets: [
+          {
+            name: '1. Chỉ số KPI Vận hành',
+            title: 'BÁO CÁO CÁC CHỈ SỐ VẬN HÀNH TỔNG QUAN (KPI TOÀN HỆ THỐNG) - SMARTLIB AI',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`,
+              `Kỳ thống kê: ${currentMonthText} | Tình trạng: Vận hành bình thường - VietQR hoạt động tốt`
+            ],
+            columns: kpiColumns,
+            rows: kpiRows
+          },
+          {
+            name: '2. Cơ cấu Kho sách',
+            title: 'THỐNG KÊ CƠ CẤU 10 THỂ LOẠI KHO SÁCH (CSDL THỰC TẾ)',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Tổng thể loại: 10 danh mục`
+            ],
+            columns: categoryColumns,
+            rows: categoryRows,
+            summaryRows: categorySummary
+          },
+          {
+            name: '3. Bạn đọc Nguy cơ AI',
+            title: 'DANH SÁCH ĐỘC GIẢ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH & DỰ BÁO)',
+            subtitles: [
+              `Mô hình dự báo: Random Forest AI (Accuracy: 95.1%) | Thời gian phân tích: ${nowFormatted}`
+            ],
+            columns: aiColumns,
+            rows: aiRiskRows
+          },
+          {
+            name: '4. Biên lai & Thu phạt',
+            title: 'DANH SÁCH BIÊN LAI THU PHẠT & ĐỐI SOÁT TÀI CHÍNH',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`
+            ],
+            columns: invoiceColumns,
+            rows: invoiceRows,
+            summaryRows: invoiceSummary
+          }
+        ]
+      });
     } catch (err) {
       console.error('Lỗi khi xuất Báo cáo Tổng quát Excel:', err);
       alert('Không thể xuất báo cáo tổng quát vào lúc này.');
