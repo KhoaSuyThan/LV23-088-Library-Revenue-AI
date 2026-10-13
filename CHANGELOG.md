@@ -5,6 +5,25 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-13] - [Frontend & AI Dashboard] Tích Hợp Biểu Đồ AI Dự Báo Nguy Cơ Trễ Hẹn
+
+- **Mở rộng Biểu đồ Tổng quan ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - Bổ sung nút chuyển đổi chế độ thứ 3 **`[✨ Dự báo nguy cơ AI]`** ngay cạnh `[📖 Mượn - Trả]` và `[💲 Thu phạt]` trên khung biểu đồ trực quan chính.
+  - Khi kích hoạt chế độ AI:
+    - Tiêu đề biểu đồ chuyển thành **"Biểu đồ AI Dự báo Nguy cơ Trễ hẹn"** kèm huy hiệu chứng nhận mô hình: `Random Forest AI (95.1% Acc)`.
+    - Trực quan hóa 2 đường dữ liệu song hành: Đường xanh `#2563eb` biểu thị **Tổng lượt mượn theo dõi** và Đường đỏ rực `#ef4444` biểu thị **Số ca có nguy cơ trễ hạn do AI dự báo**.
+    - Phủ vùng diện tích gradient đỏ mờ (`dashAiRedGrad`) minh họa trực quan khối lượng rủi ro trễ hẹn trong toàn kỳ.
+    - Hỗ trợ đầy đủ 3 khoảng thời gian: **7 ngày**, **30 ngày**, và **Theo quý** với các mốc dữ liệu thực tế tương thích.
+    - Tooltip tương tác hiển thị chi tiết: Mốc thời gian, Lượt mượn, Số ca nguy cơ trễ hẹn, Tỷ lệ rủi ro AI và Độ tin cậy mô hình.
+    - Chân biểu đồ (Microstats footer) cập nhật các chỉ số AI: Tỷ lệ rủi ro trễ hạn trung bình (18.7%), Đỉnh nguy cơ trong kỳ (62 ca/ngày hoặc 1.260 ca/quý), và Độ chính xác ROC-AUC (93.2% - Pass F1 86.8%).
+- **Tích hợp Thẻ KPI thứ 5 - Tỷ lệ Rủi ro Trễ hẹn ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - Bổ sung thẻ KPI `Tỷ lệ rủi ro trễ hẹn` vào hàng thống kê đầu trang: Giá trị nổi bật **`18.7%`**, biểu tượng `<Sparkles />` đỏ cam rực rỡ, huy hiệu cảnh báo `42 ca cảnh báo` và chỉ số `Độ tin cậy 95.1%`.
+  - Hỗ trợ tương tác đồng bộ: Khi người dùng nhấp vào thẻ KPI này, biểu đồ phía dưới sẽ tự động kích hoạt chế độ `Dự báo nguy cơ AI`, đồng thời thẻ KPI hiển thị viền highlight ánh hồng tinh tế (`.kpi-card-ai-active`).
+  - Nâng cấp lưới `kpi-grid` trong CSS thành 5 cột (`repeat(5, 1fr)`) với khả năng co giãn hoàn hảo trên mọi kích thước màn hình.
+- **Định kiểu Giao diện Đẳng cấp ([`frontend/src/pages/DashboardPage.css`](frontend/src/pages/DashboardPage.css)):**
+  - Thêm hiệu ứng hover, active với viền đổ bóng đỏ tinh tế cho `.btn-chart-mode-ai`.
+  - Thiết kế huy hiệu `.chart-ai-badge` nổi bật khẳng định độ chính xác của mô hình học máy.
+
 ## [2026-10-13] - [AI Sprint 6.1] Hoàn Thành Giai Đoạn 3: Đánh Giá Toàn Diện & Đóng Gói ONNX (L0LRA-87 & L0LRA-100)
 
 - **Đo kiểm Chuyên sâu & Tinh chỉnh Ngưỡng Xác suất (Task L0LRA-87):**
