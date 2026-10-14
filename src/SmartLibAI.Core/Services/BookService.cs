@@ -276,7 +276,7 @@ public class BookService : IBookService
     }
 
     /// <summary>
-    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM).
+    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM và sep=,).
     /// </summary>
     public async Task<byte[]> ExportBooksToCsvAsync()
     {
@@ -284,11 +284,12 @@ public class BookService : IBookService
 
         var sb = new System.Text.StringBuilder();
 
-        // Ghi UTF-8 BOM để Excel và các ứng dụng bảng tính mở không bị lỗi font tiếng Việt
+        // Ghi UTF-8 BOM và chỉ thị delimiter sep=, để Excel trên Windows tự động nhận diện đúng cột
         sb.Append('\uFEFF');
+        sb.AppendLine("sep=,");
 
-        // Dòng tiêu đề các cột chuẩn hóa
-        sb.AppendLine("BookID,CategoryID,CategoryName,ISBN,Title,Author,Publisher,BasePrice,TotalCopies,AvailableCopies");
+        // Dòng tiêu đề các cột chuẩn hóa bằng tiếng Việt rõ ràng, dễ hiểu
+        sb.AppendLine("Mã sách,Mã thể loại,Tên thể loại,Mã ISBN,Tên sách,Tác giả,Nhà xuất bản,Đơn giá (VNĐ),Tổng số bản,Bản sẵn sàng");
 
         foreach (var b in books)
         {
@@ -305,6 +306,171 @@ public class BookService : IBookService
         }
 
         return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách ra tệp Excel (.xls SpreadsheetML) có kẻ viền, căn lề và định dạng tiền tệ chuyên nghiệp.
+    /// </summary>
+    public async Task<byte[]> ExportBooksToExcelXmlAsync()
+    {
+        var books = await _bookRepository.GetAllBooksWithCopiesAsync();
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
+        sb.Append("<?mso-application progid=\"Excel.Sheet\"?>\r\n");
+        sb.Append("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n");
+        sb.Append(" xmlns:o=\"urn:schemas-microsoft-com:office:office\"\r\n");
+        sb.Append(" xmlns:x=\"urn:schemas-microsoft-com:office:excel\"\r\n");
+        sb.Append(" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n");
+        sb.Append(" xmlns:html=\"http://www.w3.org/TR/REC-html40\">\r\n");
+
+        sb.Append("  <Styles>\r\n");
+        sb.Append("    <Style ss:ID=\"Default\" ss:Name=\"Normal\">\r\n");
+        sb.Append("      <Alignment ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#1E293B\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"TitleStyle\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Left\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"14\" ss:Bold=\"1\" ss:Color=\"#1E3A8A\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"SubStyle\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Left\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"9\" ss:Italic=\"1\" ss:Color=\"#475569\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"HeaderCol\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Center\" ss:Vertical=\"Center\" ss:WrapText=\"1\"/>\r\n");
+        sb.Append("      <Borders>\r\n");
+        sb.Append("        <Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#94A3B8\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Left\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#94A3B8\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Right\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#94A3B8\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#94A3B8\"/>\r\n");
+        sb.Append("      </Borders>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Bold=\"1\" ss:Color=\"#FFFFFF\"/>\r\n");
+        sb.Append("      <Interior ss:Color=\"#1E40AF\" ss:Pattern=\"Solid\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"DataLeft\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Left\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Borders>\r\n");
+        sb.Append("        <Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Left\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Right\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("      </Borders>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#1E293B\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"DataCenter\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Center\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Borders>\r\n");
+        sb.Append("        <Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Left\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Right\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("      </Borders>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#1E293B\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"DataNumber\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Right\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Borders>\r\n");
+        sb.Append("        <Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Left\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Right\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("      </Borders>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#1E293B\"/>\r\n");
+        sb.Append("      <NumberFormat ss:Format=\"#,##0\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("    <Style ss:ID=\"DataCurrency\">\r\n");
+        sb.Append("      <Alignment ss:Horizontal=\"Right\" ss:Vertical=\"Center\"/>\r\n");
+        sb.Append("      <Borders>\r\n");
+        sb.Append("        <Border ss:Position=\"Bottom\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Left\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Right\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("        <Border ss:Position=\"Top\" ss:LineStyle=\"Continuous\" ss:Weight=\"1\" ss:Color=\"#CBD5E1\"/>\r\n");
+        sb.Append("      </Borders>\r\n");
+        sb.Append("      <Font ss:FontName=\"Segoe UI\" ss:Size=\"10\" ss:Color=\"#1E293B\"/>\r\n");
+        sb.Append("      <NumberFormat ss:Format=\"#,##0&quot; đ&quot;\"/>\r\n");
+        sb.Append("    </Style>\r\n");
+        sb.Append("  </Styles>\r\n");
+
+        sb.Append("  <Worksheet ss:Name=\"Danh mục sách\">\r\n");
+        sb.Append("    <Table>\r\n");
+        sb.Append("      <Column ss:Width=\"55\"/>\r\n");  // Mã sách
+        sb.Append("      <Column ss:Width=\"60\"/>\r\n");  // Mã thể loại
+        sb.Append("      <Column ss:Width=\"130\"/>\r\n"); // Tên thể loại
+        sb.Append("      <Column ss:Width=\"110\"/>\r\n"); // ISBN
+        sb.Append("      <Column ss:Width=\"240\"/>\r\n"); // Tên sách
+        sb.Append("      <Column ss:Width=\"150\"/>\r\n"); // Tác giả
+        sb.Append("      <Column ss:Width=\"140\"/>\r\n"); // NXB
+        sb.Append("      <Column ss:Width=\"95\"/>\r\n");  // Đơn giá
+        sb.Append("      <Column ss:Width=\"70\"/>\r\n");  // Tổng bản
+        sb.Append("      <Column ss:Width=\"80\"/>\r\n");  // Bản sẵn sàng
+
+        // Dòng Tiêu đề Báo cáo
+        sb.Append("      <Row ss:Height=\"26\">\r\n");
+        sb.Append("        <Cell ss:StyleID=\"TitleStyle\"><Data ss:Type=\"String\">DANH MỤC SÁCH THƯ VIỆN - SMARTLIB AI</Data></Cell>\r\n");
+        sb.Append("      </Row>\r\n");
+        sb.Append("      <Row ss:Height=\"18\">\r\n");
+        sb.Append($"        <Cell ss:StyleID=\"SubStyle\"><Data ss:Type=\"String\">Thời gian xuất: {DateTime.Now:dd/MM/yyyy HH:mm:ss} | Tổng số đầu sách: {books.Count:N0}</Data></Cell>\r\n");
+        sb.Append("      </Row>\r\n");
+        sb.Append("      <Row ss:Height=\"8\"></Row>\r\n");
+
+        // Dòng Tiêu đề Cột
+        sb.Append("      <Row ss:Height=\"24\">\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Mã sách</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Mã TL</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Tên thể loại</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Mã ISBN</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Tên sách</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Tác giả</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Nhà xuất bản</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Đơn giá (VNĐ)</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Tổng bản</Data></Cell>\r\n");
+        sb.Append("        <Cell ss:StyleID=\"HeaderCol\"><Data ss:Type=\"String\">Bản sẵn sàng</Data></Cell>\r\n");
+        sb.Append("      </Row>\r\n");
+
+        foreach (var b in books)
+        {
+            sb.Append("      <Row ss:Height=\"20\">\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"Number\">{b.BookID}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"Number\">{b.CategoryID}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataLeft\"><Data ss:Type=\"String\">{EscapeXml(b.CategoryName)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataCenter\"><Data ss:Type=\"String\">{EscapeXml(b.ISBN ?? string.Empty)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataLeft\"><Data ss:Type=\"String\">{EscapeXml(b.Title)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataLeft\"><Data ss:Type=\"String\">{EscapeXml(b.Author)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataLeft\"><Data ss:Type=\"String\">{EscapeXml(b.Publisher ?? string.Empty)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataCurrency\"><Data ss:Type=\"Number\">{b.BasePrice.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataNumber\"><Data ss:Type=\"Number\">{b.TotalCopies}</Data></Cell>\r\n");
+            sb.Append($"        <Cell ss:StyleID=\"DataNumber\"><Data ss:Type=\"Number\">{b.AvailableCopies}</Data></Cell>\r\n");
+            sb.Append("      </Row>\r\n");
+        }
+
+        sb.Append("    </Table>\r\n");
+        sb.Append("    <WorksheetOptions xmlns=\"urn:schemas-microsoft-com:office:excel\">\r\n");
+        sb.Append("      <Selected/>\r\n");
+        sb.Append("      <FreezePanes/>\r\n");
+        sb.Append("      <FrozenNoSplit/>\r\n");
+        sb.Append("      <SplitHorizontal>4</SplitHorizontal>\r\n");
+        sb.Append("      <TopRowBottomPane>4</TopRowBottomPane>\r\n");
+        sb.Append("      <ActivePane>2</ActivePane>\r\n");
+        sb.Append("    </WorksheetOptions>\r\n");
+        sb.Append("  </Worksheet>\r\n");
+        sb.Append("</Workbook>");
+
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    /// <summary>
+    /// Hàm trợ giúp thoát ký tự XML chuẩn xác
+    /// </summary>
+    private static string EscapeXml(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;")
+            .Replace("\"", "&quot;")
+            .Replace("'", "&apos;");
     }
 
     /// <summary>

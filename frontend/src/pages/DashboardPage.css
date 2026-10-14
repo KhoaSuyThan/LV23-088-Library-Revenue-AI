@@ -337,21 +337,27 @@
 }
 
 /* --------------------------------------------------------------------------
-   5. KPI METRICS CARDS (4 CARDS BAO QUÁT CẢ 4 PHÂN HỆ)
+   5. KPI METRICS CARDS (5 CARDS BAO QUÁT CẢ 4 PHÂN HỆ VÀ AI DỰ BÁO)
    -------------------------------------------------------------------------- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .kpi-grid {
     grid-template-columns: 1fr;
   }
@@ -373,6 +379,12 @@
 .kpi-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.kpi-card.kpi-card-ai-active {
+  border-color: #fca5a5;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fffafa 100%);
 }
 
 .kpi-header {
@@ -530,6 +542,34 @@
   background-color: #ffffff;
   color: #2563eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.btn-chart-mode-ai {
+  position: relative;
+}
+
+.btn-chart-mode-ai:hover {
+  color: #ef4444;
+}
+
+.btn-chart-mode-ai.active {
+  background-color: #ffffff !important;
+  color: #dc2626 !important;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.15) !important;
+}
+
+.chart-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2.5px 8.5px;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fee2e2;
+  letter-spacing: -0.1px;
 }
 
 .chart-legend {

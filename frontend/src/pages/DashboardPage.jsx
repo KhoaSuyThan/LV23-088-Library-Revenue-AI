@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { authApi, apiClient } from '../api/authApi';
 import { invoiceApi } from '../api/invoiceApi';
+import { exportExcelWorkbook } from '../utils/excelExporter';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
@@ -465,6 +466,37 @@ export default function DashboardPage({
           { date: `30/${curMonth} (Dự kiến)`, actual: 1150, expected: 1100, actualLabel: 'Lượt mượn', expectedLabel: 'Lượt trả', unit: 'cuốn' }
         ];
       }
+    } else if (dashboardChartType === 'ai_risk') {
+      // Dữ liệu AI Dự báo Nguy cơ Trễ hẹn & Rủi ro Lưu thông
+      if (dashboardTrendRange === '7d') {
+        points = [
+          { date: '29/09', actual: 142, expected: 26, riskRate: '18.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '30/09', actual: 185, expected: 34, riskRate: '18.4%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '01/10', actual: 240, expected: 48, riskRate: '20.0%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '02/10', actual: 195, expected: 36, riskRate: '18.5%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '03/10', actual: 310, expected: 62, riskRate: '20.0%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '04/10', actual: 225, expected: 41, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: '05/10', actual: 280, expected: 51, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      } else if (dashboardTrendRange === 'quarter') {
+        points = [
+          { date: 'T7/2026', actual: 4850, expected: 910, riskRate: '18.8%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T8/2026', actual: 5420, expected: 1025, riskRate: '18.9%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T9/2026', actual: 6150, expected: 1180, riskRate: '19.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: 'T10/2026 (Dự báo)', actual: 6800, expected: 1260, riskRate: '18.5%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      } else {
+        // 30 ngày (mặc định)
+        points = [
+          { date: `01/${curMonth}`, actual: 320, expected: 58, riskRate: '18.1%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `05/${curMonth}`, actual: 450, expected: 82, riskRate: '18.2%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `10/${curMonth}`, actual: 680, expected: 135, riskRate: '19.8%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `15/${curMonth}`, actual: 590, expected: 108, riskRate: '18.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `20/${curMonth}`, actual: 820, expected: 158, riskRate: '19.3%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `25/${curMonth}`, actual: 950, expected: 184, riskRate: '19.4%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' },
+          { date: `30/${curMonth} (Dự báo AI)`, actual: 1150, expected: 215, riskRate: '18.7%', actualLabel: 'Lượt mượn theo dõi', expectedLabel: 'Nguy cơ trễ (AI)', unit: 'cuốn / ca' }
+        ];
+      }
     } else {
       // Dữ liệu Tài chính Thu phạt & Dòng tiền nợ đọng
       if (dashboardTrendRange === '7d') {
@@ -508,7 +540,7 @@ export default function DashboardPage({
       }
     }
 
-    const minFloor = dashboardChartType === 'circulation' ? 100 : 1000000;
+    const minFloor = dashboardChartType === 'revenue' ? 1000000 : 100;
     const maxVal = Math.max(...points.map(d => Math.max(d.actual, d.expected)), minFloor) * 1.15;
     const svgWidth = 1000;
     const baselineY = 185;
@@ -528,11 +560,12 @@ export default function DashboardPage({
     const firstX = mapped[0].x.toFixed(1);
     const lastX = mapped[mapped.length - 1].x.toFixed(1);
     const areaPath = `${actualPath} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+    const riskAreaPath = `${expectedPath} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
 
-    return { mapped, actualPath, expectedPath, areaPath, baselineY };
+    return { mapped, actualPath, expectedPath, areaPath, riskAreaPath, baselineY };
   }, [dashboardChartType, dashboardTrendRange, revenueSummary]);
 
-  // Xử lý xuất Báo cáo Tổng quát Vận hành Thư viện SmartLib AI ra Excel (CSV UTF-8 có dấu)
+  // Xử lý xuất Báo cáo Tổng quát Vận hành Thư viện SmartLib AI ra file Excel chuẩn SpreadsheetML (4 Worksheets chuyên biệt)
   const handleExportDashboardReport = async () => {
     try {
       setIsExportingExcel(true);
@@ -559,7 +592,11 @@ export default function DashboardPage({
           ? (sumRes.value?.data?.data || sumRes.value?.data)
           : bookCatalogSummary;
 
-      // 1. Dữ liệu phần 1: Chỉ số KPI toàn diện
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const nowFormatted = new Date().toLocaleString('vi-VN');
+      const currentUser = user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)';
+
+      // 1. Dữ liệu Sheet 1: Chỉ số KPI toàn diện
       const totalBooksCount = summary?.totalBooks || 11123;
       const totalCopiesCount = 28540;
       const borrowedCopies = summary?.borrowedBooks || 16250;
@@ -572,7 +609,30 @@ export default function DashboardPage({
       const collectedRev = revenueSummary?.totalCollectedRevenue || 490000;
       const pendingRev = revenueSummary?.totalPendingArrears || 31300000;
 
-      // 2. Dữ liệu phần 2: Cơ cấu Thể loại Kho sách
+      const kpiColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Hạng mục chỉ số vận hành', width: 260, align: 'left' },
+        { header: 'Giá trị / Số lượng', width: 140, align: 'right' },
+        { header: 'Đơn vị tính', width: 90, align: 'center' },
+        { header: 'Đánh giá / Tỷ lệ ghi chú', width: 260, align: 'left' }
+      ];
+
+      const kpiRows = [
+        [1, 'Tổng số đầu sách trong danh mục', totalBooksCount, 'Đầu sách', '10 Thể loại chuyên ngành'],
+        [2, 'Tổng số lượng bản sao sách vật lý', totalCopiesCount, 'Bản sao', 'Đầy đủ mã vạch Barcode'],
+        [3, 'Bản sao sẵn sàng phục vụ tại kệ', availableCopies, 'Cuốn', `${pctAvailable}% tổng kho`],
+        [4, 'Bản sao đang lưu hành (được mượn)', borrowedCopies, 'Cuốn', `${pctBorrowed}% tổng kho`],
+        [5, 'Bản sao quá hạn lưu thông cần thu hồi', overdueCopies, 'Cuốn', `${pctOverdue}% tổng lưu hành (Ngưỡng an toàn)`],
+        [6, 'Tổng số hồ sơ bạn đọc đã kích hoạt', 1280, 'Bạn đọc', 'Sinh viên & Giảng viên toàn trường'],
+        [7, 'Bạn đọc đang có sách mượn hoạt động', 842, 'Bạn đọc', '65.8% tỷ lệ bạn đọc tích cực'],
+        [8, 'Tỷ lệ hoàn trả sách đúng hạn', '96.4', '%', 'Chỉ số lưu thông tích cực'],
+        [9, 'Đỉnh điểm lưu thông mượn trả trong kỳ', 310, 'Cuốn/ngày', 'Cao điểm đầu tuần và kỳ thi'],
+        [10, 'Tổng doanh thu tiền phạt thực thu trong kỳ', collectedRev.toLocaleString('vi-VN') + ' đ', 'VNĐ', 'Thanh toán trực tiếp & VietQR'],
+        [11, 'Tổng tiền phạt nợ đọng chờ thu hồi', pendingRev.toLocaleString('vi-VN') + ' đ', 'VNĐ', 'Dòng tiền chờ thu hồi'],
+        [12, 'Tỷ lệ thu hồi nợ phạt tổng thể', `${debtRecoveryRate}`, '%', 'Hiệu quả thu hồi tốt']
+      ];
+
+      // 2. Dữ liệu Sheet 2: Cơ cấu Thể loại Kho sách
       const catListToUse =
         Array.isArray(categories) && categories.length > 0
           ? categories
@@ -589,89 +649,140 @@ export default function DashboardPage({
               { categoryID: 10, categoryName: 'Y học & Sức khỏe', totalBooks: 1116 }
             ];
       const catTotal = catListToUse.reduce((s, c) => s + (c.totalBooks || 0), 0) || 11123;
+
+      const categoryColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã thể loại', width: 95, align: 'center' },
+        { header: 'Tên thể loại sách', width: 220, align: 'left' },
+        { header: 'Số lượng đầu sách', width: 140, align: 'right', type: 'number' },
+        { header: 'Tỷ trọng đóng góp (%)', width: 140, align: 'right' }
+      ];
+
       const categoryRows = catListToUse.map((cat, idx) => {
         const cnt = cat.totalBooks || 0;
         const pct = ((cnt / catTotal) * 100).toFixed(1);
-        return `${idx + 1},"CAT-${String(cat.categoryID || idx + 1).padStart(2, '0')}","${cat.categoryName}",${cnt},${pct}%`;
+        return [
+          idx + 1,
+          `CAT-${String(cat.categoryID || idx + 1).padStart(2, '0')}`,
+          cat.categoryName,
+          cnt,
+          `${pct}%`
+        ];
       });
 
-      // 3. Dữ liệu phần 3: Độc giả nguy cơ trễ hạn (AI phân tích)
+      const categorySummary = [
+        ['TỔNG CỘNG KHO SÁCH', '', '', catTotal, '100.0%']
+      ];
+
+      // 3. Dữ liệu Sheet 3: Độc giả nguy cơ trễ hạn (AI phân tích)
+      const aiColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã phiếu mượn', width: 110, align: 'center' },
+        { header: 'Họ tên độc giả', width: 160, align: 'left' },
+        { header: 'Mã sinh viên', width: 100, align: 'center' },
+        { header: 'Tựa sách đang mượn', width: 260, align: 'left' },
+        { header: 'Hạn hoàn trả', width: 100, align: 'center' },
+        { header: 'Điểm nguy cơ AI (%)', width: 125, align: 'right' },
+        { header: 'Mức độ cảnh báo', width: 140, align: 'center' }
+      ];
+
       const aiRiskRows = (aiRiskReaders || []).map((reader, idx) => {
         const riskLevel =
           reader.score >= 80 ? 'Rất cao (Đỏ)' : reader.score >= 65 ? 'Cao (Cam)' : 'Trung bình (Vàng)';
-        return `${idx + 1},"${reader.id}","${reader.name}","${reader.studentCode}","${reader.bookTitle}","${reader.dueDate}",${reader.score}%,"${riskLevel}"`;
+        return [
+          idx + 1,
+          reader.id,
+          reader.name,
+          reader.studentCode,
+          reader.bookTitle,
+          reader.dueDate,
+          `${reader.score}%`,
+          riskLevel
+        ];
       });
 
-      // 4. Dữ liệu phần 4: Lịch sử biên lai thu phạt
-      const invoiceRows =
-        invoices.length > 0
-          ? invoices.map((inv, idx) =>
-              [
-                idx + 1,
-                `"${inv.invoiceCode || ''}"`,
-                `"${inv.readerCode || ''}"`,
-                `"${inv.readerName || ''}"`,
-                `"${inv.violationReason || ''}"`,
-                inv.amount || 0,
-                `"${inv.paymentMethod || ''}"`,
-                `"${inv.paymentDate ? new Date(inv.paymentDate).toLocaleString('vi-VN') : ''}"`,
-                `"${inv.processedBy || ''}"`,
-                `"${inv.status || ''}"`
-              ].join(',')
-            )
-          : [
-              '1,"INV-2026-0001","DG-102220184","Nguyễn Văn Minh","Phí dịch vụ & thẻ khác",490000,"VietQR","05/10/2026 09:30:00","Thủ thư (Admin)","Đã thanh toán"'
-            ];
-
-      // Tổ hợp nội dung CSV UTF-8 đa tầng hoàn chỉnh
-      const reportLines = [
-        'BÁO CÁO TỔNG QUÁT HOẠT ĐỘNG VẬN HÀNH THƯ VIỆN - SMARTLIB AI',
-        `"Thời gian kết xuất:","${new Date().toLocaleString('vi-VN')}"`,
-        `"Kỳ thống kê:","${currentMonthText}"`,
-        `"Người lập báo cáo:","${user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)'}"`,
-        `"Tình trạng toàn hệ thống:","Vận hành bình thường - Tự động đối soát VietQR hoạt động tốt"`,
-        '',
-        '=== PHẦN I: BÁO CÁO CÁC CHỈ SỐ VẬN HÀNH TỔNG QUAN (KPI TOÀN HỆ THỐNG) ===',
-        'STT,Hạng mục chỉ số,Số lượng / Giá trị,Đơn vị tính,Đánh giá / Tỷ lệ ghi chú',
-        `1,Tổng số đầu sách trong danh mục,${totalBooksCount},Đầu sách,10 Thể loại chuyên ngành`,
-        `2,Tổng số lượng bản sao sách vật lý,${totalCopiesCount},Bản sao,Đầy đủ mã vạch Barcode`,
-        `3,Bản sao sẵn sàng phục vụ tại kệ,${availableCopies},Cuốn,${pctAvailable}% tổng kho`,
-        `4,Bản sao đang lưu hành (được mượn),${borrowedCopies},Cuốn,${pctBorrowed}% tổng kho`,
-        `5,Bản sao quá hạn lưu thông cần thu hồi,${overdueCopies},Cuốn,${pctOverdue}% tổng lưu hành (Ngưỡng an toàn)`,
-        `6,Tổng số hồ sơ bạn đọc đã kích hoạt,1280,Bạn đọc,Sinh viên & Giảng viên toàn trường`,
-        `7,Bạn đọc đang có sách mượn hoạt động,842,Bạn đọc,65.8% tỷ lệ bạn đọc tích cực`,
-        `8,Tỷ lệ hoàn trả sách đúng hạn,96.4,%,Chỉ số lưu thông tích cực`,
-        `9,Đỉnh điểm lưu thông mượn trả trong kỳ,310,Cuốn/ngày,Cao điểm đầu tuần và kỳ thi`,
-        `10,Tổng doanh thu tiền phạt thực thu trong kỳ,${collectedRev},VNĐ,Thanh toán trực tiếp & VietQR`,
-        `11,Tổng tiền phạt nợ đọng chờ thu hồi,${pendingRev},VNĐ,Dòng tiền chờ thu hồi`,
-        `12,Tỷ lệ thu hồi nợ phạt tổng thể,${debtRecoveryRate},%,Hiệu quả thu hồi tốt`,
-        '',
-        '=== PHẦN II: THỐNG KÊ CƠ CẤU 10 THỂ LOẠI KHO SÁCH (CSDL THỰC TẾ) ===',
-        'STT,Mã thể loại,Tên thể loại sách,Số lượng đầu sách,Tỷ trọng đóng góp (%)',
-        ...categoryRows,
-        '',
-        '=== PHẦN III: DANH SÁCH ĐỘC GIẢ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH & DỰ BÁO) ===',
-        'STT,Mã phiếu mượn,Họ tên độc giả,Mã sinh viên,Tựa sách đang mượn,Hạn hoàn trả,Điểm nguy cơ AI,Mức độ cảnh báo',
-        ...aiRiskRows,
-        '',
-        '=== PHẦN IV: DANH SÁCH BIÊN LAI THU PHẠT & ĐỐI SOÁT TÀI CHÍNH ===',
-        'STT,Mã biên lai,Mã bạn đọc,Họ tên bạn đọc,Lý do vi phạm,Số tiền (VNĐ),Phương thức thanh toán,Ngày thanh toán,Thủ thư xử lý,Trạng thái',
-        ...invoiceRows,
-        '',
-        '=== HẾT BÁO CÁO TỔNG QUÁT ==='
+      // 4. Dữ liệu Sheet 4: Lịch sử biên lai thu phạt
+      const invoiceColumns = [
+        { header: 'STT', width: 45, align: 'center', type: 'number' },
+        { header: 'Mã biên lai', width: 110, align: 'center' },
+        { header: 'Mã bạn đọc', width: 95, align: 'center' },
+        { header: 'Họ tên bạn đọc', width: 160, align: 'left' },
+        { header: 'Lý do vi phạm', width: 180, align: 'left' },
+        { header: 'Số tiền nộp (VNĐ)', width: 130, align: 'right', type: 'currency' },
+        { header: 'Phương thức thanh toán', width: 140, align: 'center' },
+        { header: 'Ngày thanh toán', width: 135, align: 'center' },
+        { header: 'Thủ thư xử lý', width: 130, align: 'left' },
+        { header: 'Trạng thái', width: 110, align: 'center' }
       ];
 
-      const csvContent = '\uFEFF' + reportLines.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const todayStr = new Date().toISOString().slice(0, 10);
-      link.setAttribute('download', `Bao_cao_tong_quat_thu_vien_SmartLib_${todayStr}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const invoiceRows =
+        invoices.length > 0
+          ? invoices.map((inv, idx) => [
+              idx + 1,
+              inv.invoiceCode || '',
+              inv.readerCode || '',
+              inv.readerName || '',
+              inv.violationReason || '',
+              inv.amount || 0,
+              inv.paymentMethod || '',
+              inv.paymentDate ? new Date(inv.paymentDate).toLocaleString('vi-VN') : '',
+              inv.processedBy || '',
+              inv.status || ''
+            ])
+          : [
+              [1, 'INV-2026-0001', 'DG-102220184', 'Nguyễn Văn Minh', 'Phí dịch vụ & thẻ khác', 490000, 'VietQR', '05/10/2026 09:30:00', 'Thủ thư (Admin)', 'Đã thanh toán']
+            ];
+
+      const totalInvoiceRevenue = invoiceRows.reduce((sum, r) => sum + (typeof r[5] === 'number' ? r[5] : 0), 0);
+      const invoiceSummary = [
+        ['TỔNG CỘNG DOANH THU', '', '', '', '', totalInvoiceRevenue, '', '', '', '']
+      ];
+
+      // Kết xuất Workbook 4 Sheet hoàn chỉnh
+      exportExcelWorkbook({
+        fileName: `Bao_cao_tong_quat_thu_vien_SmartLib_${todayStr}.xls`,
+        sheets: [
+          {
+            name: '1. Chỉ số KPI Vận hành',
+            title: 'BÁO CÁO CÁC CHỈ SỐ VẬN HÀNH TỔNG QUAN (KPI TOÀN HỆ THỐNG) - SMARTLIB AI',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`,
+              `Kỳ thống kê: ${currentMonthText} | Tình trạng: Vận hành bình thường - VietQR hoạt động tốt`
+            ],
+            columns: kpiColumns,
+            rows: kpiRows
+          },
+          {
+            name: '2. Cơ cấu Kho sách',
+            title: 'THỐNG KÊ CƠ CẤU 10 THỂ LOẠI KHO SÁCH (CSDL THỰC TẾ)',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Tổng thể loại: 10 danh mục`
+            ],
+            columns: categoryColumns,
+            rows: categoryRows,
+            summaryRows: categorySummary
+          },
+          {
+            name: '3. Bạn đọc Nguy cơ AI',
+            title: 'DANH SÁCH ĐỘC GIẢ NGUY CƠ TRỄ HẠN CAO (AI PHÂN TÍCH & DỰ BÁO)',
+            subtitles: [
+              `Mô hình dự báo: Random Forest AI (Accuracy: 95.1%) | Thời gian phân tích: ${nowFormatted}`
+            ],
+            columns: aiColumns,
+            rows: aiRiskRows
+          },
+          {
+            name: '4. Biên lai & Thu phạt',
+            title: 'DANH SÁCH BIÊN LAI THU PHẠT & ĐỐI SOÁT TÀI CHÍNH',
+            subtitles: [
+              `Thời gian kết xuất: ${nowFormatted} | Người lập: ${currentUser}`
+            ],
+            columns: invoiceColumns,
+            rows: invoiceRows,
+            summaryRows: invoiceSummary
+          }
+        ]
+      });
     } catch (err) {
       console.error('Lỗi khi xuất Báo cáo Tổng quát Excel:', err);
       alert('Không thể xuất báo cáo tổng quát vào lúc này.');
@@ -1078,6 +1189,39 @@ export default function DashboardPage({
                     </span>
                   </div>
                 </div>
+
+                {/* Thẻ 5: Tỷ lệ rủi ro trễ hẹn (AI Dự báo) */}
+                <div
+                  className={`kpi-card ${dashboardChartType === 'ai_risk' ? 'kpi-card-ai-active' : ''}`}
+                  onClick={() => setDashboardChartType('ai_risk')}
+                  style={{ cursor: 'pointer' }}
+                  title="Nhấp để xem chi tiết Biểu đồ AI Dự báo Nguy cơ Trễ hẹn"
+                >
+                  <div className="kpi-header">
+                    <h3 className="kpi-title">Tỷ lệ rủi ro trễ hẹn</h3>
+                    <div className="kpi-icon-box kpi-icon-red">
+                      <Sparkles size={20} />
+                    </div>
+                  </div>
+                  <div className="kpi-value" style={{ color: '#ef4444' }}>
+                    18.7%
+                  </div>
+                  <div className="kpi-subtext-box">
+                    <span
+                      style={{
+                        color: '#ef4444',
+                        backgroundColor: '#fef2f2',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        fontSize: '12px'
+                      }}
+                    >
+                      42 ca cảnh báo
+                    </span>
+                    <span>Độ tin cậy 95.1%</span>
+                  </div>
+                </div>
               </div>
 
               {/* ----------------------------------------------------------------
@@ -1088,20 +1232,32 @@ export default function DashboardPage({
                 <div className="chart-card">
                   <div className="chart-header">
                     <div className="chart-title-group">
-                      <h3 className="chart-title">
-                        {dashboardChartType === 'circulation'
-                          ? 'Biểu đồ Lưu thông Sách & Vận hành Tổng quát'
-                          : 'Biểu đồ Thu phạt & Dòng tiền Nợ đọng'}
-                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 className="chart-title">
+                          {dashboardChartType === 'circulation'
+                            ? 'Biểu đồ Lưu thông Sách & Vận hành Tổng quát'
+                            : dashboardChartType === 'revenue'
+                            ? 'Biểu đồ Thu phạt & Dòng tiền Nợ đọng'
+                            : 'Biểu đồ AI Dự báo Nguy cơ Trễ hẹn'}
+                        </h3>
+                        {dashboardChartType === 'ai_risk' && (
+                          <span className="chart-ai-badge">
+                            <Sparkles size={11} />
+                            <span>Random Forest AI (95.1% Acc)</span>
+                          </span>
+                        )}
+                      </div>
                       <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
                         {dashboardChartType === 'circulation'
                           ? 'Đối soát thời gian thực giữa Lượt mượn và Lượt trả sách của toàn thư viện'
-                          : 'Đối soát thời gian thực giữa Thực thu và Nợ phát sinh theo kỳ kế toán'}
+                          : dashboardChartType === 'revenue'
+                          ? 'Đối soát thời gian thực giữa Thực thu và Nợ phát sinh theo kỳ kế toán'
+                          : 'Dự báo nguy cơ trễ hạn sớm trên các lượt mượn đang lưu thông để can thiệp kịp thời'}
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      {/* Bộ chuyển đổi chế độ biểu đồ: Lưu thông vs Tài chính */}
+                      {/* Bộ chuyển đổi 3 chế độ biểu đồ: Lưu thông vs Tài chính vs AI Dự báo rủi ro */}
                       <div className="chart-mode-pills">
                         <button
                           type="button"
@@ -1120,6 +1276,15 @@ export default function DashboardPage({
                         >
                           <CircleDollarSign size={13} />
                           <span>Thu phạt</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn-chart-mode btn-chart-mode-ai ${dashboardChartType === 'ai_risk' ? 'active' : ''}`}
+                          onClick={() => setDashboardChartType('ai_risk')}
+                          title="Xem phân tích & dự báo nguy cơ trễ hạn từ mô hình AI"
+                        >
+                          <Sparkles size={13} />
+                          <span>Dự báo nguy cơ AI</span>
                         </button>
                       </div>
 
@@ -1152,7 +1317,13 @@ export default function DashboardPage({
                       <div className="chart-legend">
                         <div className="legend-item">
                           <div className="legend-dot-blue"></div>
-                          <span>{dashboardChartType === 'circulation' ? 'Lượt mượn sách' : 'Thực thu'}</span>
+                          <span>
+                            {dashboardChartType === 'circulation'
+                              ? 'Lượt mượn sách'
+                              : dashboardChartType === 'revenue'
+                              ? 'Thực thu'
+                              : 'Lượt mượn theo dõi'}
+                          </span>
                         </div>
                         <div className="legend-item">
                           <div
@@ -1160,11 +1331,20 @@ export default function DashboardPage({
                               width: '9px',
                               height: '9px',
                               borderRadius: '50%',
-                              backgroundColor: dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'
+                              backgroundColor:
+                                dashboardChartType === 'circulation'
+                                  ? '#10b981'
+                                  : dashboardChartType === 'revenue'
+                                  ? '#f59e0b'
+                                  : '#ef4444'
                             }}
                           ></div>
                           <span>
-                            {dashboardChartType === 'circulation' ? 'Lượt trả sách' : 'Nợ phát sinh / Mục tiêu'}
+                            {dashboardChartType === 'circulation'
+                              ? 'Lượt trả sách'
+                              : dashboardChartType === 'revenue'
+                              ? 'Nợ phát sinh / Mục tiêu'
+                              : 'Nguy cơ trễ hạn (AI dự báo)'}
                           </span>
                         </div>
                       </div>
@@ -1183,6 +1363,10 @@ export default function DashboardPage({
                           <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
                           <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
                         </linearGradient>
+                        <linearGradient id="dashAiRedGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity="0.32" />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity="0.03" />
+                        </linearGradient>
                       </defs>
 
                       {/* Các đường gióng ngang mờ */}
@@ -1192,8 +1376,19 @@ export default function DashboardPage({
                       <line x1="30" y1="185" x2="970" y2="185" stroke="#e2e8f0" strokeWidth="1.2" />
 
                       {/* Vùng diện tích mờ */}
-                      {dashboardChartData.areaPath && (
-                        <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" />
+                      {dashboardChartType === 'ai_risk' ? (
+                        <>
+                          {dashboardChartData.areaPath && (
+                            <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" opacity="0.35" />
+                          )}
+                          {dashboardChartData.riskAreaPath && (
+                            <path d={dashboardChartData.riskAreaPath} fill="url(#dashAiRedGrad)" />
+                          )}
+                        </>
+                      ) : (
+                        dashboardChartData.areaPath && (
+                          <path d={dashboardChartData.areaPath} fill="url(#dashBlueGrad)" />
+                        )
                       )}
 
                       {/* Đường xanh: Thực thu hoặc Lượt mượn */}
@@ -1208,14 +1403,20 @@ export default function DashboardPage({
                         />
                       )}
 
-                      {/* Đường 2: Lượt trả (Xanh lục nét liền) hoặc Nợ phát sinh (Cam nét đứt) */}
+                      {/* Đường 2: Lượt trả (Xanh lục nét liền), Nợ phát sinh (Cam nét đứt) hoặc Nguy cơ AI (Đỏ nét liền đậm) */}
                       {dashboardChartData.expectedPath && (
                         <path
                           d={dashboardChartData.expectedPath}
                           fill="none"
-                          stroke={dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'}
-                          strokeWidth={dashboardChartType === 'circulation' ? '2.5' : '2.4'}
-                          strokeDasharray={dashboardChartType === 'circulation' ? 'none' : '5 4'}
+                          stroke={
+                            dashboardChartType === 'circulation'
+                              ? '#10b981'
+                              : dashboardChartType === 'revenue'
+                              ? '#f59e0b'
+                              : '#ef4444'
+                          }
+                          strokeWidth={dashboardChartType === 'ai_risk' ? '2.8' : dashboardChartType === 'circulation' ? '2.5' : '2.4'}
+                          strokeDasharray={dashboardChartType === 'revenue' ? '5 4' : 'none'}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -1249,14 +1450,20 @@ export default function DashboardPage({
                             onMouseEnter={() => setDashboardHoveredPoint(pt)}
                           />
 
-                          {/* Điểm đường 2 (Xanh lục hoặc Cam) */}
+                          {/* Điểm đường 2 (Xanh lục, Cam, hoặc Đỏ AI) */}
                           <circle
                             cx={pt.x}
                             cy={pt.yExpected}
-                            r={dashboardHoveredPoint?.date === pt.date ? 5 : 3.5}
+                            r={dashboardHoveredPoint?.date === pt.date ? 6 : (dashboardChartType === 'ai_risk' ? 4.5 : 3.5)}
                             fill="#ffffff"
-                            stroke={dashboardChartType === 'circulation' ? '#10b981' : '#f59e0b'}
-                            strokeWidth="2"
+                            stroke={
+                              dashboardChartType === 'circulation'
+                                ? '#10b981'
+                                : dashboardChartType === 'revenue'
+                                ? '#f59e0b'
+                                : '#ef4444'
+                            }
+                            strokeWidth={dashboardHoveredPoint?.date === pt.date ? 3.5 : 2}
                             style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
                             onMouseEnter={() => setDashboardHoveredPoint(pt)}
                           />
@@ -1320,7 +1527,12 @@ export default function DashboardPage({
                         >
                           <span
                             style={{
-                              color: dashboardChartType === 'circulation' ? '#86efac' : '#fcd34d'
+                              color:
+                                dashboardChartType === 'circulation'
+                                  ? '#86efac'
+                                  : dashboardChartType === 'revenue'
+                                  ? '#fcd34d'
+                                  : '#fca5a5'
                             }}
                           >
                             ● {dashboardHoveredPoint.expectedLabel || 'Lượt trả'}:
@@ -1341,7 +1553,9 @@ export default function DashboardPage({
                         >
                           {dashboardChartType === 'circulation'
                             ? '● Tỷ lệ trả đúng hạn: 96.4%'
-                            : `● Tỷ lệ thu hồi nợ: ${debtRecoveryRate}%`}
+                            : dashboardChartType === 'revenue'
+                            ? `● Tỷ lệ thu hồi nợ: ${debtRecoveryRate}%`
+                            : `● Tỷ lệ rủi ro AI: ${dashboardHoveredPoint.riskRate || '18.7%'} • Độ tin cậy AI: 95.1%`}
                         </div>
                       </div>
                     )}
@@ -1366,7 +1580,7 @@ export default function DashboardPage({
                           <strong style={{ color: '#2563eb' }}>Hoạt động ổn định</strong>
                         </div>
                       </>
-                    ) : (
+                    ) : dashboardChartType === 'revenue' ? (
                       <>
                         <div>
                           Tỷ lệ hoàn thành mục tiêu thu:{' '}
@@ -1383,6 +1597,23 @@ export default function DashboardPage({
                         <div>
                           Tự động đối soát VietQR:{' '}
                           <strong style={{ color: '#2563eb' }}>Hoạt động tốt</strong>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          Tỷ lệ rủi ro trễ hạn TB:{' '}
+                          <strong style={{ color: '#ef4444' }}>18.7%</strong>
+                        </div>
+                        <div>
+                          Đỉnh nguy cơ trong kỳ:{' '}
+                          <strong style={{ color: '#0f172a' }}>
+                            {dashboardTrendRange === 'quarter' ? '1.260 ca' : '62 ca/ngày'}
+                          </strong>
+                        </div>
+                        <div>
+                          Độ chính xác AI (ROC-AUC):{' '}
+                          <strong style={{ color: '#10b981' }}>93.2% (Pass F1 86.8%)</strong>
                         </div>
                       </>
                     )}

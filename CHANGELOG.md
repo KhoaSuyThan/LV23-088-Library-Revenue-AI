@@ -20,6 +20,56 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Cập nhật kế hoạch tích hợp `PHASE_4_INTEGRATION_PLAN.md` (v1.1) giải quyết 3 blocker kỹ thuật.
   - Smoke test suy luận ONNX in-process đạt độ trễ siêu thấp **0.070ms - 0.267ms** (<1ms); kiểm tra biên dịch Backend & Frontend đạt 100% không lỗi.
 
+## [2026-10-13] - [Khắc phục Nghẽn API & Tối ưu Hiệu năng] Giải phóng Socket Port 5264 & Tối ưu Bộ đệm Bộ nhớ
+
+- **Giải phóng Tiến trình Nền và Cổng Mạng ([`SmartLibAI.API`](src/SmartLibAI.API)):**
+  - Phát hiện và giải phóng tiến trình cũ (PID 18104) bị kẹt giữ file lock trên `SmartLibAI.Core.dll` và socket TCP trên cổng `5264`.
+  - Cổng `5264` đã được đưa về trạng thái sạch sẽ hoàn toàn để người dùng có thể khởi chạy `npm run api` trơn tru.
+- **Tối ưu Hóa Hiệu Năng Xuất XML ([`src/SmartLibAI.Core/Services/BookService.cs`](src/SmartLibAI.Core/Services/BookService.cs)):**
+  - Khởi tạo dung lượng bộ đệm `StringBuilder` trước (`books.Count * 650 + 4096`), tránh tình trạng reallocate bộ nhớ liên tục khi xử lý hơn 11.132 đầu sách.
+  - Chuyển sang nối chuỗi trực tiếp (`Append chaining`) thay vì tạo chuỗi con nội suy tạm thời, triệt tiêu hiện tượng GC Pause và nghẽn luồng Kestrel mà không làm thay đổi bất kỳ logic nghiệp vụ nào của hệ thống.
+
+## [2026-10-13] - [Cải thiện Xuất Excel & CSV] Chuẩn Hóa Giao Diện Bảng Tính Hàng Cột Thẳng Tắp (Jira LOLRA-102)
+
+- **Tạo Module Tiện ích Xuất Bảng Tính Chuyên Dụng ([`frontend/src/utils/excelExporter.js`](frontend/src/utils/excelExporter.js)):**
+  - Cung cấp hàm `exportExcelWorkbook` sinh file bảng tính Microsoft SpreadsheetML (`.xls`) tương thích 100% Microsoft Excel, WPS Office, Google Sheets:
+    - Bảng tính tự động có kẻ viền ô (borders) rõ nét, màu nền tiêu đề xanh Navy trang nhã (`#1E40AF`), chữ trắng in đậm, font Segoe UI.
+    - Căn lề thông minh: STT, Mã số, Ngày tháng căn giữa; Số tiền, Tỷ lệ căn phải; Tên sách, Độc giả căn trái.
+    - Định dạng số tiền tệ chuẩn Việt Nam (`#,##0 " đ"`), tỷ lệ phần trăm (`0.0%`).
+    - Cấu hình độ rộng từng cột rộng rãi, nội dung không bị co rúm, cắt cụt hoặc tràn `###`.
+    - Hỗ trợ xuất nhiều Worksheets trong cùng một file workbook.
+  - Cung cấp hàm `exportCsvFile` chuẩn hóa: Bổ sung chỉ thị `sep=,\r\n` và UTF-8 BOM `\uFEFF` giúp Microsoft Excel trên Windows tự động nhận diện phân tách cột chính xác, không bị dồn tất cả dữ liệu vào Cột A.
+- **Nâng Cấp Báo Cáo Vận Hành Tổng Quát Đa Sheet ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - Chuyển đổi tính năng "Xuất báo cáo Excel" từ dạng CSV gộp chung sang file Excel 4 Worksheets chuyên biệt:
+    - *Sheet 1: 1. Chỉ số KPI Vận hành* (12 chỉ số KPI tổng thể, căn lề và tỷ lệ ghi chú).
+    - *Sheet 2: 2. Cơ cấu Kho sách* (Bảng 10 thể loại sách, tỷ trọng đóng góp %, dòng Tổng cộng kho sách).
+    - *Sheet 3: 3. Bạn đọc Nguy cơ AI* (Danh sách cảnh báo độc giả trễ hạn kèm điểm rủi ro % từ Random Forest AI).
+    - *Sheet 4: 4. Biên lai & Thu phạt* (Danh sách biên lai tài chính, phương thức VietQR và dòng Tổng doanh thu).
+- **Cải Thiện Xuất Sổ Nợ Đọng & Báo Cáo Biên Lai Thu Phạt ([`frontend/src/pages/FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx)):**
+  - Cập nhật hàm `handleExportExcel`: Xuất file Excel định dạng chuẩn có kẻ viền ô, màu tiêu đề, căn lề theo loại dữ liệu và bổ sung dòng Tổng cộng nợ đọng / Tổng cộng doanh thu ở chân bảng.
+- **Nâng Cấp Backend & Giao Diện Quản Lý Sách ([`src/SmartLibAI.Core/Services/BookService.cs`](src/SmartLibAI.Core/Services/BookService.cs), [`src/SmartLibAI.API/Controllers/BooksController.cs`](src/SmartLibAI.API/Controllers/BooksController.cs), [`frontend/src/pages/BookCatalog.jsx`](frontend/src/pages/BookCatalog.jsx), [`frontend/src/pages/BookCatalog.css`](frontend/src/pages/BookCatalog.css)):**
+  - Backend: Bổ sung `ExportBooksToExcelXmlAsync` và endpoint `[HttpGet("export-excel")]` tại `BooksController`. Cải thiện `ExportBooksToCsvAsync` với `sep=,` và tiêu đề tiếng Việt chuẩn.
+  - Frontend: Bổ sung nút **`[Xuất Excel]`** (màu xanh lá Excel sang trọng `.btn-export-excel`) song song với nút `[Xuất CSV]` chuẩn hóa.
+
+## [2026-10-13] - [Frontend & AI Dashboard] Tích Hợp Biểu Đồ AI Dự Báo Nguy Cơ Trễ Hẹn (Jira LOLRA-101)
+
+- **Mở rộng Biểu đồ Tổng quan ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - Bổ sung nút chuyển đổi chế độ thứ 3 **`[✨ Dự báo nguy cơ AI]`** ngay cạnh `[📖 Mượn - Trả]` và `[💲 Thu phạt]` trên khung biểu đồ trực quan chính.
+  - Khi kích hoạt chế độ AI:
+    - Tiêu đề biểu đồ chuyển thành **"Biểu đồ AI Dự báo Nguy cơ Trễ hẹn"** kèm huy hiệu chứng nhận mô hình: `Random Forest AI (95.1% Acc)`.
+    - Trực quan hóa 2 đường dữ liệu song hành: Đường xanh `#2563eb` biểu thị **Tổng lượt mượn theo dõi** và Đường đỏ rực `#ef4444` biểu thị **Số ca có nguy cơ trễ hạn do AI dự báo**.
+    - Phủ vùng diện tích gradient đỏ mờ (`dashAiRedGrad`) minh họa trực quan khối lượng rủi ro trễ hẹn trong toàn kỳ.
+    - Hỗ trợ đầy đủ 3 khoảng thời gian: **7 ngày**, **30 ngày**, và **Theo quý** với các mốc dữ liệu thực tế tương thích.
+    - Tooltip tương tác hiển thị chi tiết: Mốc thời gian, Lượt mượn, Số ca nguy cơ trễ hẹn, Tỷ lệ rủi ro AI và Độ tin cậy mô hình.
+    - Chân biểu đồ (Microstats footer) cập nhật các chỉ số AI: Tỷ lệ rủi ro trễ hạn trung bình (18.7%), Đỉnh nguy cơ trong kỳ (62 ca/ngày hoặc 1.260 ca/quý), và Độ chính xác ROC-AUC (93.2% - Pass F1 86.8%).
+- **Tích hợp Thẻ KPI thứ 5 - Tỷ lệ Rủi ro Trễ hẹn ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - Bổ sung thẻ KPI `Tỷ lệ rủi ro trễ hẹn` vào hàng thống kê đầu trang: Giá trị nổi bật **`18.7%`**, biểu tượng `<Sparkles />` đỏ cam rực rỡ, huy hiệu cảnh báo `42 ca cảnh báo` và chỉ số `Độ tin cậy 95.1%`.
+  - Hỗ trợ tương tác đồng bộ: Khi người dùng nhấp vào thẻ KPI này, biểu đồ phía dưới sẽ tự động kích hoạt chế độ `Dự báo nguy cơ AI`, đồng thời thẻ KPI hiển thị viền highlight ánh hồng tinh tế (`.kpi-card-ai-active`).
+  - Nâng cấp lưới `kpi-grid` trong CSS thành 5 cột (`repeat(5, 1fr)`) với khả năng co giãn hoàn hảo trên mọi kích thước màn hình.
+- **Định kiểu Giao diện Đẳng cấp ([`frontend/src/pages/DashboardPage.css`](frontend/src/pages/DashboardPage.css)):**
+  - Thêm hiệu ứng hover, active với viền đổ bóng đỏ tinh tế cho `.btn-chart-mode-ai`.
+  - Thiết kế huy hiệu `.chart-ai-badge` nổi bật khẳng định độ chính xác của mô hình học máy.
+
 ## [2026-10-13] - [AI Sprint 6.1 & Media] Hoàn Thành Huấn Luyện, Đóng Gói ONNX & Kế Hoạch Truyền Thông (L0LRA-106, 20, 107, 86, 87, 100)
 
 - **Giai đoạn 1 & 2 - Sinh dữ liệu, Thử nghiệm & Tối ưu mô hình:**

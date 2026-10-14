@@ -20,9 +20,14 @@ public interface IBookService
     Task<ApiResponse<BookImportResultDto>> ImportBooksFromCsvAsync(Stream fileStream);
 
     /// <summary>
-    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM).
+    /// Xuất toàn bộ danh sách sách kèm thông tin tồn kho ra tệp nhị phân CSV (UTF-8 BOM có chỉ thị sep=,).
     /// </summary>
     Task<byte[]> ExportBooksToCsvAsync();
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách ra tệp bảng tính Excel (.xls SpreadsheetML) với định dạng hàng cột, kẻ viền và màu sắc.
+    /// </summary>
+    Task<byte[]> ExportBooksToExcelXmlAsync();
 
     /// <summary>
     /// Lấy danh sách bản sao của một đầu sách (AC1, AC3).

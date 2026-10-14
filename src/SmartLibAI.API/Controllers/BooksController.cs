@@ -98,13 +98,23 @@ public class BooksController : ControllerBase
     }
 
     /// <summary>
-    /// Xuất toàn bộ danh sách sách trong thư viện ra tệp CSV (UTF-8 BOM).
+    /// Xuất toàn bộ danh sách sách trong thư viện ra tệp CSV (UTF-8 BOM có chỉ thị sep=,).
     /// </summary>
     [HttpGet("export-csv")]
     public async Task<IActionResult> ExportBooksCsv()
     {
         var csvBytes = await _bookService.ExportBooksToCsvAsync();
         return File(csvBytes, "text/csv; charset=utf-8", "smartlib_books_catalog.csv");
+    }
+
+    /// <summary>
+    /// Xuất toàn bộ danh sách sách trong thư viện ra tệp bảng tính Excel (.xls SpreadsheetML) có kẻ ô, định dạng thẩm mỹ.
+    /// </summary>
+    [HttpGet("export-excel")]
+    public async Task<IActionResult> ExportBooksExcel()
+    {
+        var excelBytes = await _bookService.ExportBooksToExcelXmlAsync();
+        return File(excelBytes, "application/vnd.ms-excel; charset=utf-8", "smartlib_books_catalog.xls");
     }
 
     /// <summary>
