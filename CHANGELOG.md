@@ -5,8 +5,19 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-14] - [Sửa Lỗi Giao Diện] Khắc Phục Lỗi Thanh Phân Trang Sát Viền Khung Tại Tab Biên Lai & AI Dự Báo
+## [2026-10-14] - Xây Dựng Hệ Thống API & Giao Diện Cảnh Báo Trễ Hạn Cho Thủ Thư (L0LRA-89) & Hoàn Thiện Phân Trang
 
+- **Hệ Thống API Cảnh Báo Trễ Hạn Cho Thủ Thư (`L0LRA-89`):**
+  - **DTOs & Interfaces (`NotificationDtos.cs`, `INotificationRepository.cs`, `INotificationService.cs`):** Định nghĩa cấu trúc thông báo, kết quả quét trễ hạn (`OverdueWarningResultDto`), tóm tắt ca quá hạn (`OverdueBorrowingItemDto`) và phân trang danh sách thông báo.
+  - **Triển khai Tầng Dữ liệu (`NotificationRepository.cs`):** Truy vấn các phiếu mượn trễ hạn hoặc sắp trễ hạn (`Status != 'Returned' && DueDate <= ThresholdDate`), cơ chế kiểm tra chống trùng lặp cảnh báo trong 24h (`HasRecentWarningAsync`) và quản lý trạng thái đã đọc.
+  - **Dịch vụ Nghiệp vụ (`NotificationService.cs`):** Quét toàn bộ hệ thống các phiếu mượn quá hạn, tự động tính số ngày trễ, tiền phạt ước tính theo `FineRules.FinePerDay` và điểm rủi ro AI; định dạng thông điệp đa tầng (`[CẢNH BÁO TRỄ HẠN]`, `[NHẮC NHỞ SẮP ĐẾN HẠN]`, `[CẢNH BÁO RỦI RO AI]`) gửi đến toàn bộ Thủ thư Admin & Staff.
+  - **RESTful API Controller ([`NotificationsController.cs`](src/SmartLibAI.API/Controllers/NotificationsController.cs)):** Cung cấp 8 endpoints phân quyền `[Authorize(Roles = "Admin,Staff")]`: `POST /api/notifications/overdue-warnings` (quét & gửi hàng loạt), `POST /api/notifications/overdue-warnings/{id}` (gửi theo phiếu), `GET /api/notifications` (danh sách phân trang), `GET /api/notifications/unread-count` (số lượng chưa đọc), `PUT/PATCH /api/notifications/{id}/read` (đánh dấu đã đọc), `POST /api/notifications/mark-all-read`, `DELETE /api/notifications/{id}` và `GET /api/notifications/overdue-summary`.
+  - **Đăng ký DI trong Backend ([`Program.cs`](src/SmartLibAI.API/Program.cs)):** Đăng ký Scoped cho `INotificationRepository` và `INotificationService`.
+- **Cổng Quản Trị Frontend React ([`DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx), [`DashboardPage.css`](frontend/src/pages/DashboardPage.css), [`notificationApi.js`](frontend/src/api/notificationApi.js)):**
+  - Xây dựng module gọi API `notificationApi.js` kết nối đầy đủ các endpoints cảnh báo và thông báo.
+  - Tích hợp Badge số thông báo chưa đọc động trên nút Quả chuông (`.header-bell-btn`) trên thanh Header cho tất cả các tab.
+  - Xây dựng Dropdown Panel hiển thị danh sách cảnh báo trễ hạn thời gian thực, nút "Quét & Cảnh báo ngay", nút "Đã đọc tất cả", phân loại huy hiệu màu (Đỏ - Trễ hạn, Vàng - Sắp đến hạn / Rủi ro AI, Xanh - Thông báo).
+  - Kết nối nút "Gửi nhắc nhở" tại bảng AI Risk Readers trực tiếp với API cảnh báo trễ hạn kèm Toast thông báo phản hồi tức thì.
 - **Tối ưu Padding & Layout Khung Tràn Viền ([`TablePagination.css`](frontend/src/components/common/TablePagination.css)):**
   - Bổ sung quy tắc CSS chuyên biệt `.revenue-table-card .table-pagination-container` và class `.table-pagination-card-bleed`: Thiết lập `padding: 16px 24px 20px 24px`, loại bỏ `margin-top: 0`, đồng bộ nền trắng và viền trên `border-top: 1px solid #f1f5f9`.
   - Khắc phục triệt để hiện tượng thanh phân trang bị dính sát mép viền trái (0px), sát mép viền phải (0px) và chạm đáy card tại 2 tab sử dụng container tràn viền:
