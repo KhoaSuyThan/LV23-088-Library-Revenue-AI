@@ -582,5 +582,140 @@
   white-space: nowrap;
 }
 
+/* ==========================================================================
+   AI RISK ASSESSMENT CARD (Story LOLRA-21)
+   Rich Aesthetics & Tinh chỉnh giao diện theo Figma
+   ========================================================================== */
+.ai-risk-card-compact {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  animation: fadeInRiskCard 0.25s ease-out;
+}
+
+@keyframes fadeInRiskCard {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-risk-tier-low {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.ai-risk-tier-medium {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fcd34d;
+}
+
+.ai-risk-tier-high {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #fca5a5;
+}
+
+.ai-risk-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-risk-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-sparkle-icon {
+  color: #7c3aed;
+}
+
+.ai-risk-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.ai-latency-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background-color: #e0e7ff;
+  color: #4338ca;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.ai-risk-badges-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.credit-score-pill {
+  font-size: 11.5px;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ai-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.ai-tier-badge.badge-success {
+  background-color: #22c55e;
+  color: #ffffff;
+}
+
+.ai-tier-badge.badge-warning {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
+
+.ai-tier-badge.badge-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.ai-risk-card-body {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ai-action-label {
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.ai-action-text {
+  color: #475569;
+}
+
 
 

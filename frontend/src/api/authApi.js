@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Địa chỉ cổng API Backend .NET 10 (Kestrel HTTP)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5264';
+// Địa chỉ cổng API Backend .NET 10 (Sử dụng 127.0.0.1 để tránh lỗi nghẽn socket IPv6 ::1 trên Windows Chrome)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5264';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

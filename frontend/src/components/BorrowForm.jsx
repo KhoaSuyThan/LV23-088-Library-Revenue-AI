@@ -5,11 +5,13 @@ import {
   X,
   Calendar,
   AlertTriangle,
+  AlertCircle,
   Loader2,
   BookOpen,
   CheckCircle2,
   Trash2,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 import { borrowApi } from '../api/borrowApi';
 import { rulesApi } from '../api/rulesApi';
@@ -775,6 +777,39 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
             )}
           </div>
         </div>
+
+        {/* Card thẩm định rủi ro AI ONNX Runtime theo thời gian thực (Story LOLRA-21) */}
+        {readerInfo && (
+          <div className={`ai-risk-card-compact ai-risk-tier-${readerInfo.aiRiskTier?.toLowerCase() || 'low'}`}>
+            <div className="ai-risk-card-header">
+              <div className="ai-risk-title-group">
+                <Sparkles size={15} className="ai-sparkle-icon" />
+                <span className="ai-risk-title">THẨM ĐỊNH RỦI RO AI</span>
+                <span className="ai-latency-badge" title="Mô hình ONNX Runtime chạy in-process">&lt;1ms</span>
+              </div>
+              <div className="ai-risk-badges-group">
+                <span className="credit-score-pill" title="Điểm tín nhiệm độc giả trong hệ thống">
+                  Tín nhiệm: <strong>{readerInfo.creditScore ?? 100}/100</strong>
+                </span>
+                <span className={`ai-tier-badge badge-${readerInfo.aiRiskBadgeColor || 'success'}`}>
+                  {readerInfo.aiRiskTier === 'High' ? (
+                    <><AlertTriangle size={12} /> RỦI RO CAO ({((readerInfo.aiRiskScore ?? 0) * 100).toFixed(1)}%)</>
+                  ) : readerInfo.aiRiskTier === 'Medium' ? (
+                    <><AlertCircle size={12} /> RỦI RO VỪA ({((readerInfo.aiRiskScore ?? 0) * 100).toFixed(1)}%)</>
+                  ) : (
+                    <><CheckCircle2 size={12} /> AN TOÀN ({((readerInfo.aiRiskScore ?? 0) * 100).toFixed(1)}%)</>
+                  )}
+                </span>
+              </div>
+            </div>
+            {readerInfo.aiSuggestedAction && (
+              <div className="ai-risk-card-body">
+                <span className="ai-action-label">Khuyến nghị AI:</span>
+                <span className="ai-action-text">{readerInfo.aiSuggestedAction}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ô quét mã vạch sách & Hạn trả dự kiến */}
         <div className="form-two-cols">
