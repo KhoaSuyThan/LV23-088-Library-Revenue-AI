@@ -22,10 +22,14 @@ import {
   ArrowUpRight,
   TrendingUp,
   RotateCw,
-  CheckCircle2
+  CheckCircle2,
+  CheckCheck,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { authApi, apiClient } from '../api/authApi';
 import { invoiceApi } from '../api/invoiceApi';
+import { notificationApi } from '../api/notificationApi';
 import { exportExcelWorkbook } from '../utils/excelExporter';
 import LibrarySettings from './LibrarySettings';
 import ReaderProfiles from './ReaderProfiles';
@@ -59,6 +63,14 @@ export default function DashboardPage({
   const [readerSearch, setReaderSearch] = React.useState('');
   const [circulationSearch, setCirculationSearch] = React.useState('');
   const [revenueSearch, setRevenueSearch] = React.useState('');
+
+  // Quản lý trạng thái hệ thống cảnh báo trễ hạn và thông báo Thủ thư
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
+  const [notificationsList, setNotificationsList] = React.useState([]);
+  const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
+  const [isScanningWarnings, setIsScanningWarnings] = React.useState(false);
+  const [notificationToast, setNotificationToast] = React.useState('');
+  const notificationRef = React.useRef(null);
 
   // Kiểm tra vai trò Admin để hiển thị mục Cài đặt quy định
   const isAdmin = user?.role === 'Admin';
@@ -213,6 +225,100 @@ export default function DashboardPage({
       window.removeEventListener('smartlib-revenue-updated', handleRevenueUpdated);
     };
   }, [loadRevenueSummary, loadGeneralStats]);
+
+  // Tải danh sách thông báo và số lượng chưa đọc của Thủ thư
+  const loadNotifications = React.useCallback(async () => {
+    try {
+      const [unreadRes, listRes] = await Promise.all([
+        notificationApi.getUnreadCount(),
+        notificationApi.getNotifications({ page: 1, pageSize: 15 })
+      ]);
+      if (unreadRes?.success) {
+        setUnreadNotificationsCount(unreadRes.data || 0);
+      }
+      if (listRes?.success && listRes.data?.items) {
+        setNotificationsList(listRes.data.items);
+      }
+    } catch (err) {
+      console.warn('Chưa nạp được thông báo:', err?.message);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  // Đóng dropdown thông báo khi click ra ngoài
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Xử lý quét và gửi cảnh báo trễ hạn cho Thủ thư
+  const handleScanAndSendOverdueWarnings = async () => {
+    setIsScanningWarnings(true);
+    try {
+      const res = await notificationApi.sendOverdueWarnings({ daysBefore: 3, includeAiAtRisk: true });
+      if (res?.success) {
+        setNotificationToast(res.message || 'Đã quét và gửi cảnh báo trễ hạn thành công!');
+        await loadNotifications();
+      } else {
+        setNotificationToast(res?.message || 'Có lỗi xảy ra khi quét cảnh báo.');
+      }
+    } catch (err) {
+      setNotificationToast(`Lỗi: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setIsScanningWarnings(false);
+      setTimeout(() => setNotificationToast(''), 4500);
+    }
+  };
+
+  // Đánh dấu toàn bộ thông báo đã đọc
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setUnreadNotificationsCount(0);
+      setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.warn('Lỗi đánh dấu đã đọc:', err);
+    }
+  };
+
+  // Đánh dấu 1 thông báo đã đọc
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await notificationApi.markAsRead(id);
+      setNotificationsList((prev) => prev.map((n) => (n.notificationID === id ? { ...n, isRead: true } : n)));
+      setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.warn('Lỗi đánh dấu đã đọc:', err);
+    }
+  };
+
+  // Gửi nhắc nhở / cảnh báo trễ hạn cho 1 phiếu mượn cụ thể
+  const handleSendReminderForBorrow = async (row) => {
+    try {
+      const numericId = parseInt(String(row.id).replace(/[^0-9]/g, ''), 10);
+      const res = await notificationApi.sendOverdueWarnings({
+        specificBorrowingId: numericId > 0 ? numericId : undefined,
+        daysBefore: 30,
+        includeAiAtRisk: true
+      });
+      setNotificationToast(res?.message || `Đã phát lệnh cảnh báo trễ hạn cho độc giả ${row.name}!`);
+      loadNotifications();
+    } catch (err) {
+      setNotificationToast(`Lỗi gửi nhắc nhở: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setTimeout(() => setNotificationToast(''), 4500);
+    }
+  };
 
   // Nhãn tháng hiện tại
   const currentMonthText = `Tháng ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`;
@@ -1026,10 +1132,6 @@ export default function DashboardPage({
                     }}
                   />
                 </div>
-
-                <button className="header-bell-btn" type="button" title="Thông báo">
-                  <Bell size={18} />
-                </button>
               </>
             ) : (
               <>
@@ -1052,6 +1154,110 @@ export default function DashboardPage({
                 </button>
               </>
             )}
+
+            {/* Chuông cảnh báo & Thông báo trễ hạn cho Thủ thư */}
+            <div className="header-bell-wrapper" ref={notificationRef}>
+              <button
+                className={`header-bell-btn ${unreadNotificationsCount > 0 ? 'has-unread' : ''} ${isNotificationOpen ? 'active' : ''}`}
+                type="button"
+                title="Cảnh báo & Thông báo Thủ thư"
+                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              >
+                <Bell size={18} />
+                {unreadNotificationsCount > 0 && (
+                  <span className="bell-badge">
+                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Panel Dropdown Thông báo */}
+              {isNotificationOpen && (
+                <div className="notification-dropdown-panel">
+                  <div className="notif-header">
+                    <div className="notif-title-group">
+                      <span className="notif-title">Cảnh báo & Thông báo Thủ thư</span>
+                      {unreadNotificationsCount > 0 && (
+                        <span className="notif-count-badge">{unreadNotificationsCount} mới</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsNotificationOpen(false)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                      title="Đóng"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="notif-actions-bar">
+                    <button
+                      type="button"
+                      className="btn-notif-scan"
+                      onClick={handleScanAndSendOverdueWarnings}
+                      disabled={isScanningWarnings}
+                      title="Quét các phiếu mượn trễ hạn hoặc sắp đến hạn để tạo thông báo cho Thủ thư"
+                    >
+                      <Sparkles size={13} />
+                      <span>{isScanningWarnings ? 'Đang quét...' : 'Quét & Cảnh báo ngay'}</span>
+                    </button>
+
+                    {unreadNotificationsCount > 0 && (
+                      <button
+                        type="button"
+                        className="btn-notif-markall"
+                        onClick={handleMarkAllNotificationsRead}
+                        title="Đánh dấu tất cả thông báo là đã đọc"
+                      >
+                        <CheckCheck size={14} />
+                        <span>Đã đọc tất cả</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="notif-list-container">
+                    {notificationsList.length > 0 ? (
+                      notificationsList.map((notif) => (
+                        <div
+                          key={notif.notificationID}
+                          className={`notif-item ${!notif.isRead ? 'unread' : ''}`}
+                          onClick={() => handleMarkNotificationRead(notif.notificationID)}
+                          title="Nhấp để đánh dấu đã đọc"
+                        >
+                          <div className="notif-item-top">
+                            <span
+                              className={
+                                notif.type === 'Overdue'
+                                  ? 'notif-badge-danger'
+                                  : notif.type === 'DueSoon'
+                                  ? 'notif-badge-warning'
+                                  : 'notif-badge-info'
+                              }
+                            >
+                              {notif.type === 'Overdue'
+                                ? 'CẢNH BÁO TRỄ HẠN'
+                                : notif.type === 'DueSoon'
+                                ? 'SẮP ĐẾN HẠN'
+                                : notif.type === 'AIRisk'
+                                ? 'RỦI RO AI'
+                                : 'THÔNG BÁO'}
+                            </span>
+                            <span className="notif-time">{notif.timeAgo || 'Vừa xong'}</span>
+                          </div>
+                          <div className="notif-message">{notif.message}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="notif-empty-box">
+                        <CheckCircle2 size={32} color="#10b981" />
+                        <span>Chưa có thông báo hoặc cảnh báo trễ hạn nào.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Thông tin người dùng đăng nhập */}
             <div className="user-profile">
@@ -1076,6 +1282,14 @@ export default function DashboardPage({
             </div>
           </div>
         </header>
+
+        {/* Banner thông báo Toast cho Thủ thư */}
+        {notificationToast && (
+          <div className="dashboard-toast-banner">
+            <Sparkles size={16} color="#60a5fa" />
+            <span>{notificationToast}</span>
+          </div>
+        )}
 
         {/* Thân nội dung phân hệ */}
         <div className="dashboard-content">
@@ -1804,7 +2018,12 @@ export default function DashboardPage({
                             </div>
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <button className="btn-reminder" type="button">
+                            <button
+                              className="btn-reminder"
+                              type="button"
+                              onClick={() => handleSendReminderForBorrow(row)}
+                              title="Gửi nhắc nhở / cảnh báo trễ hạn cho độc giả này"
+                            >
                               <Bell size={13} />
                               <span>Gửi nhắc nhở</span>
                             </button>
