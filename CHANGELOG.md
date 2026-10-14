@@ -5,6 +5,21 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-14] - [Phase 4] Tích Hợp Mô Hình AI ONNX Runtime Vào Backend .NET 10 & Frontend React (L0LRA-88, L0LRA-21)
+
+- **Backend (.NET 10 Web API - In-Process AI Inference):**
+  - Tích hợp `Microsoft.ML.OnnxRuntime` (v1.20.1) vào `SmartLibAI.Infrastructure`.
+  - Triển khai `IAIPredictionService` / `OnnxAIPredictionService` (Singleton thread-safe, mã hóa 8 đặc trưng theo `model_metadata.json`, cơ chế fallback an toàn).
+  - Mở rộng `IBorrowRepository` bổ sung đếm lịch sử quá hạn `GetOverdueHistoryCountAsync` và lưu vết dự đoán `AddAIPredictionLogAsync`.
+  - Cập nhật `BorrowService`: Tích hợp dự đoán rủi ro trễ hạn theo thời gian thực khi kiểm tra tư cách bạn đọc và tự động ghi log vào CSDL khi tạo phiếu mượn.
+  - Cấu hình đường dẫn model ONNX trong `appsettings.json` và đăng ký DI trong `Program.cs`.
+- **Frontend (React 19 - Quầy Lưu Thông & Tối ưu mạng):**
+  - Cập nhật `BorrowForm.jsx` & `BorrowForm.css`: Tích hợp thẻ thẩm định rủi ro AI thời gian thực (`CreditScore`, phân cấp rủi ro 3 mức, % xác suất trễ hạn và khuyến nghị hành động).
+  - Cập nhật `authApi.js`: Chuẩn hóa `API_BASE_URL` sang IPv4 `http://127.0.0.1:5264` khắc phục triệt để hiện tượng kẹt pool 6 TCP socket trên Windows Chrome khi kết nối `localhost` (IPv6 `::1`).
+- **Tài liệu & Đo kiểm hiệu năng:**
+  - Cập nhật kế hoạch tích hợp `PHASE_4_INTEGRATION_PLAN.md` (v1.1) giải quyết 3 blocker kỹ thuật.
+  - Smoke test suy luận ONNX in-process đạt độ trễ siêu thấp **0.070ms - 0.267ms** (<1ms); kiểm tra biên dịch Backend & Frontend đạt 100% không lỗi.
+
 ## [2026-10-13] - [Khắc phục Nghẽn API & Tối ưu Hiệu năng] Giải phóng Socket Port 5264 & Tối ưu Bộ đệm Bộ nhớ
 
 - **Giải phóng Tiến trình Nền và Cổng Mạng ([`SmartLibAI.API`](src/SmartLibAI.API)):**
@@ -36,7 +51,7 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Backend: Bổ sung `ExportBooksToExcelXmlAsync` và endpoint `[HttpGet("export-excel")]` tại `BooksController`. Cải thiện `ExportBooksToCsvAsync` với `sep=,` và tiêu đề tiếng Việt chuẩn.
   - Frontend: Bổ sung nút **`[Xuất Excel]`** (màu xanh lá Excel sang trọng `.btn-export-excel`) song song với nút `[Xuất CSV]` chuẩn hóa.
 
-## [2026-10-13] - [Frontend & AI Dashboard] Tích Hợp Biểu Đồ AI Dự Báo Nguy Cơ Trễ Hẹn
+## [2026-10-13] - [Frontend & AI Dashboard] Tích Hợp Biểu Đồ AI Dự Báo Nguy Cơ Trễ Hẹn (Jira LOLRA-101)
 
 - **Mở rộng Biểu đồ Tổng quan ([`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
   - Bổ sung nút chuyển đổi chế độ thứ 3 **`[✨ Dự báo nguy cơ AI]`** ngay cạnh `[📖 Mượn - Trả]` và `[💲 Thu phạt]` trên khung biểu đồ trực quan chính.
@@ -55,60 +70,20 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Thêm hiệu ứng hover, active với viền đổ bóng đỏ tinh tế cho `.btn-chart-mode-ai`.
   - Thiết kế huy hiệu `.chart-ai-badge` nổi bật khẳng định độ chính xác của mô hình học máy.
 
-## [2026-10-13] - [AI Sprint 6.1] Hoàn Thành Giai Đoạn 3: Đánh Giá Toàn Diện & Đóng Gói ONNX (L0LRA-87 & L0LRA-100)
+## [2026-10-13] - [AI Sprint 6.1 & Media] Hoàn Thành Huấn Luyện, Đóng Gói ONNX & Kế Hoạch Truyền Thông (L0LRA-106, 20, 107, 86, 87, 100)
 
-- **Đo kiểm Chuyên sâu & Tinh chỉnh Ngưỡng Xác suất (Task L0LRA-87):**
-  - Xây dựng script [`data/evaluate_model_comprehensive.py`](data/evaluate_model_comprehensive.py) đánh giá trên tập kiểm thử độc lập 2.000 mẫu: đạt Accuracy **95.10%**, Precision **92.02%**, Recall **82.19%**, F1-Score **86.83%**, ROC-AUC **93.17%**.
-  - Tinh chỉnh ngưỡng xác suất (Threshold Tuning): Xác định ngưỡng tối ưu $T^* = 0.50$ tối đa hóa F1-Score trên dữ liệu mất cân bằng.
-  - Xuất 2 biểu đồ phân giải cao 300 DPI: Ma trận nhầm lẫn ([`data/confusion_matrix.png`](data/confusion_matrix.png)) và Đường cong ROC ([`data/roc_curve.png`](data/roc_curve.png)).
-  - Xuất báo cáo số liệu JSON chi tiết: [`data/evaluation_metrics.json`](data/evaluation_metrics.json).
-- **Đóng gói Mô hình ONNX & Kiểm thử Đối chiếu (Task L0LRA-100):**
-  - Xây dựng script [`data/export_onnx_model.py`](data/export_onnx_model.py): Đóng gói thành công mô hình nhị phân [`data/smartlib_risk_model.onnx`](data/smartlib_risk_model.onnx) (dung lượng chỉ **4.32 MB** < 15MB, cấu hình `zipmap=False` tối ưu cho C# .NET 10).
-  - Xuất file đặc tả hợp đồng dữ liệu [`data/model_metadata.json`](data/model_metadata.json) quy định thứ tự 8 tensor đầu vào (`Float32`), tên input/output tensors và 3 phân tầng rủi ro nghiệp vụ (Cao $\ge 70\%$, Trung bình $40-69\%$, Thấp $< 40\%$).
-  - Xây dựng script [`data/smoke_test_onnx.py`](data/smoke_test_onnx.py): Chạy đối chiếu suy luận 20 mẫu ngẫu nhiên giữa file `.pkl` và `.onnx`, đạt độ lệch lớn nhất chỉ **$5.66 \times 10^{-7} < 10^{-5}$** (100% Pass), khẳng định tính tương đương toán học tuyệt đối.
-
-## [2026-10-13] - [AI Sprint 6.1] Đồng Bộ Kế Hoạch AI & Trực Quan Hóa Đối Sánh Mô Hình (L0LRA-107 & L0LRA-86)
-
-- **Đồng bộ Kế hoạch Phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md), [`PHASE_2_MODEL_TRAINING_PLAN.md`](docs/PHASE_2_MODEL_TRAINING_PLAN.md)):**
-  - Đồng bộ 100% tài liệu kỹ thuật khớp với nghiệp vụ thực tế: Cập nhật `MemberType` ('Học viên SĐH'), chuẩn hóa `BorrowDurationDays` với 4 mức thời hạn mượn (7, 14, 21, 30 ngày) theo chính sách lưu thông tài liệu thư viện trường đại học.
-  - Làm rõ thuật toán đối sánh thứ 4 là `Gradient Boosting Classifier (sklearn)` đảm bảo tính gọn nhẹ, ổn định và đồng nhất môi trường triển khai in-process.
-- **Trực quan hóa Đối sánh Mô hình AI & Độ Quan Trọng Đặc Trưng (L0LRA-107 & L0LRA-86):**
-  - Xây dựng script [`plot_model_comparison.py`](data/plot_model_comparison.py) sử dụng `matplotlib`: Xuất biểu đồ cột nhóm phân giải cao 300 DPI ([`data/model_comparison_chart.png`](data/model_comparison_chart.png)) so sánh chi tiết 4 mô hình cơ sở (Logistic Regression, Decision Tree, Random Forest, Gradient Boosting) trên 5 chỉ số đo kiểm (Accuracy, Precision, Recall, F1-Score, ROC-AUC). Tự động kích hoạt trong [`compare_baseline_models.py`](data/compare_baseline_models.py).
-  - Xây dựng script [`plot_feature_importance.py`](data/plot_feature_importance.py): Xuất biểu đồ thanh ngang phân giải cao 300 DPI ([`data/feature_importance_chart.png`](data/feature_importance_chart.png)) minh họa trực quan tỷ lệ đóng góp của 8 đặc trưng rủi ro trễ hạn. Tự động kích hoạt trong [`train_optimize_random_forest.py`](data/train_optimize_random_forest.py).
-
-## [2026-10-13] - [Documentation & AI Phase 1] Hoàn Thiện Kế Hoạch & Tiền Xử Lý Dữ Liệu AI (Sprint 6.1)
-
-- **Tài liệu Kế hoạch Tổng thể 4 giai đoạn phát triển AI ([`AI_DEVELOPMENT_PLAN.md`](docs/AI_DEVELOPMENT_PLAN.md)):**
-  - Đặc tả kiến trúc Decoupled: Huấn luyện offline bằng Python và suy luận in-process trong C# Backend .NET 10 qua thư viện `Microsoft.ML.OnnxRuntime` (không cần duy trì Python server nền, độ trễ $< 1\text{ms}$).
-  - Phân tích và lựa chọn thuật toán **Random Forest Classifier** tối ưu cho dữ liệu dạng bảng (Tabular Data) với khả năng giải thích cao (Feature Importance) và tương thích định dạng ONNX.
-  - Ánh xạ chi tiết 4 giai đoạn tương ứng với các User Stories / Tasks trên Jira (`L0LRA-106`, `L0LRA-20`, `L0LRA-107`, `L0LRA-86`, `L0LRA-87`, `L0LRA-100`, `L0LRA-88`, `L0LRA-21`).
-- **Tài liệu Kế hoạch Hành động chi tiết Giai đoạn 1 ([`PHASE_1_DATA_GENERATION_PLAN.md`](docs/PHASE_1_DATA_GENERATION_PLAN.md)):**
-  - Thiết kế Schema 8 thuộc tính đặc trưng hành vi (`Faculty`, `MemberType`, `CreditScore`, `CurrentHoldingBooks`, `HistoricalOverdueCount`, `BorrowDurationDays`, `TotalCurrentDebt`, `IsExamSeason`) và nhãn mục tiêu `IsOverdue`.
-  - Xác lập quy trình sinh 10.000 bản ghi dữ liệu mô phỏng theo phân phối xác suất thực tế (Synthetic Probabilistic Simulation), xử lý bài toán Cold-start mà không làm ảnh hưởng đến CSDL SQL Server và màn hình Quầy lưu thông.
-  - Định nghĩa pipeline mã hóa Encoders JSON và phân chia dữ liệu Train/Test theo tỷ lệ $80/20$ bằng `StratifiedShuffleSplit`.
-- **Chuẩn hóa Bộ Quy tắc & Tiêu chuẩn Dự án ([`.agents/rules/project_guidelines.md`](.agents/rules/project_guidelines.md)):**
-  - Đồng bộ các nguyên tắc: Giao tiếp, An toàn CSDL & Hệ thống, Tiêu chuẩn code, Dev workflow (React 19 + .NET 10 + In-process ONNX), Tối ưu công cụ và Quy tắc CHANGELOG 1 ngày 1 mục.
-  - Ưu tiên duy trì chuẩn Jira Conventions của nhóm (`L0LRA-<Số>-<slug>` và `L0LRA-<Số> <Tiêu đề>`).
-- **Hoàn thành Giai đoạn 1: Sinh & Tiền xử lý Dữ liệu AI (L0LRA-106 & L0LRA-20):**
-  - Xây dựng script [`generate_borrowing_dataset.py`](data/generate_borrowing_dataset.py) sinh thành công 10.000 bản ghi dữ liệu mượn trả (`borrowing_behavior_dataset.csv`) với tỷ lệ trễ hạn 20.66% theo phân phối xác suất thực tế.
-  - Xây dựng script [`preprocess_borrowing_dataset.py`](data/preprocess_borrowing_dataset.py) mã hóa nhãn danh mục `Faculty` và `MemberType`, xuất file từ điển [`encoders_metadata.json`](data/encoders_metadata.json).
-  - Phân tách thành công tập huấn luyện [`train_data.csv`](data/train_data.csv) (8.000 dòng) và kiểm thử [`test_data.csv`](data/test_data.csv) (2.000 dòng) bằng `StratifiedShuffleSplit`.
-- **Hoàn thành Bước 1 - Giai đoạn 2: Huấn luyện đối sánh 4 mô hình cơ sở (L0LRA-107):**
-  - Hiệu chỉnh ranh giới quyết định (Decision Boundary) trong [`generate_borrowing_dataset.py`](data/generate_borrowing_dataset.py) kết hợp 3% nhiễu ngẫu nhiên, đưa tỷ lệ trễ hạn về mức chuẩn thực tế 19.64%.
-  - Xây dựng script [`compare_baseline_models.py`](data/compare_baseline_models.py) huấn luyện thử nghiệm 4 thuật toán: Logistic Regression (F1: 87.10%), Gradient Boosting (F1: 85.83%), Random Forest Default (F1: 85.48%, ROC-AUC: 93.01% cao nhất) và Decision Tree (F1: 80.63%).
-- **Hoàn thành Bước 2 - Giai đoạn 2: Tinh chỉnh siêu tham số Random Forest với GridSearchCV (L0LRA-86):**
-  - Xây dựng script [`train_optimize_random_forest.py`](data/train_optimize_random_forest.py) thực hiện tìm kiếm trên 128 tổ hợp siêu tham số qua 640 lượt huấn luyện (5-Fold Stratified Cross-Validation).
-  - Tìm ra bộ tham số tối ưu (`class_weight='balanced_subsample'`, `criterion='entropy'`, `max_depth=16`, `n_estimators=100`, `min_samples_split=5`), kiểm soát hiện tượng Overfitting.
-  - Đo kiểm trên tập kiểm thử độc lập 2.000 bản ghi: đạt Accuracy 95.10%, Precision 92.51%, Recall 81.68%, ROC-AUC 93.17% và F1-Score 86.76%.
-- **Hoàn thành Bước 3 - Giai đoạn 2: Phân tích độ quan trọng đặc trưng & Lưu trữ mô hình (L0LRA-86):**
-  - Trích xuất bảng xếp hạng Feature Importance: `CreditScore` (38.49%) và `HistoricalOverdueCount` (28.62%) là 2 nhân tố chi phối chính; tiếp theo là `TotalCurrentDebt` (12.33%) và `CurrentHoldingBooks` (10.02%).
-  - Lưu cấu hình giải thích nghiệp vụ ra [`data/feature_importance.json`](data/feature_importance.json) phục vụ tính minh bạch của AI (Explainable AI).
-  - Đóng gói mô hình tối ưu ra [`data/best_random_forest.pkl`](data/best_random_forest.pkl), hoàn thành 100% Giai đoạn 2 và sẵn sàng cho Giai đoạn 3 (Export ONNX).
-
-
-
-
-
+- **Giai đoạn 1 & 2 - Sinh dữ liệu, Thử nghiệm & Tối ưu mô hình:**
+  - Sinh 10.000 bản ghi dữ liệu mượn trả (`borrowing_behavior_dataset.csv`, 8 đặc trưng hành vi, tỷ lệ quá hạn ~19.6%), tiền xử lý và chia train/test (80/20).
+  - Đối sánh 4 mô hình cơ sở; tinh chỉnh Random Forest qua GridSearchCV (128 tổ hợp, 5-fold CV) đạt Accuracy 95.10%, ROC-AUC 93.17%, F1-Score 86.76%.
+  - Phân tích Feature Importance (2 đặc trưng chi phối lớn nhất: `CreditScore` 38.5% và `HistoricalOverdueCount` 28.6%), xuất biểu đồ trực quan 300 DPI.
+- **Giai đoạn 3 - Đo kiểm toàn diện & Đóng gói ONNX:**
+  - Đo kiểm tập test 2.000 mẫu, tinh chỉnh ngưỡng xác suất tối ưu $T^* = 0.50$; xuất biểu đồ ROC curve và ma trận nhầm lẫn.
+  - Đóng gói mô hình ONNX (`smartlib_risk_model.onnx`, 4.32 MB, `zipmap=False`), xuất hợp đồng dữ liệu `model_metadata.json`.
+  - Chạy smoke test đối chiếu suy luận giữa Scikit-learn và ONNX Runtime: độ lệch tối đa $5.66 \times 10^{-7}$ (đảm bảo tương đương toán học tuyệt đối).
+- **Bộ nhận diện thương hiệu & Kế hoạch Truyền thông:**
+  - Thiết kế logo nhận diện thương hiệu SmartLib AI (`docs/assets/smartlib_logo.jpg`, `frontend/public/smartlib_logo.jpg`).
+  - Hoàn thiện kế hoạch truyền thông 2 tuần dạng 100% hình ảnh kèm 8/8 bài viết copywriting (`Truyen_Thong_SmartLib_AI_2_Tuan_v2.xlsx`).
+  - Đồng bộ tài liệu kỹ thuật (`AI_DEVELOPMENT_PLAN.md`, `PHASE_2_MODEL_TRAINING_PLAN.md`) và chuẩn hóa bộ quy tắc `.agents/rules/project_guidelines.md`.
 
 ## [2026-10-12] - [Ràng Buộc & Tùy Chỉnh Số Ngày Mượn Tiêu Chuẩn Theo Setting]
 
