@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Bell,
   CheckCircle2
 } from 'lucide-react';
+import TablePagination from '../common/TablePagination';
 
 /**
  * Các điểm dữ liệu mốc thời gian trên đồ thị SVG 30 ngày (Figma chuẩn)
@@ -35,6 +36,20 @@ export default function RevenueAiForecastTab({
   onSelectReader,
   onRemindReader
 }) {
+  // Phân trang danh sách độc giả nguy cơ (Chuẩn mẫu BookCatalog)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5); // Hỗ trợ 5, 10, 20 / trang (mặc định: 5)
+
+  // Tự động quay về trang 1 khi thay đổi bộ lọc mức độ rủi ro
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterRisk]);
+
+  // Cắt lát dữ liệu theo trang hiện tại
+  const paginatedReaders = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredReaders.slice(startIndex, startIndex + pageSize);
+  }, [filteredReaders, currentPage, pageSize]);
   return (
     <>
       {/* ==================================================================
@@ -307,7 +322,7 @@ export default function RevenueAiForecastTab({
               </tr>
             </thead>
             <tbody>
-              {filteredReaders.map((row) => (
+              {paginatedReaders.map((row) => (
                 <tr key={row.id}>
                   <td>
                     <span
@@ -391,6 +406,23 @@ export default function RevenueAiForecastTab({
             </tbody>
           </table>
         </div>
+
+        {/* Phân trang danh sách độc giả nguy cơ theo chuẩn BookCatalog */}
+        {filteredReaders.length > 0 && (
+          <TablePagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={filteredReaders.length}
+            pageSizeOptions={[5, 10, 20]}
+            unitLabel="hồ sơ nguy cơ"
+            className="table-pagination-card-bleed"
+            onPageChange={(p) => setCurrentPage(p)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
+        )}
       </div>
     </>
   );

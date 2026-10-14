@@ -118,31 +118,60 @@ const DEFAULT_AUDIT_HISTORY = [
 const LOCAL_STORAGE_RULES_KEY = 'smartlib_rules_data';
 const LOCAL_STORAGE_AUDIT_KEY = 'smartlib_rules_audit';
 
+// In-memory cache cho cấu hình quy định hệ thống (tránh gọi lặp lại 3-4 lần khi các component cùng mount)
+let cachedRulesData = null;
+let cachedRulesExpiry = 0;
+let inflightRulesPromise = null;
+
 /**
  * Service API quản lý Cài đặt quy định thư viện (US-03)
  */
 export const rulesApi = {
-  // Lấy toàn bộ cấu hình quy định hiện hành
-  getSystemRules: async () => {
-    try {
-      const response = await apiClient.get('/api/rules');
-      return response.data?.data ?? response.data;
-    } catch {
-      const saved = localStorage.getItem(LOCAL_STORAGE_RULES_KEY);
-      if (saved) {
-        try {
-          return { ...DEFAULT_SYSTEM_RULES, ...JSON.parse(saved) };
-        } catch {
-          // ignore
-        }
-      }
-      return DEFAULT_SYSTEM_RULES;
+  // Lấy toàn bộ cấu hình quy định hiện hành (có cache 30 giây trong RAM)
+  getSystemRules: async (forceRefresh = false) => {
+    const now = Date.now();
+    if (!forceRefresh && cachedRulesData && now < cachedRulesExpiry) {
+      return cachedRulesData;
     }
+
+    if (!forceRefresh && inflightRulesPromise) {
+      return inflightRulesPromise;
+    }
+
+    inflightRulesPromise = (async () => {
+      try {
+        const response = await apiClient.get('/api/rules');
+        const data = response.data?.data ?? response.data;
+        cachedRulesData = data;
+        cachedRulesExpiry = Date.now() + 30000; // Cache 30 giây
+        return data;
+      } catch {
+        const saved = localStorage.getItem(LOCAL_STORAGE_RULES_KEY);
+        if (saved) {
+          try {
+            const data = { ...DEFAULT_SYSTEM_RULES, ...JSON.parse(saved) };
+            cachedRulesData = data;
+            cachedRulesExpiry = Date.now() + 10000;
+            return data;
+          } catch {
+            // ignore
+          }
+        }
+        cachedRulesData = DEFAULT_SYSTEM_RULES;
+        return DEFAULT_SYSTEM_RULES;
+      } finally {
+        inflightRulesPromise = null;
+      }
+    })();
+
+    return inflightRulesPromise;
   },
 
   // Cập nhật cấu hình quy định (chỉ Admin)
   updateSystemRules: async (payload) => {
     try {
+      cachedRulesData = null; // Xóa cache
+      cachedRulesExpiry = 0;
       const response = await apiClient.put('/api/rules', payload);
       return response.data?.data ?? response.data;
     } catch (error) {
@@ -154,6 +183,8 @@ export const rulesApi = {
   // Khôi phục toàn bộ cấu hình quy định về mặc định chuẩn hệ thống (Story L0LRA-79)
   resetDefaultRules: async () => {
     try {
+      cachedRulesData = null; // Xóa cache
+      cachedRulesExpiry = 0;
       const response = await apiClient.post('/api/rules/reset-defaults');
       return response.data?.data ?? response.data;
     } catch (error) {

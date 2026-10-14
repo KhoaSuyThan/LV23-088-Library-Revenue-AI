@@ -1,0 +1,154 @@
+/**
+ * File CSS cho component TablePagination dùng chung.
+ * Tái sử dụng trọn vẹn phong cách thiết kế hiện đại, tinh tế của BookCatalog.
+ */
+
+.table-pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+/* Tự động căn lề và padding bảo vệ khi TablePagination nằm trong card tràn viền (như .revenue-table-card tại Tab AI Dự Báo & Biên Lai) */
+.revenue-table-card .table-pagination-container,
+.table-pagination-card-bleed {
+  margin-top: 0;
+  padding: 16px 24px 20px 24px;
+  background-color: #ffffff;
+  border-top: 1px solid #f1f5f9;
+}
+
+.table-pagination-left-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.table-pagination-info {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.table-pagination-size-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.table-size-selector-label {
+  font-weight: 500;
+  color: #64748b;
+  user-select: none;
+}
+
+.table-size-selector-select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.table-size-selector-select:hover {
+  border-color: #94a3b8;
+  background-color: #ffffff;
+}
+
+.table-size-selector-select:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.table-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-pagination-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.table-pagination-btn:hover:not(:disabled) {
+  border-color: #94a3b8;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.table-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.table-pagination-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  user-select: none;
+}
+
+.table-pagination-page-input {
+  width: 50px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: #2563eb;
+  background-color: #f8fafc;
+  outline: none;
+  transition: all 0.15s ease;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.table-pagination-page-input::-webkit-outer-spin-button,
+.table-pagination-page-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.table-pagination-page-input:hover {
+  border-color: #94a3b8;
+  background-color: #ffffff;
+}
+
+.table-pagination-page-input:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}

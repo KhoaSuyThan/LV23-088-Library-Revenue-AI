@@ -16,6 +16,7 @@ import {
   Info
 } from 'lucide-react';
 import { readerApi } from '../api/readerApi';
+import TablePagination from '../components/common/TablePagination';
 import './ReaderProfiles.css';
 
 // SVG Avatar Fallback khi offline hoặc lỗi tải ảnh
@@ -37,6 +38,10 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updatingLockId, setUpdatingLockId] = useState(null);
   const [isSendingWarning, setIsSendingWarning] = useState(false);
+
+  // Phân trang hồ sơ độc giả theo mẫu chuẩn BookCatalog
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // Hỗ trợ 10, 20, 50 độc giả / trang (mặc định: 10)
 
   // Độc giả được chọn hiển thị chi tiết bên cột phải
   const [selectedReaderCode, setSelectedReaderCode] = useState('');
@@ -161,14 +166,26 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
     });
   }, [readers, facultyFilter, statusFilter, riskFilter, externalSearch]);
 
+  // Tự động quay về trang 1 khi thay đổi bất kỳ tiêu chí lọc nào
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [facultyFilter, statusFilter, riskFilter, externalSearch]);
+
+  // Danh sách độc giả được phân trang theo kích thước trang đang chọn
+  const paginatedReaders = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredReaders.slice(startIndex, startIndex + pageSize);
+  }, [filteredReaders, currentPage, pageSize]);
+
   // Độc giả được chọn hiển thị chi tiết bên cột phải
   const selectedReader = useMemo(() => {
     if (filteredReaders.length === 0) return readers[0] || null;
     return (
       filteredReaders.find((r) => r.readerCode === selectedReaderCode) ||
+      paginatedReaders[0] ||
       filteredReaders[0]
     );
-  }, [readers, filteredReaders, selectedReaderCode]);
+  }, [readers, filteredReaders, paginatedReaders, selectedReaderCode]);
 
   // ====================================================================
   // XỬ LÝ KHÓA / MỞ KHÓA THẺ ĐỘC GIẢ (CẬP NHẬT TRỰC TIẾP SQL SERVER)
@@ -481,7 +498,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredReaders.map((r) => {
+                    paginatedReaders.map((r) => {
                       const isSelected = r.readerCode === selectedReaderCode;
                       const isLocked = !r.isActive;
                       const isUpdating = updatingLockId === (r.readerId || r.readerID);
@@ -647,6 +664,22 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
               </table>
             )}
           </div>
+
+          {/* Phân trang chuẩn hóa theo mẫu BookCatalog */}
+          {!isLoading && filteredReaders.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={filteredReaders.length}
+              pageSizeOptions={[10, 20, 50]}
+              unitLabel="độc giả"
+              onPageChange={(page) => setCurrentPage(page)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </div>
 
         {/* ---------------- CỘT PHẢI: HỒ SƠ NHANH & TRỰC QUAN HÓA AI ---------------- */}

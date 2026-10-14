@@ -103,12 +103,12 @@ const INITIAL_TRANSACTIONS = [
 ];
 
 export default function CirculationDesk({ user, externalSearch = '' }) {
-  // Danh sách giao dịch trong ngày
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
+  // Danh sách giao dịch trong ngày (Khởi tạo rỗng, nạp tức thì từ CSDL)
+  const [transactions, setTransactions] = useState([]);
 
   // Giao dịch đang được chọn trong bảng giao dịch trong ngày
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
-  const [isLoadingBorrows, setIsLoadingBorrows] = useState(false);
+  const [isLoadingBorrows, setIsLoadingBorrows] = useState(true);
 
   // Modal biểu mẫu hành chính Phiếu mượn sách & Phiếu trả sách chuẩn A4 PDF
   const [receiptModalConfig, setReceiptModalConfig] = useState({
@@ -174,18 +174,16 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   const loadRecentTransactions = useCallback(async () => {
     setIsLoadingBorrows(true);
     try {
-      // Lấy quy định mức phí phạt trễ hạn hiện hành từ CSDL Backend / Rules API
-      let fineRatePerDay = 2000;
-      try {
-        const rules = await rulesApi.getSystemRules();
-        if (rules && (rules.finePerDay !== undefined && rules.finePerDay !== null)) {
-          fineRatePerDay = Number(rules.finePerDay) || 2000;
-        }
-      } catch (errRule) {
-        console.warn('Không tải được quy định phạt từ hệ thống, dùng mức mặc định:', errRule);
-      }
+      // Tải quy định mức phí phạt và danh sách giao dịch song song qua Promise.all
+      const [rules, res] = await Promise.all([
+        rulesApi.getSystemRules().catch(() => null),
+        borrowApi.getRecentBorrows(50).catch(() => null)
+      ]);
 
-      const res = await borrowApi.getRecentBorrows(50);
+      let fineRatePerDay = 2000;
+      if (rules && (rules.finePerDay !== undefined && rules.finePerDay !== null)) {
+        fineRatePerDay = Number(rules.finePerDay) || 2000;
+      }
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map((item) => {
           const firstItem = item.items && item.items.length > 0 ? item.items[0] : null;
@@ -541,7 +539,16 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
               </tr>
             </thead>
             <tbody>
-              {paginatedTransactions.length === 0 ? (
+              {isLoadingBorrows && transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500 }}>
+                      <span className="spinner-sm" style={{ width: '16px', height: '16px', border: '2px solid #cbd5e1', borderTopColor: '#2563eb', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
+                      Đang đồng bộ giao dịch từ máy chủ...
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8' }}>
                     Không tìm thấy giao dịch nào phù hợp.

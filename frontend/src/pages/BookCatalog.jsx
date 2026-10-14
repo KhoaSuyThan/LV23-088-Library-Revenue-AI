@@ -42,7 +42,7 @@ import './BookCatalog.css';
 /**
  * Hàm loại bỏ dấu tiếng Việt để phục vụ tìm kiếm không phân biệt có dấu / không dấu (AC1)
  */
-export function removeVietnameseTones(str) {
+function removeVietnameseTones(str) {
   if (!str) return '';
   let res = String(str);
   res = res.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
@@ -200,21 +200,22 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export default function BookCatalog({ user, externalSearch = '' }) {
-  const [books, setBooks] = useState(INITIAL_BOOKS);
+  const [books, setBooks] = useState([]);
+  const [isLoadingBooks, setIsLoadingBooks] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20); // Số lượng sách hiển thị trên mỗi trang (mặc định: 20 theo AC4, hỗ trợ 10, 20, 50, 100)
   const [jumpPage, setJumpPage] = useState(1); // Ô nhập trực tiếp số trang
-  const [totalBooksCount, setTotalBooksCount] = useState(12500);
+  const [totalBooksCount, setTotalBooksCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0); // Khóa làm mới danh sách và thống kê
   const [internalSearch, setInternalSearch] = useState('');
   const [isApiMode, setIsApiMode] = useState(false); // Đánh dấu dữ liệu được phân trang từ Server-side (AC4)
 
   // State 4 thẻ chỉ số thống kê KPI Cards từ CSDL
   const [catalogSummary, setCatalogSummary] = useState({
-    totalBooks: 12500,
-    borrowedBooks: 1420,
-    overdueBooks: 47,
-    damagedBooks: 12
+    totalBooks: 0,
+    borrowedBooks: 0,
+    overdueBooks: 0,
+    damagedBooks: 0
   });
 
   // Các state phục vụ thanh lọc đa tiêu chí
@@ -629,6 +630,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
   useEffect(() => {
     let isMounted = true;
     const fetchApiBooks = async () => {
+      setIsLoadingBooks(true);
       try {
         const response = await apiClient.get('/api/Books', {
           params: {
@@ -675,6 +677,10 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         // Nếu backend chưa sẵn sàng hoặc lỗi, chuyển sang fallback dữ liệu mẫu
         if (isMounted) {
           setIsApiMode(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingBooks(false);
         }
       }
     };
@@ -1459,7 +1465,16 @@ export default function BookCatalog({ user, externalSearch = '' }) {
               </tr>
             </thead>
             <tbody>
-              {filteredBooks.length === 0 ? (
+              {isLoadingBooks && books.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '48px 16px', color: '#64748b' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '15px', fontWeight: 500 }}>
+                      <span className="spinner-sm" style={{ width: '20px', height: '20px', border: '2.5px solid #cbd5e1', borderTopColor: '#2563eb', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
+                      Đang đồng bộ kho sách từ CSDL SQL Server...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredBooks.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="empty-table-cell">
                     Không tìm thấy đầu sách nào phù hợp với bộ lọc hiện tại.

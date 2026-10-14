@@ -15,6 +15,7 @@ import {
   Info
 } from 'lucide-react';
 import './RevenueAnalyticsDashboard.css';
+import TablePagination from '../common/TablePagination';
 
 /**
  * Dashboard Biểu đồ Doanh thu Thu phạt & Thống kê Vi phạm (Story LOLRA-17 / Sprint 5.1)
@@ -29,6 +30,8 @@ export default function RevenueBreakdownTab({
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [showActual, setShowActual] = useState(true);
   const [showExpected, setShowExpected] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
   // Nhãn tháng hiện tại
   const currentMonthLabel = useMemo(() => {
@@ -270,7 +273,7 @@ export default function RevenueBreakdownTab({
   }, [receiptsList]);
 
   // 5. TOP ĐẦU SÁCH CÓ TỶ LỆ VI PHẠM / QUÁ HẠN CAO NHẤT
-  const topViolatedBooks = [
+  const topViolatedBooks = useMemo(() => [
     {
       id: 1,
       title: 'Harry Potter and the Half-Blood Prince (Harry Potter #6)',
@@ -330,8 +333,74 @@ export default function RevenueBreakdownTab({
       risk: 'Vừa',
       riskClass: 'risk-pill-low',
       solution: 'Ưu tiên phục vụ đọc tại chỗ trong phòng đọc'
+    },
+    {
+      id: 6,
+      title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
+      barcode: 'BC000006-A',
+      category: 'Kỹ thuật phần mềm',
+      overdueCount: 5,
+      damageCount: 1,
+      totalFine: '240.000 đ',
+      risk: 'Vừa',
+      riskClass: 'risk-pill-low',
+      solution: 'Bổ sung thêm bản ebook vào thư viện số'
+    },
+    {
+      id: 7,
+      title: 'Artificial Intelligence: A Modern Approach (4th Edition)',
+      barcode: 'BC000007-A',
+      category: 'Trí tuệ nhân tạo',
+      overdueCount: 4,
+      damageCount: 2,
+      totalFine: '310.000 đ',
+      risk: 'Vừa',
+      riskClass: 'risk-pill-low',
+      solution: 'Cảnh báo ký quỹ mượn đối với tài liệu quý hiếm'
+    },
+    {
+      id: 8,
+      title: 'Kinh tế vi mô và Ứng dụng thực tiễn',
+      barcode: 'BC000008-B',
+      category: 'Kinh tế & Quản trị',
+      overdueCount: 4,
+      damageCount: 0,
+      totalFine: '120.000 đ',
+      risk: 'Thấp',
+      riskClass: 'risk-pill-low',
+      solution: 'Gửi email tự động nhắc hạn trả'
+    },
+    {
+      id: 9,
+      title: 'Design Patterns: Elements of Reusable Object-Oriented Software',
+      barcode: 'BC000009-A',
+      category: 'Kỹ thuật phần mềm',
+      overdueCount: 3,
+      damageCount: 1,
+      totalFine: '190.000 đ',
+      risk: 'Thấp',
+      riskClass: 'risk-pill-low',
+      solution: 'Bọc bảo quản màng nhựa chống rách'
+    },
+    {
+      id: 10,
+      title: 'Giải tích 1 & Đại số tuyến tính nâng cao',
+      barcode: 'BC000010-A',
+      category: 'Toán học ứng dụng',
+      overdueCount: 3,
+      damageCount: 0,
+      totalFine: '90.000 đ',
+      risk: 'Thấp',
+      riskClass: 'risk-pill-low',
+      solution: 'Đề xuất tăng số lượng ấn bản vào kỳ thi'
     }
-  ];
+  ], []);
+
+  // Cắt mảng theo trang phân trang hiện tại
+  const paginatedTopBooks = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return topViolatedBooks.slice(startIndex, startIndex + pageSize);
+  }, [topViolatedBooks, currentPage, pageSize]);
 
   return (
     <div className="revenue-analytics-container">
@@ -803,7 +872,7 @@ export default function RevenueBreakdownTab({
               </tr>
             </thead>
             <tbody>
-              {topViolatedBooks.map((book) => (
+              {paginatedTopBooks.map((book) => (
                 <tr key={book.id}>
                   <td style={{ textAlign: 'center' }}>
                     <span className={`rank-badge ${book.id === 1 ? 'rank-1' : book.id === 2 ? 'rank-2' : book.id === 3 ? 'rank-3' : 'rank-default'}`}>
@@ -841,6 +910,20 @@ export default function RevenueBreakdownTab({
             </tbody>
           </table>
         </div>
+
+        {/* THANH ĐIỀU KHIỂN PHÂN TRANG CHUẨN */}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={topViolatedBooks.length}
+          pageSizeOptions={[5, 10, 20]}
+          unitLabel="đầu sách vi phạm"
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       </div>
     </div>
   );

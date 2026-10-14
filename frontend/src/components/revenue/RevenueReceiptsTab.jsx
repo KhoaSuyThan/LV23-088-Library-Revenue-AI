@@ -12,6 +12,8 @@ import {
   Download
 } from 'lucide-react';
 
+import TablePagination from '../common/TablePagination';
+
 /**
  * Component Tab 3: Lịch sử Biên lai đã thu từ SQL Server (Story LOLRA-19)
  * Hỗ trợ phân trang danh sách, tìm kiếm, lọc theo phương thức thanh toán và xuất Excel thực tế.
@@ -27,7 +29,6 @@ export default function RevenueReceiptsTab({
   const [methodFilter, setMethodFilter] = useState('all'); // 'all' | 'cash' | 'qr'
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [jumpPageInput, setJumpPageInput] = useState('1');
 
   // Đếm số lượng theo phương thức thanh toán thực tế
   const cashCount = useMemo(() => receipts.filter((r) => !r.isQr).length, [receipts]);
@@ -70,74 +71,17 @@ export default function RevenueReceiptsTab({
   }, [receipts, methodFilter, searchQuery]);
 
   const totalItems = filteredReceipts.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-  // Tự động căn chỉnh trang khi kết quả lọc thay đổi
+  // Reset về trang 1 khi thay đổi điều kiện lọc
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  useEffect(() => {
-    setJumpPageInput(currentPage.toString());
-  }, [currentPage]);
+    setCurrentPage(1);
+  }, [searchQuery, methodFilter]);
 
   // Cắt danh sách biên lai theo trang hiện tại
   const paginatedReceipts = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     return filteredReceipts.slice(startIndex, startIndex + pageSize);
   }, [filteredReceipts, currentPage, pageSize]);
-
-  const startIdx = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endIdx = Math.min(currentPage * pageSize, totalItems);
-
-  // Danh sách các số trang hiển thị
-  const getPageNumbers = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    const pages = [];
-    if (currentPage <= 4) {
-      for (let i = 1; i <= 5; i++) pages.push(i);
-      pages.push('...');
-      pages.push(totalPages);
-    } else if (currentPage >= totalPages - 3) {
-      pages.push(1);
-      pages.push('...');
-      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      pages.push('...');
-      pages.push(currentPage - 1);
-      pages.push(currentPage);
-      pages.push(currentPage + 1);
-      pages.push('...');
-      pages.push(totalPages);
-    }
-    return pages;
-  };
-
-  const handleJumpPage = (e) => {
-    if (e.key === 'Enter') {
-      const pageNum = parseInt(jumpPageInput, 10);
-      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-        setCurrentPage(pageNum);
-      } else {
-        setJumpPageInput(currentPage.toString());
-      }
-      e.target.blur();
-    }
-  };
-
-  const handleJumpBlur = () => {
-    const pageNum = parseInt(jumpPageInput, 10);
-    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-      setCurrentPage(pageNum);
-    } else {
-      setJumpPageInput(currentPage.toString());
-    }
-  };
 
   return (
     <div className="revenue-table-card">
@@ -333,119 +277,20 @@ export default function RevenueReceiptsTab({
         </table>
       </div>
 
-      {/* THANH ĐIỀU KHIỂN PHÂN TRANG */}
-      {totalItems > 0 && (
-        <div className="receipts-pagination-bar">
-          <div className="arrears-pagination-info">
-            <span>
-              Hiển thị <strong>{startIdx} - {endIdx}</strong> / <strong>{totalItems.toLocaleString('vi-VN')}</strong> biên lai
-            </span>
-            <div className="arrears-page-size-wrap">
-              <label htmlFor="receiptsPageSizeSelect" style={{ fontSize: '12px', color: '#64748b' }}>
-                Hiển thị:
-              </label>
-              <select
-                id="receiptsPageSizeSelect"
-                className="arrears-page-size-select"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                title="Chọn số lượng biên lai hiển thị trên mỗi trang"
-              >
-                <option value={5}>5 / trang</option>
-                <option value={10}>10 / trang</option>
-                <option value={20}>20 / trang</option>
-                <option value={50}>50 / trang</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="arrears-pagination-controls">
-            <button
-              type="button"
-              className="arrears-page-btn"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage(1)}
-              title="Trang đầu"
-            >
-              <ChevronsLeft size={15} />
-            </button>
-            <button
-              type="button"
-              className="arrears-page-btn"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              title="Trang trước"
-            >
-              <ChevronLeft size={15} />
-            </button>
-
-            {getPageNumbers().map((p, idx) =>
-              p === '...' ? (
-                <span key={`ellipsis-${idx}`} className="arrears-page-ellipsis">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={`page-${p}`}
-                  type="button"
-                  className={`arrears-page-btn ${currentPage === p ? 'active' : ''}`}
-                  onClick={() => setCurrentPage(p)}
-                >
-                  {p}
-                </button>
-              )
-            )}
-
-            <button
-              type="button"
-              className="arrears-page-btn"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              title="Trang tiếp"
-            >
-              <ChevronRight size={15} />
-            </button>
-            <button
-              type="button"
-              className="arrears-page-btn"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage(totalPages)}
-              title="Trang cuối"
-            >
-              <ChevronsRight size={15} />
-            </button>
-
-            {totalPages > 5 && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '6px', fontSize: '12px', color: '#64748b' }}>
-                <span>Đến</span>
-                <input
-                  type="text"
-                  style={{
-                    width: '42px',
-                    height: '28px',
-                    textAlign: 'center',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: '#2563eb',
-                    outline: 'none',
-                    backgroundColor: '#f8fafc'
-                  }}
-                  value={jumpPageInput}
-                  onChange={(e) => setJumpPageInput(e.target.value)}
-                  onKeyDown={handleJumpPage}
-                  onBlur={handleJumpBlur}
-                  title="Nhập số trang và nhấn Enter"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* THANH ĐIỀU KHIỂN PHÂN TRANG CHUẨN */}
+      <TablePagination
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        pageSizeOptions={[10, 20, 50, 100]}
+        unitLabel="biên lai"
+        className="table-pagination-card-bleed"
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setCurrentPage(1);
+        }}
+      />
     </div>
   );
 }
