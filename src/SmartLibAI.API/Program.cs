@@ -9,6 +9,7 @@ using SmartLibAI.Core.Interfaces;
 using SmartLibAI.Core.Services;
 using SmartLibAI.Infrastructure.Data;
 using SmartLibAI.Infrastructure.Repositories;
+using SmartLibAI.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +18,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<SmartLibDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// 2. Đăng ký DI cho Repositories và Business Services
+// 2. Đăng ký DI cho AI Prediction Service (Singleton tải ONNX Runtime 1 lần trong bộ nhớ)
+builder.Services.AddSingleton<IAIPredictionService, OnnxAIPredictionService>();
+
+// 3. Đăng ký DI cho Repositories và Business Services
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
