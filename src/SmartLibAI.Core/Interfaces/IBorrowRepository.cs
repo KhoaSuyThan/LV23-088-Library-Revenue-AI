@@ -46,4 +46,14 @@ public interface IBorrowRepository : IGenericRepository<Borrowing>
     /// Lấy danh sách các lượt mượn gần đây nhất để hiển thị tại bảng lưu thông.
     /// </summary>
     Task<List<Borrowing>> GetRecentBorrowingsAsync(int count = 20);
+
+    /// <summary>
+    /// Đếm số lần độc giả từng bị quá hạn trong lịch sử mượn trả sách.
+    /// </summary>
+    Task<int> GetOverdueHistoryCountAsync(int readerId);
+
+    /// <summary>
+    /// Lưu nhật ký dự đoán rủi ro của AI vào bảng AIPredictionLogs.
+    /// </summary>
+    Task AddAIPredictionLogAsync(AIPredictionLog log);
 }

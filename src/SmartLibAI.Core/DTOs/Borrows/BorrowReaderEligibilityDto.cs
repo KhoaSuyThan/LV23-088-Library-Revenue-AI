@@ -50,6 +50,31 @@ public class BorrowReaderEligibilityDto
     public bool CanBorrow => IsActive && !IsExpired && !HasUnpaidFines && RemainingBorrowLimit > 0;
 
     /// <summary>
+    /// Điểm tín nhiệm của độc giả (0 - 100)
+    /// </summary>
+    public int CreditScore { get; set; } = 100;
+
+    /// <summary>
+    /// Điểm rủi ro AI dự đoán (từ 0.00 đến 1.00)
+    /// </summary>
+    public decimal? AiRiskScore { get; set; }
+
+    /// <summary>
+    /// Phân cấp rủi ro AI: Low, Medium, High
+    /// </summary>
+    public string? AiRiskTier { get; set; }
+
+    /// <summary>
+    /// Màu badge giao diện AI: success, warning, danger
+    /// </summary>
+    public string? AiRiskBadgeColor { get; set; }
+
+    /// <summary>
+    /// Hành động khuyến nghị từ AI
+    /// </summary>
+    public string? AiSuggestedAction { get; set; }
+
+    /// <summary>
     /// Lý do từ chối nếu không đủ điều kiện.
     /// </summary>
     public string? RejectionReason { get; set; }

@@ -173,4 +173,26 @@ public class BorrowRepository : GenericRepository<Borrowing>, IBorrowRepository
                         .ThenInclude(bk => bk.Category)
             .ToListAsync();
     }
+
+    /// <summary>
+    /// Đếm số lần độc giả từng bị quá hạn trong lịch sử mượn trả sách.
+    /// </summary>
+    public async Task<int> GetOverdueHistoryCountAsync(int readerId)
+    {
+        return await _context.BorrowingDetails
+            .AsNoTracking()
+            .CountAsync(d => 
+                d.Borrowing.ReaderID == readerId && 
+                ((d.ReturnDate != null && d.ReturnDate > d.Borrowing.DueDate) || 
+                 (d.ReturnDate == null && DateTime.UtcNow > d.Borrowing.DueDate && d.ItemStatus == "Borrowed")));
+    }
+
+    /// <summary>
+    /// Lưu nhật ký dự đoán rủi ro của AI vào bảng AIPredictionLogs.
+    /// </summary>
+    public async Task AddAIPredictionLogAsync(AIPredictionLog log)
+    {
+        await _context.AIPredictionLogs.AddAsync(log);
+        await _context.SaveChangesAsync();
+    }
 }

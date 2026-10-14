@@ -1,4 +1,5 @@
 using SmartLibAI.Core.Common;
+using SmartLibAI.Core.DTOs.AI;
 using SmartLibAI.Core.DTOs.Borrows;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.Entities;
@@ -8,14 +9,17 @@ namespace SmartLibAI.Core.Services;
 
 /// <summary>
 /// Dịch vụ xử lý nghiệp vụ mượn sách, thẩm định điều kiện độc giả và kiểm soát giao dịch an toàn (Story LOLRA-16).
+/// Tích hợp mô hình AI ONNX Runtime đánh giá rủi ro trễ hạn theo thời gian thực (Story LOLRA-88).
 /// </summary>
 public class BorrowService : IBorrowService
 {
     private readonly IBorrowRepository _borrowRepository;
+    private readonly IAIPredictionService _aiPredictionService;
 
-    public BorrowService(IBorrowRepository borrowRepository)
+    public BorrowService(IBorrowRepository borrowRepository, IAIPredictionService aiPredictionService)
     {
         _borrowRepository = borrowRepository;
+        _aiPredictionService = aiPredictionService;
     }
 
     /// <summary>
@@ -160,7 +164,42 @@ public class BorrowService : IBorrowService
         var copyIds = copies.Select(c => c.CopyID).ToList();
         var createdBorrowing = await _borrowRepository.CreateBorrowingWithTransactionAsync(borrowing, copyIds);
 
-        // 10. Lấy chi tiết phiếu mượn hoàn chỉnh và ánh xạ sang DTO trả về cho client
+        // 10. AI Risk Assessment & Logging (Ghi nhận dự báo rủi ro vào AIPredictionLogs)
+        try
+        {
+            var historicalOverdueCount = await _borrowRepository.GetOverdueHistoryCountAsync(reader.ReaderID);
+            var durationDays = (int)Math.Max(1, (dueDate.Date - DateTime.UtcNow.Date).TotalDays);
+
+            var riskInput = new ReaderRiskInputDto
+            {
+                Faculty = reader.Faculty ?? "CNTT",
+                MemberType = reader.MemberType,
+                CreditScore = reader.CreditScore,
+                CurrentHoldingBooks = currentBorrowCount + requestedCount,
+                HistoricalOverdueCount = historicalOverdueCount,
+                BorrowDurationDays = durationDays,
+                TotalCurrentDebt = unpaidFines.TotalUnpaidAmount,
+                IsExamSeason = IsExamSeasonNow()
+            };
+
+            var aiResult = _aiPredictionService.EvaluateBorrowRisk(riskInput);
+
+            var aiLog = new AIPredictionLog
+            {
+                BorrowingID = createdBorrowing.BorrowingID,
+                RiskScore = Math.Round(aiResult.RiskScore * 100m, 2), // Lưu thang điểm 0 - 100 theo schema decimal(5,2)
+                SuggestedAction = aiResult.SuggestedAction,
+                EvaluatedAt = DateTime.UtcNow
+            };
+
+            await _borrowRepository.AddAIPredictionLogAsync(aiLog);
+        }
+        catch
+        {
+            // Ghi nhật ký AI chạy bảo vệ, không làm gián đoạn transaction mượn sách thành công
+        }
+
+        // 11. Lấy chi tiết phiếu mượn hoàn chỉnh và ánh xạ sang DTO trả về cho client
         var fullBorrowing = await _borrowRepository.GetBorrowingDetailByIdAsync(createdBorrowing.BorrowingID);
         var responseDto = MapToBorrowResponseDto(fullBorrowing ?? createdBorrowing);
 
@@ -196,6 +235,22 @@ public class BorrowService : IBorrowService
 
         var currentBorrowCount = await _borrowRepository.GetActiveBorrowCountByReaderIdAsync(reader.ReaderID);
         var unpaidFines = await _borrowRepository.CheckUnpaidFinesByReaderIdAsync(reader.ReaderID);
+        var historicalOverdueCount = await _borrowRepository.GetOverdueHistoryCountAsync(reader.ReaderID);
+
+        // Gọi mô hình AI ONNX Runtime đánh giá rủi ro trễ hạn theo thời gian thực (Story LOLRA-88)
+        var riskInput = new ReaderRiskInputDto
+        {
+            Faculty = reader.Faculty ?? "CNTT",
+            MemberType = reader.MemberType,
+            CreditScore = reader.CreditScore,
+            CurrentHoldingBooks = currentBorrowCount,
+            HistoricalOverdueCount = historicalOverdueCount,
+            BorrowDurationDays = standardBorrowDays,
+            TotalCurrentDebt = unpaidFines.TotalUnpaidAmount,
+            IsExamSeason = IsExamSeasonNow()
+        };
+
+        var aiEvaluation = _aiPredictionService.EvaluateBorrowRisk(riskInput);
 
         var dto = new BorrowReaderEligibilityDto
         {
@@ -211,7 +266,12 @@ public class BorrowService : IBorrowService
             MaxBorrowLimit = maxLimit,
             StandardBorrowDays = standardBorrowDays,
             HasUnpaidFines = unpaidFines.HasUnpaidFines,
-            UnpaidFineAmount = unpaidFines.TotalUnpaidAmount
+            UnpaidFineAmount = unpaidFines.TotalUnpaidAmount,
+            CreditScore = reader.CreditScore,
+            AiRiskScore = aiEvaluation.RiskScore,
+            AiRiskTier = aiEvaluation.RiskTier,
+            AiRiskBadgeColor = aiEvaluation.BadgeColor,
+            AiSuggestedAction = aiEvaluation.SuggestedAction
         };
 
         if (!dto.IsActive)
@@ -232,6 +292,15 @@ public class BorrowService : IBorrowService
         }
 
         return ApiResponse<BorrowReaderEligibilityDto>.SuccessResult(dto, "Kiểm tra tư cách mượn sách thành công.");
+    }
+
+    /// <summary>
+    /// Kiểm tra thời điểm hiện tại có thuộc mùa thi cử cao điểm hay không (tháng 5 hoặc tháng 11).
+    /// </summary>
+    private static bool IsExamSeasonNow()
+    {
+        var month = DateTime.UtcNow.Month;
+        return month == 5 || month == 11;
     }
 
     /// <summary>
