@@ -5,6 +5,29 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-17] - Tái Cấu Trúc Giao Diện Hồ Sơ Độc Giả: Tách Cửa Sổ Chi Tiết & Tối Ưu Bảng Tóm Tắt
+
+- **Tái Cấu Trúc Trải Nghiệm Người Dùng Phân Hệ Hồ Sơ Độc Giả ([`ReaderProfiles.jsx`](frontend/src/pages/ReaderProfiles.jsx) & [`ReaderProfiles.css`](frontend/src/pages/ReaderProfiles.css)):**
+  - **Cửa Sổ Chi Tiết Hồ Sơ Độc Giả Ở Giữa (Center Modal Dialog):**
+    - Chuyển toàn bộ nội dung xem sâu thông tin độc giả từ thanh sidebar sang cửa sổ Modal nổi bật ở giữa màn hình (`.reader-detail-modal-box`), kích hoạt khi bấm nút "Chi tiết" tại bất kỳ dòng nào trong bảng hoặc nút "Xem chi tiết đầy đủ" ở cột phải.
+    - Cung cấp Header trực quan: Ảnh đại diện lớn (50px), Họ tên, Badge phân loại (*Sinh viên / Giảng viên*), Badge trạng thái thẻ (*Hoạt động / Đã khóa*), Mã thẻ, Khoa, Lớp và nút đóng $\mathbf{\times}$.
+    - Khối thông tin định danh & liên lạc: Mã thẻ (MSSV), Tài khoản, Email, Số điện thoại, Khoa/Viện, Lớp sinh hoạt, Phân loại độc giả và Hạn sử dụng thẻ kèm các biểu tượng Lucide tinh tế.
+    - 4 Thẻ chỉ số chuyên sâu: Điểm tín nhiệm, Đánh giá rủi ro AI (% và nhãn thuần Việt), Số sách đang mượn và Nợ phạt tồn đọng.
+    - Khối phân tích & trực quan hóa rủi ro AI: Hiển thị xác suất trễ hạn, mức độ cảnh báo (*RỦI RO CAO / TRUNG BÌNH / AN TOÀN*) và nhận định chi tiết về hành vi lưu thông của độc giả từ mô hình học máy.
+    - Danh mục sách đang mượn chi tiết: Liệt kê danh sách sách đang giữ kèm số ngày quá hạn, tiền phạt phát sinh hoặc trạng thái trống thân thiện.
+    - Cụm nút thao tác tích hợp: Hỗ trợ "Gửi cảnh báo Email", "Khóa / Mở khóa thẻ độc giả" và phím `Escape` / Click-outside để đóng nhanh.
+  - **Bảng Tóm Tắt Thông Tin Độc Giả Cột Phải (Compact Summary Card):**
+    - Tối ưu hóa cột bên phải thành thẻ `Tóm tắt thông tin độc giả`, chỉ hiển thị thông tin cô đọng, loại bỏ tình trạng danh sách sách cuộn dài và cảnh báo AI chiếm chỗ.
+    - Lưới 4 chỉ số tóm tắt nhanh 2x2: Sách mượn, Nợ phạt, Tín nhiệm, Rủi ro AI.
+    - Hộp tóm tắt sách đang giữ: Hiển thị rút gọn 1–2 cuốn sách tiêu biểu kèm badge tình trạng quá hạn/còn hạn.
+    - Dải cảnh báo AI tóm lược và nút nổi bật "Xem chi tiết đầy đủ" màu xanh Navy mở trực tiếp cửa sổ chi tiết ở giữa.
+    - Cụm nút thao tác nhanh: Cảnh báo Email và Khóa / Mở khóa thẻ.
+  - **Đồng Bộ Dữ Liệu Thời Gian Thực:**
+    - Trạng thái `detailReader` ánh xạ tự động theo danh sách `readers`. Khi thực hiện Khóa/Mở khóa thẻ trong Modal, cả Modal, Sidebar tóm tắt và bảng danh sách SQL Server đều cập nhật đồng bộ tức thì (Optimistic UI).
+- **Kiểm Thử & Biên Dịch:**
+  - Kiểm tra Oxlint trên toàn bộ dự án đạt 0 Error.
+  - Kiểm thử trực quan tự động trên trình duyệt Chrome xác nhận hiển thị chính xác bố cục theo yêu cầu.
+
 ## [2026-10-14] - Xây Dựng Hệ Thống API & Giao Diện Cảnh Báo Trễ Hạn Cho Thủ Thư (L0LRA-89) & Hoàn Thiện Phân Trang
 
 - **Hệ Thống API Cảnh Báo Trễ Hạn Cho Thủ Thư (`L0LRA-89`):**

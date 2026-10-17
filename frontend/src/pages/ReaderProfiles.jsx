@@ -13,7 +13,14 @@ import {
   RotateCw,
   Loader2,
   ShieldAlert,
-  Info
+  Info,
+  X,
+  FileText,
+  Calendar,
+  Phone,
+  CreditCard,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { readerApi } from '../api/readerApi';
 import TablePagination from '../components/common/TablePagination';
@@ -43,8 +50,11 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10); // Hỗ trợ 10, 20, 50 độc giả / trang (mặc định: 10)
 
-  // Độc giả được chọn hiển thị chi tiết bên cột phải
+  // Độc giả được chọn hiển thị tóm tắt bên cột phải
   const [selectedReaderCode, setSelectedReaderCode] = useState('');
+
+  // Độc giả hiển thị trong Cửa sổ chi tiết ở giữa (Modal)
+  const [detailModalReaderId, setDetailModalReaderId] = useState(null);
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState('');
@@ -177,7 +187,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
     return filteredReaders.slice(startIndex, startIndex + pageSize);
   }, [filteredReaders, currentPage, pageSize]);
 
-  // Độc giả được chọn hiển thị chi tiết bên cột phải
+  // Độc giả được chọn hiển thị tóm tắt bên cột phải
   const selectedReader = useMemo(() => {
     if (filteredReaders.length === 0) return readers[0] || null;
     return (
@@ -186,6 +196,47 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
       filteredReaders[0]
     );
   }, [readers, filteredReaders, paginatedReaders, selectedReaderCode]);
+
+  // Độc giả hiển thị trong Cửa sổ Modal chi tiết ở giữa
+  const detailReader = useMemo(() => {
+    if (!detailModalReaderId) return null;
+    return (
+      readers.find(
+        (r) =>
+          (r.readerId || r.readerID) === detailModalReaderId ||
+          r.readerCode === detailModalReaderId
+      ) || null
+    );
+  }, [readers, detailModalReaderId]);
+
+  // Mở cửa sổ Modal xem chi tiết hồ sơ độc giả
+  const handleOpenDetailModal = (reader, e) => {
+    if (e) e.stopPropagation();
+    if (!reader) return;
+    const targetId = reader.readerId || reader.readerID || reader.readerCode;
+    setSelectedReaderCode(reader.readerCode);
+    setDetailModalReaderId(targetId);
+  };
+
+  // Đóng cửa sổ chi tiết
+  const handleCloseDetailModal = () => {
+    setDetailModalReaderId(null);
+  };
+
+  // Hỗ trợ phím Escape để đóng nhanh cửa sổ Modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (confirmModalData.isOpen) {
+          setConfirmModalData({ isOpen: false, reader: null, action: 'lock' });
+        } else if (detailModalReaderId) {
+          setDetailModalReaderId(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmModalData.isOpen, detailModalReaderId]);
 
   // ====================================================================
   // XỬ LÝ KHÓA / MỞ KHÓA THẺ ĐỘC GIẢ (CẬP NHẬT TRỰC TIẾP SQL SERVER)
@@ -620,17 +671,14 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                             </span>
                           </td>
 
-                          {/* Thao tác: Bấm Khóa thẻ đổi ngay sang Đã khóa */}
+                          {/* Thao tác: Bấm Chi tiết mở cửa sổ Modal ở giữa */}
                           <td style={{ textAlign: 'center' }}>
                             <div className="reader-action-cell" style={{ justifyContent: 'center' }}>
                               <button
                                 type="button"
                                 className="action-link-detail"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedReaderCode(r.readerCode);
-                                  showToast(`Đang xem chi tiết hồ sơ độc giả: ${r.fullName} (${r.readerCode})`);
-                                }}
+                                onClick={(e) => handleOpenDetailModal(r, e)}
+                                title="Bấm để mở cửa sổ chi tiết hồ sơ độc giả"
                               >
                                 Chi tiết
                               </button>
@@ -682,15 +730,18 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
           )}
         </div>
 
-        {/* ---------------- CỘT PHẢI: HỒ SƠ NHANH & TRỰC QUAN HÓA AI ---------------- */}
-        <div className="reader-card reader-preview-card">
-          <div className="reader-card-header" style={{ marginBottom: '12px' }}>
-            <h3 className="reader-card-title">Hồ sơ nhanh & Trực quan hóa AI</h3>
+        {/* ---------------- CỘT PHẢI: BẢNG TÓM TẮT THÔNG TIN ĐỘC GIẢ ---------------- */}
+        <div className="reader-card reader-preview-card reader-summary-card">
+          <div className="reader-card-header preview-summary-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={16} className="summary-title-icon" />
+              <h3 className="reader-card-title">Tóm tắt thông tin độc giả</h3>
+            </div>
           </div>
 
           {selectedReader ? (
             <>
-              {/* Tiêu đề & Thông tin độc giả */}
+              {/* Tiêu đề & Thông tin nhanh độc giả */}
               <div className="preview-profile-header">
                 <img
                   src={selectedReader.avatar}
@@ -702,7 +753,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                   }}
                 />
                 <div className="preview-profile-info">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <h4 className="preview-name">{selectedReader.fullName}</h4>
                     <span
                       className={`reader-status-badge ${
@@ -714,91 +765,408 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                     </span>
                   </div>
                   <span className="preview-meta">
-                    Mã thẻ: <strong>{selectedReader.readerCode}</strong> • Khoa {selectedReader.faculty || 'CNTT'} (
+                    Mã: <strong>{selectedReader.readerCode}</strong> • {selectedReader.faculty || 'CNTT'} (
                     {selectedReader.classGroup || 'K21-CC'})
                   </span>
                 </div>
               </div>
 
-              {/* Thông báo nếu thẻ đang bị khóa */}
+              {/* Thông báo ngắn nếu thẻ đang bị khóa */}
               {!selectedReader.isActive && (
-                <div
-                  style={{
-                    backgroundColor: '#fef2f2',
-                    border: '1px solid #f87171',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: '#b91c1c',
-                    fontSize: '12px',
-                    fontWeight: 600
-                  }}
-                >
-                  <ShieldAlert size={16} />
-                  <span>Thẻ độc giả đang bị KHÓA. Hệ thống sẽ TỪ CHỐI mượn sách bên quầy lưu thông.</span>
+                <div className="summary-alert-locked">
+                  <ShieldAlert size={14} />
+                  <span>Thẻ đang bị KHÓA mượn sách.</span>
                 </div>
               )}
 
-              {/* Hộp Cảnh báo Rủi ro AI */}
+              {/* Lưới 4 chỉ số tóm tắt nhanh (2x2 Quick Metrics) */}
+              <div className="summary-quick-grid">
+                <div className="summary-quick-item">
+                  <span className="summary-quick-label">Sách mượn</span>
+                  <span className="summary-quick-val">
+                    {selectedReader.activeBorrowCount || 0} cuốn
+                  </span>
+                </div>
+                <div className="summary-quick-item">
+                  <span className="summary-quick-label">Nợ phạt</span>
+                  <span className={`summary-quick-val ${(selectedReader.fineDebtRaw || 0) > 0 ? 'val-red' : ''}`}>
+                    {selectedReader.fineDebt || '0 VNĐ'}
+                  </span>
+                </div>
+                <div className="summary-quick-item">
+                  <span className="summary-quick-label">Tín nhiệm</span>
+                  <span className="summary-quick-val val-green">
+                    {selectedReader.creditScore}/100
+                  </span>
+                </div>
+                <div className="summary-quick-item">
+                  <span className="summary-quick-label">Rủi ro AI</span>
+                  <span className={`summary-quick-val ${
+                    selectedReader.riskType === 'high' ? 'val-orange' : ''
+                  }`}>
+                    {getRiskLabel(selectedReader.riskType)} ({selectedReader.riskScore}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Tóm tắt tình trạng mượn sách nhanh */}
+              <div className="summary-books-box">
+                <div className="summary-box-title">
+                  <span>Sách đang giữ ({selectedReader.activeBorrowCount || 0})</span>
+                </div>
+                {(!selectedReader.books || selectedReader.books.length === 0) ? (
+                  <p className="summary-empty-text">Hiện tại không mượn cuốn sách nào.</p>
+                ) : (
+                  <div className="summary-mini-books">
+                    {selectedReader.books.slice(0, 2).map((b, idx) => (
+                      <div key={idx} className="summary-mini-book-item">
+                        <span className="summary-book-name" title={b.title}>
+                          • {b.title}
+                        </span>
+                        <span
+                          className={
+                            b.badgeType === 'overdue'
+                              ? 'mini-badge-overdue'
+                              : 'mini-badge-ok'
+                          }
+                        >
+                          {b.badgeText}
+                        </span>
+                      </div>
+                    ))}
+                    {selectedReader.books.length > 2 && (
+                      <span className="summary-more-books">
+                        + và {selectedReader.books.length - 2} cuốn khác...
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tóm lược cảnh báo AI ngắn gọn */}
+              <div className={`summary-ai-strip ${
+                selectedReader.riskType === 'high' ? 'ai-strip-high' : selectedReader.riskType === 'medium' ? 'ai-strip-med' : 'ai-strip-low'
+              }`}>
+                {selectedReader.riskType === 'high' ? (
+                  <AlertTriangle size={14} />
+                ) : selectedReader.riskType === 'medium' ? (
+                  <AlertCircle size={14} />
+                ) : (
+                  <CheckCircle2 size={14} />
+                )}
+                <span>
+                  Đánh giá AI: <strong>{getRiskLabel(selectedReader.riskType)}</strong> (Trễ hạn: {selectedReader.riskScore}%)
+                </span>
+              </div>
+
+              {/* Nút Xem chi tiết đầy đủ (Mở cửa sổ Modal ở giữa) */}
+              <button
+                type="button"
+                className="btn-view-full-detail"
+                onClick={() => handleOpenDetailModal(selectedReader)}
+                title="Mở cửa sổ ở giữa để xem đầy đủ thông tin hồ sơ độc giả"
+              >
+                <ExternalLink size={15} />
+                <span>Xem chi tiết đầy đủ</span>
+              </button>
+
+              {/* Cụm Nút Thao tác nhanh */}
+              <div className="summary-quick-actions">
+                <button
+                  type="button"
+                  className="btn-summary-warning"
+                  onClick={() => handleSendWarningEmail(selectedReader)}
+                  disabled={isSendingWarning}
+                  title="Gửi email cảnh báo mượn sách / nợ phạt"
+                >
+                  {isSendingWarning ? (
+                    <Loader2 size={13} className="spin-icon" />
+                  ) : (
+                    <Mail size={13} />
+                  )}
+                  <span>Cảnh báo Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={!selectedReader.isActive ? 'btn-summary-unlock' : 'btn-summary-lock'}
+                  onClick={() => requestToggleLock(selectedReader)}
+                  disabled={updatingLockId === (selectedReader.readerId || selectedReader.readerID)}
+                  title={!selectedReader.isActive ? 'Mở khóa thẻ' : 'Khóa thẻ bạn đọc'}
+                >
+                  {!selectedReader.isActive ? <Unlock size={13} /> : <Lock size={13} />}
+                  <span>{!selectedReader.isActive ? 'Mở khóa' : 'Khóa thẻ'}</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+              Vui lòng chọn một độc giả để xem tóm tắt thông tin.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ====================================================================
+          CỬA SỔ Ở GIỮA: MODAL CHI TIẾT HỒ SƠ ĐỘC GIẢ (POPUP DIALOG)
+          ==================================================================== */}
+      {detailReader && (
+        <div
+          className="reader-modal-overlay"
+          onClick={handleCloseDetailModal}
+        >
+          <div
+            className="reader-detail-modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="reader-detail-modal-header">
+              <div className="detail-modal-header-left">
+                <img
+                  src={detailReader.avatar}
+                  alt={detailReader.fullName}
+                  className="detail-modal-avatar"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = fallbackAvatar(detailReader.fullName);
+                  }}
+                />
+                <div className="detail-modal-title-group">
+                  <div className="detail-modal-name-row">
+                    <h3 className="detail-modal-name">{detailReader.fullName}</h3>
+                    {detailReader.memberType === 'Lecturer' ? (
+                      <span className="detail-badge-lecturer">Giảng viên</span>
+                    ) : (
+                      <span className="detail-badge-student">Sinh viên</span>
+                    )}
+                    <span
+                      className={`reader-status-badge ${
+                        !detailReader.isActive ? 'reader-status-locked' : 'reader-status-active'
+                      }`}
+                    >
+                      {!detailReader.isActive ? (
+                        <>
+                          <Lock size={12} />
+                          <span>Đã khóa thẻ</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={12} />
+                          <span>Đang hoạt động</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div className="detail-modal-subtitle">
+                    <span>Mã thẻ: <strong>{detailReader.readerCode}</strong></span>
+                    <span>•</span>
+                    <span>Khoa: <strong>{detailReader.faculty || 'CNTT'}</strong></span>
+                    <span>•</span>
+                    <span>Lớp: <strong>{detailReader.classGroup || 'K21-CC'}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-detail-modal-close"
+                onClick={handleCloseDetailModal}
+                title="Đóng cửa sổ chi tiết (Esc)"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div className="reader-detail-modal-body">
+              {/* Cảnh báo nếu thẻ bị khóa */}
+              {!detailReader.isActive && (
+                <div className="detail-alert-locked">
+                  <ShieldAlert size={18} />
+                  <div>
+                    <strong>Thẻ độc giả này đang bị KHÓA!</strong> Hệ thống sẽ tự động TỪ CHỐI mượn sách tại quầy lưu thông cho đến khi được mở khóa.
+                  </div>
+                </div>
+              )}
+
+              {/* 1. Lưới 4 thẻ thống kê chỉ số chuyên sâu */}
+              <div className="detail-metrics-grid">
+                <div className="detail-metric-card">
+                  <div className="metric-header">
+                    <span className="metric-label">Điểm tín nhiệm</span>
+                    <BookOpen size={16} className="metric-icon-blue" />
+                  </div>
+                  <div className="metric-number-row">
+                    <span className={`metric-number ${
+                      detailReader.creditScore >= 80 ? 'credit-good' : detailReader.creditScore >= 60 ? 'credit-fair' : 'credit-weak'
+                    }`}>
+                      {detailReader.creditScore}/100
+                    </span>
+                    <span className="metric-sub-tag">Xếp hạng: {detailReader.creditRating}</span>
+                  </div>
+                </div>
+
+                <div className="detail-metric-card">
+                  <div className="metric-header">
+                    <span className="metric-label">Mức độ rủi ro AI</span>
+                    <AlertTriangle size={16} className="metric-icon-orange" />
+                  </div>
+                  <div className="metric-number-row">
+                    <span className="metric-number val-orange">
+                      {detailReader.riskScore}%
+                    </span>
+                    <span className={`risk-badge ${
+                      detailReader.riskType === 'high' ? 'risk-high' : detailReader.riskType === 'medium' ? 'risk-medium' : 'risk-low'
+                    }`}>
+                      {getRiskLabel(detailReader.riskType)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="detail-metric-card">
+                  <div className="metric-header">
+                    <span className="metric-label">Sách đang mượn</span>
+                    <BookOpen size={16} className="metric-icon-blue" />
+                  </div>
+                  <div className="metric-number-row">
+                    <span className="metric-number">
+                      {detailReader.activeBorrowCount || 0}
+                    </span>
+                    <span className="metric-sub-text">cuốn sách lưu thông</span>
+                  </div>
+                </div>
+
+                <div className="detail-metric-card">
+                  <div className="metric-header">
+                    <span className="metric-label">Nợ phạt tồn đọng</span>
+                    <span className="metric-icon-red" style={{ fontWeight: 800 }}>$</span>
+                  </div>
+                  <div className="metric-number-row">
+                    <span className={`metric-number ${
+                      (detailReader.fineDebtRaw || 0) > 0 ? 'debt-active' : 'debt-zero'
+                    }`}>
+                      {detailReader.fineDebt || '0 VNĐ'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Thông tin hồ sơ & Liên hệ chi tiết */}
+              <div className="detail-section-card">
+                <h4 className="detail-section-title">
+                  <Users size={16} />
+                  <span>Thông tin định danh & Liên lạc</span>
+                </h4>
+                <div className="detail-info-grid">
+                  <div className="info-item">
+                    <span className="info-key">Họ và tên độc giả:</span>
+                    <span className="info-val font-semibold">{detailReader.fullName}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Mã thẻ bạn đọc (MSSV):</span>
+                    <span className="info-val font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <CreditCard size={13} color="#2563eb" />
+                      <span>{detailReader.readerCode}</span>
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Tài khoản đăng nhập:</span>
+                    <span className="info-val">{detailReader.username || detailReader.readerCode}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Địa chỉ Email:</span>
+                    <span className="info-val email-link" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Mail size={13} color="#2563eb" />
+                      <span>{detailReader.email || 'Chưa cập nhật'}</span>
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Số điện thoại:</span>
+                    <span className="info-val" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Phone size={13} color="#64748b" />
+                      <span>{detailReader.phone || 'Chưa cập nhật'}</span>
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Khoa / Viện đào tạo:</span>
+                    <span className="info-val">{detailReader.faculty || 'CNTT'}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Lớp sinh hoạt / Khóa:</span>
+                    <span className="info-val">{detailReader.classGroup || 'K21-CC'}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Phân loại độc giả:</span>
+                    <span className="info-val">{detailReader.memberType === 'Lecturer' ? 'Giảng viên' : 'Sinh viên'}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-key">Hạn sử dụng thẻ:</span>
+                    <span className="info-val" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Calendar size={13} color="#64748b" />
+                      <span>{detailReader.expiryDate ? new Date(detailReader.expiryDate).toLocaleDateString('vi-VN') : 'Không thời hạn'}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Phân tích & Trực quan hóa rủi ro từ AI */}
               <div
-                className={`ai-risk-alert-box ${
-                  selectedReader.riskType === 'high'
+                className={`ai-risk-alert-box detail-ai-box ${
+                  detailReader.riskType === 'high'
                     ? 'alert-high'
-                    : selectedReader.riskType === 'medium'
+                    : detailReader.riskType === 'medium'
                     ? 'alert-medium'
                     : 'alert-low'
                 }`}
               >
                 <div className="ai-alert-title-row">
-                  {selectedReader.riskType === 'high' ? (
-                    <AlertTriangle size={17} />
-                  ) : selectedReader.riskType === 'medium' ? (
-                    <AlertCircle size={17} />
+                  {detailReader.riskType === 'high' ? (
+                    <AlertTriangle size={18} />
+                  ) : detailReader.riskType === 'medium' ? (
+                    <AlertCircle size={18} />
                   ) : (
-                    <CheckCircle2 size={17} />
+                    <CheckCircle2 size={18} />
                   )}
-                  <span>Xác suất trễ hạn đợt này: {selectedReader.riskScore}%</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={16} />
+                    Trợ lý AI Đánh Giá Nguy Cơ Trễ Hạn: {detailReader.riskScore}%
+                  </span>
+                  <span className="ai-alert-level" style={{ marginLeft: 'auto' }}>
+                    {detailReader.riskType === 'high'
+                      ? 'MỨC ĐỘ: RỦI RO CAO'
+                      : detailReader.riskType === 'medium'
+                      ? 'MỨC ĐỘ: RỦI RO TRUNG BÌNH'
+                      : 'MỨC ĐỘ: AN TOÀN'}
+                  </span>
                 </div>
-
-                <span className="ai-alert-level">
-                  Mức độ cảnh báo:{' '}
-                  {selectedReader.riskType === 'high'
-                    ? 'RỦI RO CAO'
-                    : selectedReader.riskType === 'medium'
-                    ? 'RỦI RO TRUNG BÌNH'
-                    : 'AN TOÀN (RẤT THẤP)'}
-                </span>
-
-                <p className="ai-alert-desc">{selectedReader.aiDiagnosis}</p>
+                <p className="ai-alert-desc" style={{ fontSize: '13px', marginTop: '6px' }}>
+                  {detailReader.aiDiagnosis || 'Hệ thống AI không phát hiện dấu hiệu bất thường trong lịch sử lưu thông của bạn đọc này.'}
+                </p>
               </div>
 
-              {/* Sách đang giữ */}
-              <div className="preview-books-section">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h5 className="preview-section-title">
-                    SÁCH ĐANG GIỮ ({String((selectedReader.books || []).length).padStart(2, '0')} cuốn)
-                  </h5>
-                  {selectedReader.books && selectedReader.books.length > 3 && (
-                    <span style={{ fontSize: '10.5px', color: '#94a3b8', fontStyle: 'italic' }}>
-                      Cuộn để xem tiếp
-                    </span>
-                  )}
+              {/* 4. Danh mục sách đang mượn */}
+              <div className="detail-section-card">
+                <div className="detail-section-title-row">
+                  <h4 className="detail-section-title">
+                    <BookOpen size={16} />
+                    <span>Danh mục sách đang mượn ({detailReader.books?.length || 0} cuốn)</span>
+                  </h4>
                 </div>
 
-                {!selectedReader.books || selectedReader.books.length === 0 ? (
-                  <div className="preview-empty-books">
-                    Hiện tại độc giả không giữ cuốn sách nào của thư viện.
+                {!detailReader.books || detailReader.books.length === 0 ? (
+                  <div className="detail-empty-books">
+                    <CheckCircle2 size={24} color="#16a34a" />
+                    <p>Hiện tại độc giả không giữ bất kỳ cuốn sách nào của thư viện.</p>
                   </div>
                 ) : (
-                  <div className="preview-book-list">
-                    {selectedReader.books.map((b, idx) => (
-                      <div key={idx} className="preview-book-item">
-                        <div className="book-top-row">
-                          <span className="book-title" title={b.title}>
-                            {b.title}
-                          </span>
+                  <div className="detail-book-list">
+                    {detailReader.books.map((b, idx) => (
+                      <div key={idx} className="detail-book-item">
+                        <div className="detail-book-main">
+                          <span className="detail-book-title">{b.title}</span>
+                          <span className="detail-book-sub">{b.subText}</span>
+                        </div>
+                        <div className="detail-book-badge-wrap">
                           <span
                             className={
                               b.badgeType === 'overdue'
@@ -809,62 +1177,66 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                             {b.badgeText}
                           </span>
                         </div>
-                        <span className="book-sub-text">{b.subText}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-
-              {/* Cụm Nút Hành động */}
-              <div className="preview-actions-group">
-                <button
-                  type="button"
-                  className="btn-warning-email"
-                  onClick={() => handleSendWarningEmail(selectedReader)}
-                  disabled={isSendingWarning}
-                  style={isSendingWarning ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
-                >
-                  {isSendingWarning ? (
-                    <>
-                      <Loader2 size={16} className="spin-icon" />
-                      <span>Đang gửi email...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mail size={16} />
-                      <span>Gửi cảnh báo Email</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className={!selectedReader.isActive ? 'btn-unlock-account' : 'btn-lock-account'}
-                  onClick={() => requestToggleLock(selectedReader)}
-                  disabled={updatingLockId === (selectedReader.readerId || selectedReader.readerID)}
-                >
-                  {!selectedReader.isActive ? (
-                    <>
-                      <Unlock size={16} />
-                      <span>Mở khóa quyền mượn sách</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock size={16} />
-                      <span>Khóa quyền mượn sách</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
-              Vui lòng chọn một độc giả để xem hồ sơ chi tiết.
             </div>
-          )}
+
+            {/* Modal Footer */}
+            <div className="reader-detail-modal-footer">
+              <button
+                type="button"
+                className="btn-warning-email"
+                style={{ width: 'auto', padding: '8px 16px' }}
+                onClick={() => handleSendWarningEmail(detailReader)}
+                disabled={isSendingWarning}
+              >
+                {isSendingWarning ? (
+                  <>
+                    <Loader2 size={16} className="spin-icon" />
+                    <span>Đang gửi email...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail size={16} />
+                    <span>Gửi cảnh báo Email</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={!detailReader.isActive ? 'btn-unlock-account' : 'btn-lock-account'}
+                style={{ width: 'auto', padding: '8px 16px' }}
+                onClick={(e) => requestToggleLock(detailReader, e)}
+                disabled={updatingLockId === (detailReader.readerId || detailReader.readerID)}
+              >
+                {!detailReader.isActive ? (
+                  <>
+                    <Unlock size={16} />
+                    <span>Mở khóa thẻ độc giả</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock size={16} />
+                    <span>Khóa thẻ độc giả</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={handleCloseDetailModal}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal xác nhận Khóa / Mở khóa thẻ độc giả (Ảnh 16) */}
       {confirmModalData.isOpen && confirmModalData.reader && (
