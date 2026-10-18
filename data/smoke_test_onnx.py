@@ -8,6 +8,7 @@ Mô tả: Kịch bản kiểm thử đối chiếu (Smoke Test) giữa mô hình
 
 import os
 import sys
+# pyrefly: ignore [missing-import]
 import joblib
 # pyrefly: ignore [missing-import]
 import numpy as np
