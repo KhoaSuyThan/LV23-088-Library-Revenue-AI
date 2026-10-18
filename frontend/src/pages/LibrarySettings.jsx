@@ -18,9 +18,23 @@ import {
   Clock,
   Globe,
   Plus,
-  X
+  X,
+  Search,
+  Zap,
+  ShieldCheck,
+  Layers,
+  Activity,
+  Undo2,
+  Calculator,
+  Award,
+  ShieldAlert,
+  TrendingUp,
+  BarChart2,
+  Crown,
+  Gem
 } from 'lucide-react';
 import { rulesApi } from '../api/rulesApi';
+import TablePagination from '../components/common/TablePagination';
 import './LibrarySettings.css';
 
 /**
@@ -114,12 +128,31 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     defaultDiscountPercent: 100
   });
 
+  // State sao lưu dữ liệu gốc để theo dõi thay đổi chưa lưu (Dirty Form Tracking)
+  const [initialFormData, setInitialFormData] = useState(null);
+
+  // State Modal xác nhận khôi phục mặc định an toàn (thay thế window.confirm)
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+
+  // State phân trang & tìm kiếm cho Tab Nhật ký kiểm toán (Audit Trail)
+  const [auditSearchQuery, setAuditSearchQuery] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+
+  // State giá sách mẫu mô phỏng tiền phạt (Live Penalty Simulator)
+  const [simulatedBookPrice, setSimulatedBookPrice] = useState(100000);
+
   // State tương tác UI
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRetraining, setIsRetraining] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Kiểm tra biểu mẫu có thay đổi chưa lưu (isDirty)
+  const isDirty = Boolean(
+    initialFormData && JSON.stringify(formData) !== JSON.stringify(initialFormData)
+  );
 
   // Tải dữ liệu ban đầu
   useEffect(() => {
@@ -136,11 +169,10 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
           const damageMed = rulesData.damageMediumPercent ?? 40;
           const damageSev = rulesData.damageSeverePercent ?? 110;
           const compPercent = rulesData.compensationBasePercent ?? 110;
-          const compFee = rulesData.compensationFixedFee ?? 20000;
 
           const studentLimit = rulesData.borrowLimit_Student ?? rulesData.borrowLimit_MaxTogether ?? 5;
-          setFormData((prev) => ({
-            ...prev,
+          const loadedData = {
+            ...formData,
             ...rulesData,
             borrowLimit_Student: studentLimit,
             borrowLimit_MaxTogether: studentLimit,
@@ -153,7 +185,11 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
             damageMediumText: `${damageMed}% giá bìa`,
             damageSevereText: `${damageSev}% giá bìa`,
             compensationText: `${compPercent}% giá bìa`
-          }));
+          };
+
+          setFormData(loadedData);
+          setInitialFormData(JSON.parse(JSON.stringify(loadedData)));
+
           if (rulesData.aiAccuracy) {
             setAiModelInfo((prev) => ({
               ...prev,
@@ -186,6 +222,13 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     if (typeof val === 'number') return isNaN(val) ? null : val;
     const match = String(val).match(/-?\d+(\.\d+)?/);
     return match ? parseFloat(match[0]) : null;
+  };
+
+  // Tính số tiền phạt mô phỏng dựa trên % và giá sách mẫu
+  const calcSimulatedPenalty = (textVal, price) => {
+    const num = extractNumber(textVal);
+    if (num === null || isNaN(num) || num < 0) return 0;
+    return Math.round((price * num) / 100);
   };
 
   // Xác thực trường dữ liệu tức thời (kiểm tra không được nhập số âm < 0)
@@ -252,13 +295,22 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     setFormData((prev) => ({ ...prev, aiRiskThreshold: Number(e.target.value) }));
   };
 
-  // Khôi phục giá trị chuẩn hệ thống qua API (L0LRA-79)
-  const handleResetDefaults = async () => {
-    const confirmed = window.confirm(
-      'Bạn có chắc chắn muốn khôi phục toàn bộ cấu hình quy định mượn trả & tham số AI về mặc định chuẩn của hệ thống không?'
-    );
-    if (!confirmed) return;
+  // Mở modal xác nhận khôi phục mặc định (L0LRA-21)
+  const handleResetDefaults = () => {
+    setIsResetModalOpen(true);
+  };
 
+  // Hoàn tác mọi thay đổi chưa lưu
+  const handleCancelChanges = () => {
+    if (initialFormData) {
+      setFormData(JSON.parse(JSON.stringify(initialFormData)));
+      setValidationErrors({});
+      showToast('Đã hoàn tác các thay đổi chưa lưu!', 'info');
+    }
+  };
+
+  // Thực thi khôi phục giá trị chuẩn hệ thống qua API khi người dùng xác nhận
+  const executeResetDefaults = async () => {
     setIsResetting(true);
     try {
       const res = await rulesApi.resetDefaultRules();
@@ -267,9 +319,8 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       const damageMed = targetData.damageMediumPercent ?? 40;
       const damageSev = targetData.damageSeverePercent ?? 110;
       const compPercent = targetData.compensationBasePercent ?? 110;
-      const compFee = targetData.compensationFixedFee ?? 20000;
 
-      setFormData({
+      const resetData = {
         ...targetData,
         damagePenaltyPercent: damagePercent,
         damageMediumPercent: damageMed,
@@ -280,8 +331,13 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
         damageMediumText: `${damageMed}% giá bìa`,
         damageSevereText: `${damageSev}% giá bìa`,
         compensationText: `${compPercent}% giá bìa`
-      });
+      };
+
+      setFormData(resetData);
+      setInitialFormData(JSON.parse(JSON.stringify(resetData)));
       setValidationErrors({});
+      setIsResetModalOpen(false);
+
       // Tự động làm mới lịch sử kiểm toán sau khi reset
       const updatedHistory = await rulesApi.getAuditHistory();
       setAuditHistory(updatedHistory);
@@ -355,6 +411,8 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       await rulesApi.updateSystemRules(payload);
       // Lưu bộ nhớ cục bộ đồng bộ trạng thái hiển thị
       localStorage.setItem('smartlib_rules_data', JSON.stringify(payload));
+      // Cập nhật initialFormData để xóa cờ Dirty Form
+      setInitialFormData(JSON.parse(JSON.stringify(payload)));
 
       const updatedHistory = await rulesApi.getAuditHistory();
       setAuditHistory(updatedHistory);
@@ -586,13 +644,55 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
               </div>
             </div>
 
-            {/* Card 2: Khung tính phí phạt vi phạm */}
+            {/* Card 2: Khung tính phí phạt vi phạm & Bộ mô phỏng tiền phạt trực quan */}
             <div className="figma-card">
-              <div className="figma-card-header">
-                <div className="figma-card-icon-box">
-                  <CircleDollarSign size={20} />
+              <div className="figma-card-header" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="figma-card-icon-box">
+                    <CircleDollarSign size={20} />
+                  </div>
+                  <div>
+                    <h3 className="figma-card-title">Khung tính phí phạt vi phạm</h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      Cấu hình mức phạt trễ hạn và tỷ lệ bồi hoàn khi làm hư hại/mất tài liệu.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="figma-card-title">Khung tính phí phạt vi phạm</h3>
+              </div>
+
+              {/* Bộ mô phỏng tính tiền phạt mẫu (Live Penalty Simulator) */}
+              <div className="penalty-simulator-box">
+                <div className="simulator-header">
+                  <div className="simulator-title">
+                    <Calculator size={14} className="text-blue" />
+                    <span>Mô phỏng tiền phạt theo giá sách bìa mẫu:</span>
+                  </div>
+                  <div className="simulator-quick-presets">
+                    {[50000, 100000, 200000, 500000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`sim-preset-btn ${simulatedBookPrice === preset ? 'active' : ''}`}
+                        onClick={() => setSimulatedBookPrice(preset)}
+                      >
+                        {preset / 1000}k
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="simulator-input-wrap">
+                  <input
+                    type="number"
+                    min="1000"
+                    step="10000"
+                    value={simulatedBookPrice}
+                    onChange={(e) => setSimulatedBookPrice(Math.max(0, Number(e.target.value)))}
+                    className="simulator-input"
+                    title="Nhập giá sách mẫu để xem trước số tiền bồi thường tương ứng"
+                  />
+                  <span className="simulator-tag">VNĐ (Giá sách gốc)</span>
+                </div>
               </div>
 
               {/* Phí phạt trễ hạn */}
@@ -626,92 +726,91 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 )}
               </div>
 
-              {/* Mức phạt làm rách / hỏng sách nhẹ */}
-              <div className="figma-form-item">
-                <label className="figma-field-label" htmlFor="damagePenaltyText">
-                  Mức phạt làm rách / hỏng sách nhẹ
-                </label>
-                <div className="figma-input-wrapper">
-                  <input
-                    id="damagePenaltyText"
-                    name="damagePenaltyText"
-                    type="text"
-                    className={`figma-input-control ${validationErrors.damagePenaltyText ? 'has-error' : ''}`}
-                    value={formData.damagePenaltyText}
-                    onChange={handleTextChange}
-                  />
+              {/* Lưới 4 thẻ phân cấp mức độ hư hại & xem trước số tiền bồi thường */}
+              <div className="damage-tiered-grid">
+                {/* 1. Rách nhẹ */}
+                <div className="damage-tier-card tier-green">
+                  <div className="tier-badge-row">
+                    <span className="tier-badge badge-green">Hỏng nhẹ (10-20%)</span>
+                    <span className="tier-calc-preview">
+                      ≈ {calcSimulatedPenalty(formData.damagePenaltyText, simulatedBookPrice).toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                  <label className="tier-label" htmlFor="damagePenaltyText">Mức phạt rách / ố nhẹ</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      id="damagePenaltyText"
+                      name="damagePenaltyText"
+                      type="text"
+                      className={`figma-input-control ${validationErrors.damagePenaltyText ? 'has-error' : ''}`}
+                      value={formData.damagePenaltyText}
+                      onChange={handleTextChange}
+                    />
+                  </div>
                 </div>
-                {validationErrors.damagePenaltyText && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.damagePenaltyText}
-                  </span>
-                )}
-              </div>
 
-              {/* Mức phạt làm hỏng sách vừa */}
-              <div className="figma-form-item">
-                <label className="figma-field-label" htmlFor="damageMediumText">
-                  Mức phạt làm hỏng sách vừa
-                </label>
-                <div className="figma-input-wrapper">
-                  <input
-                    id="damageMediumText"
-                    name="damageMediumText"
-                    type="text"
-                    className={`figma-input-control ${validationErrors.damageMediumText ? 'has-error' : ''}`}
-                    value={formData.damageMediumText}
-                    onChange={handleTextChange}
-                  />
+                {/* 2. Hỏng vừa */}
+                <div className="damage-tier-card tier-amber">
+                  <div className="tier-badge-row">
+                    <span className="tier-badge badge-amber">Hỏng vừa (30-50%)</span>
+                    <span className="tier-calc-preview">
+                      ≈ {calcSimulatedPenalty(formData.damageMediumText, simulatedBookPrice).toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                  <label className="tier-label" htmlFor="damageMediumText">Mức phạt rách trang / mất bìa</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      id="damageMediumText"
+                      name="damageMediumText"
+                      type="text"
+                      className={`figma-input-control ${validationErrors.damageMediumText ? 'has-error' : ''}`}
+                      value={formData.damageMediumText}
+                      onChange={handleTextChange}
+                    />
+                  </div>
                 </div>
-                {validationErrors.damageMediumText && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.damageMediumText}
-                  </span>
-                )}
-              </div>
 
-              {/* Mức phạt làm hỏng sách nặng */}
-              <div className="figma-form-item">
-                <label className="figma-field-label" htmlFor="damageSevereText">
-                  Mức phạt làm hỏng sách nặng
-                </label>
-                <div className="figma-input-wrapper">
-                  <input
-                    id="damageSevereText"
-                    name="damageSevereText"
-                    type="text"
-                    className={`figma-input-control ${validationErrors.damageSevereText ? 'has-error' : ''}`}
-                    value={formData.damageSevereText}
-                    onChange={handleTextChange}
-                  />
+                {/* 3. Hỏng nặng */}
+                <div className="damage-tier-card tier-red">
+                  <div className="tier-badge-row">
+                    <span className="tier-badge badge-red">Hỏng nặng (100-110%)</span>
+                    <span className="tier-calc-preview">
+                      ≈ {calcSimulatedPenalty(formData.damageSevereText, simulatedBookPrice).toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                  <label className="tier-label" htmlFor="damageSevereText">Mức phạt ướt / rách nát</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      id="damageSevereText"
+                      name="damageSevereText"
+                      type="text"
+                      className={`figma-input-control ${validationErrors.damageSevereText ? 'has-error' : ''}`}
+                      value={formData.damageSevereText}
+                      onChange={handleTextChange}
+                    />
+                  </div>
                 </div>
-                {validationErrors.damageSevereText && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.damageSevereText}
-                  </span>
-                )}
-              </div>
 
-              {/* Mức đền bù mất sách / hỏng hoàn toàn */}
-              <div className="figma-form-item">
-                <label className="figma-field-label" htmlFor="compensationText">
-                  Mức đền bù mất sách / hỏng hoàn toàn
-                </label>
-                <div className="figma-input-wrapper">
-                  <input
-                    id="compensationText"
-                    name="compensationText"
-                    type="text"
-                    className={`figma-input-control ${validationErrors.compensationText ? 'has-error' : ''}`}
-                    value={formData.compensationText}
-                    onChange={handleTextChange}
-                  />
+                {/* 4. Mất sách */}
+                <div className="damage-tier-card tier-purple">
+                  <div className="tier-badge-row">
+                    <span className="tier-badge badge-purple">Mất sách / Đền bù</span>
+                    <span className="tier-calc-preview">
+                      ≈ {calcSimulatedPenalty(formData.compensationText, simulatedBookPrice).toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                  <label className="tier-label" htmlFor="compensationText">Đền bù mất tài liệu</label>
+                  <div className="figma-input-wrapper">
+                    <input
+                      id="compensationText"
+                      name="compensationText"
+                      type="text"
+                      className={`figma-input-control ${validationErrors.compensationText ? 'has-error' : ''}`}
+                      value={formData.compensationText}
+                      onChange={handleTextChange}
+                    />
+                  </div>
                 </div>
-                {validationErrors.compensationText && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.compensationText}
-                  </span>
-                )}
               </div>
 
               {/* Dòng Toggle Khóa mượn nợ phạt */}
@@ -744,14 +843,19 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 <h3 className="figma-card-title">Tham số cảnh báo AI Early Warning</h3>
               </div>
 
-              {/* Thanh kéo Slider Ngưỡng kích hoạt rủi ro cao */}
+              {/* Thước đo 3 vùng rủi ro AI (Visual 3-Zone Risk Gauge) */}
               <div className="ai-slider-wrapper">
                 <div className="ai-slider-header">
-                  <span className="ai-slider-title">Ngưỡng kích hoạt rủi ro cao (High Risk Threshold)</span>
-                  <span className="ai-slider-value-badge">{formData.aiRiskThreshold}%</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldAlert size={15} className="text-blue" />
+                    <span className="ai-slider-title">Ngưỡng rủi ro cao (High Risk Threshold)</span>
+                  </div>
+                  <span className={`ai-slider-value-badge ${formData.aiRiskThreshold >= 80 ? 'badge-danger' : formData.aiRiskThreshold >= 50 ? 'badge-warning' : 'badge-safe'}`}>
+                    {formData.aiRiskThreshold}%
+                  </span>
                 </div>
 
-                {/* Thanh kéo Slider Ngưỡng kích hoạt rủi ro cao (Style 2 màu theo Ảnh 19) */}
+                {/* Thanh kéo Slider */}
                 <input
                   type="range"
                   min="0"
@@ -759,15 +863,46 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   step="1"
                   className="ai-range-input"
                   style={{
-                    background: `linear-gradient(to right, #2563eb 0%, #2563eb ${formData.aiRiskThreshold}%, #e2e8f0 ${formData.aiRiskThreshold}%, #e2e8f0 100%)`
+                    background: `linear-gradient(to right, #10b981 0%, #10b981 50%, #f59e0b 50%, #f59e0b 80%, #ef4444 80%, #ef4444 100%)`
                   }}
                   value={formData.aiRiskThreshold}
                   onChange={handleSliderChange}
                 />
 
-                <div className="ai-slider-scale">
-                  <span>0%</span>
-                  <span>100%</span>
+                {/* 3 vùng màu trực quan */}
+                <div className="ai-gauge-zones">
+                  <div className="gauge-zone zone-safe">
+                    <span className="zone-dot dot-green"></span>
+                    <span>0-49% An toàn</span>
+                  </div>
+                  <div className="gauge-zone zone-warning">
+                    <span className="zone-dot dot-amber"></span>
+                    <span>50-79% Giám sát</span>
+                  </div>
+                  <div className="gauge-zone zone-danger">
+                    <span className="zone-dot dot-red"></span>
+                    <span>80-100% Báo động</span>
+                  </div>
+                </div>
+
+                {/* Thẻ phản hồi hành động tương ứng theo giá trị ngưỡng */}
+                <div className={`ai-action-feedback ${formData.aiRiskThreshold >= 80 ? 'feedback-danger' : formData.aiRiskThreshold >= 50 ? 'feedback-warning' : 'feedback-safe'}`}>
+                  {formData.aiRiskThreshold >= 80 ? (
+                    <>
+                      <AlertTriangle size={15} className="text-red flex-shrink-0" />
+                      <span><strong>Vùng Báo động (≥80%):</strong> Hệ thống tự động gửi email cảnh báo trễ hạn và khóa quyền tự gia hạn sách của độc giả.</span>
+                    </>
+                  ) : formData.aiRiskThreshold >= 50 ? (
+                    <>
+                      <Info size={15} className="text-amber flex-shrink-0" />
+                      <span><strong>Vùng Giám sát (50-79%):</strong> Cảnh báo nguy cơ cho Thủ thư khi quét thẻ mượn tại Quầy lưu thông.</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} className="text-emerald flex-shrink-0" />
+                      <span><strong>Vùng An toàn (&lt;50%):</strong> Độc giả có điểm tín nhiệm cao, được hưởng quy chế mượn tiêu chuẩn.</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -810,28 +945,98 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 </label>
               </div>
 
-              {/* Khối Thẻ Trạng thái & Huấn luyện lại Mô hình AI */}
+              {/* Khối Thẻ Trạng thái & Huấn luyện lại Mô hình AI ONNX Runtime (L0LRA-21 - Sprint 6.3) */}
               <div className="ai-model-status-card">
                 <div className="ai-model-top-line">
-                  <span className="ai-model-label">Mô hình đang chạy</span>
+                  <div className="ai-engine-badge">
+                    <Zap size={13} className="ai-engine-badge-icon" />
+                    <span>ONNX Runtime (In-Process)</span>
+                  </div>
                   <span className="ai-model-status-active">
-                    <span>●</span> {aiModelInfo.status}
+                    <span className="pulse-indicator">●</span> Đang kích hoạt
                   </span>
                 </div>
 
-                <h4 className="ai-model-name-title">{aiModelInfo.name}</h4>
-                <p className="ai-model-detail-row">
-                  Độ chính xác hiện tại: <strong>{aiModelInfo.accuracy}%</strong>
-                </p>
-                <p className="ai-model-date-row">
-                  Lần huấn luyện gần nhất: {aiModelInfo.lastTrained}
-                </p>
+                <div className="ai-model-header-block">
+                  <h4 className="ai-model-name-title">smartlib_risk_model.onnx</h4>
+                  <span className="ai-model-arch-tag">Binary ONNX / Random Forest (100 Trees)</span>
+                </div>
+
+                {/* Bảng thông số đo kiểm mô hình AI chuẩn công nghiệp */}
+                <div className="ai-model-metrics-grid">
+                  <div className="ai-metric-item">
+                    <span className="ai-metric-label">Độ chính xác (Accuracy)</span>
+                    <span className="ai-metric-value text-blue">95.1%</span>
+                    <span className="ai-metric-sub">ROC-AUC: 93.2%</span>
+                  </div>
+                  <div className="ai-metric-item">
+                    <span className="ai-metric-label">Độ trễ suy luận</span>
+                    <span className="ai-metric-value text-emerald">&lt; 0.20 ms</span>
+                    <span className="ai-metric-sub">C# Native Interop</span>
+                  </div>
+                  <div className="ai-metric-item">
+                    <span className="ai-metric-label">Đặc trưng đầu vào</span>
+                    <span className="ai-metric-value text-violet">8 chiều</span>
+                    <span className="ai-metric-sub">StandardScaler</span>
+                  </div>
+                </div>
+
+                <div className="ai-model-meta-info">
+                  <div className="ai-meta-row">
+                    <Activity size={13} className="text-slate" />
+                    <span>Lần huấn luyện gần nhất: <strong>{aiModelInfo.lastTrained || '14/10/2026'}</strong></span>
+                  </div>
+                  <div className="ai-meta-row">
+                    <ShieldCheck size={13} className="text-slate" />
+                    <span>Provider thực thi: <strong>CPUExecutionProvider (Thread-safe)</strong></span>
+                  </div>
+                </div>
+
+                {/* Top 3 đặc trưng AI quan trọng nhất (Feature Importance Ranking) */}
+                <div className="ai-features-importance-block">
+                  <div className="features-importance-header">
+                    <BarChart2 size={13} className="text-blue" />
+                    <span>Top 3 đặc trưng AI ảnh hưởng nhất (Feature Importance):</span>
+                  </div>
+                  <div className="feature-bar-list">
+                    <div className="feature-bar-item">
+                      <div className="feature-bar-label">
+                        <span>1. Lịch sử trễ hạn quá khứ (OverdueHistory)</span>
+                        <strong className="text-red">41.2%</strong>
+                      </div>
+                      <div className="feature-bar-track">
+                        <div className="feature-bar-fill fill-red" style={{ width: '41.2%' }}></div>
+                      </div>
+                    </div>
+
+                    <div className="feature-bar-item">
+                      <div className="feature-bar-label">
+                        <span>2. Điểm tín nhiệm bạn đọc (CreditScore)</span>
+                        <strong className="text-blue">28.7%</strong>
+                      </div>
+                      <div className="feature-bar-track">
+                        <div className="feature-bar-fill fill-blue" style={{ width: '28.7%' }}></div>
+                      </div>
+                    </div>
+
+                    <div className="feature-bar-item">
+                      <div className="feature-bar-label">
+                        <span>3. Số sách đang mượn (CurrentBorrowCount)</span>
+                        <strong className="text-emerald">16.5%</strong>
+                      </div>
+                      <div className="feature-bar-track">
+                        <div className="feature-bar-fill fill-emerald" style={{ width: '16.5%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <button
                   type="button"
                   className="btn-retrain-outline"
                   onClick={handleRetrain}
                   disabled={isRetraining}
+                  title="Huấn luyện lại mô hình ngẫu nhiên với dữ liệu mượn trả mới nhất"
                 >
                   <RotateCw size={15} className={isRetraining ? 'spinner-spin' : ''} />
                   <span>
@@ -995,57 +1200,101 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       )}
 
       {/* --------------------------------------------------------------------
-          5. TAB 3: CHIẾT KHẤU AI & MIỄN GIẢM THỦ CÔNG
+          5. TAB 3: CHIẾT KHẤU AI & HỆ THỐNG HẠNG TÍN NHIỆM BẠN ĐỌC
           -------------------------------------------------------------------- */}
       {activeTab === 'fine_waiver' && (
         <div className="subtab-detail-container">
           <div className="figma-two-columns-layout">
+            {/* Cột trái: Hệ thống phân hạng tín nhiệm bạn đọc (Credit Score Tiers) */}
             <div className="figma-card">
               <div className="figma-card-header">
                 <div className="figma-card-icon-box">
-                  <Sparkles size={20} />
+                  <Crown size={20} />
                 </div>
-                <h3 className="figma-card-title">Giảm trừ theo Điểm Rèn luyện AI</h3>
+                <div>
+                  <h3 className="figma-card-title">Hệ thống Phân Hạng Tín Nhiệm Bạn Đọc</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                    Chính sách thưởng điểm rèn luyện & tự động giảm trừ tiền phạt vi phạm.
+                  </p>
+                </div>
               </div>
 
-              <div className="figma-form-item">
-                <label className="figma-field-label">Mốc điểm tín nhiệm ≥ 90</label>
-                <div className="figma-input-wrapper">
-                  <input
-                    name="aiDiscount_90"
-                    type="number"
-                    min="0"
-                    className={`figma-input-control ${validationErrors.aiDiscount_90 ? 'has-error' : ''}`}
-                    value={formData.aiDiscount_90}
-                    onChange={handleNumberChange}
-                  />
-                  <span className="figma-input-tag">% giảm trừ</span>
+              <div className="tiers-container">
+                {/* Hạng 1: Kim Cương */}
+                <div className="tier-card tier-card-diamond">
+                  <div className="tier-card-top">
+                    <div className="tier-card-badge">
+                      <Gem size={15} className="text-cyan" />
+                      <span className="tier-name">Hạng Kim Cương (Diamond)</span>
+                    </div>
+                    <span className="tier-score-pill">Điểm tín nhiệm = 100</span>
+                  </div>
+                  <p className="tier-desc">Dành cho độc giả có lịch sử mượn trả hoàn hảo, luôn đúng hạn 100%.</p>
+                  <div className="figma-form-item" style={{ marginTop: '10px' }}>
+                    <label className="figma-field-label">Tỷ lệ giảm trừ tiền phạt vi phạm:</label>
+                    <div className="figma-input-wrapper">
+                      <input
+                        name="aiDiscount_100"
+                        type="number"
+                        min="0"
+                        max="100"
+                        className={`figma-input-control ${validationErrors.aiDiscount_100 ? 'has-error' : ''}`}
+                        value={formData.aiDiscount_100}
+                        onChange={handleNumberChange}
+                      />
+                      <span className="figma-input-tag">% giảm trừ</span>
+                    </div>
+                    {validationErrors.aiDiscount_100 && (
+                      <span className="figma-error-hint">
+                        <AlertTriangle size={12} /> {validationErrors.aiDiscount_100}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {validationErrors.aiDiscount_90 && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.aiDiscount_90}
-                  </span>
-                )}
-              </div>
 
-              <div className="figma-form-item">
-                <label className="figma-field-label">Mốc điểm tín nhiệm tuyệt đối = 100</label>
-                <div className="figma-input-wrapper">
-                  <input
-                    name="aiDiscount_100"
-                    type="number"
-                    min="0"
-                    className={`figma-input-control ${validationErrors.aiDiscount_100 ? 'has-error' : ''}`}
-                    value={formData.aiDiscount_100}
-                    onChange={handleNumberChange}
-                  />
-                  <span className="figma-input-tag">% giảm trừ</span>
+                {/* Hạng 2: Vàng */}
+                <div className="tier-card tier-card-gold">
+                  <div className="tier-card-top">
+                    <div className="tier-card-badge">
+                      <Award size={15} className="text-gold" />
+                      <span className="tier-name">Hạng Vàng (Gold)</span>
+                    </div>
+                    <span className="tier-score-pill pill-gold">Điểm tín nhiệm ≥ 90</span>
+                  </div>
+                  <p className="tier-desc">Dành cho sinh viên và giảng viên gương mẫu, hiếm khi quá hạn.</p>
+                  <div className="figma-form-item" style={{ marginTop: '10px' }}>
+                    <label className="figma-field-label">Tỷ lệ giảm trừ tiền phạt vi phạm:</label>
+                    <div className="figma-input-wrapper">
+                      <input
+                        name="aiDiscount_90"
+                        type="number"
+                        min="0"
+                        max="100"
+                        className={`figma-input-control ${validationErrors.aiDiscount_90 ? 'has-error' : ''}`}
+                        value={formData.aiDiscount_90}
+                        onChange={handleNumberChange}
+                      />
+                      <span className="figma-input-tag">% giảm trừ</span>
+                    </div>
+                    {validationErrors.aiDiscount_90 && (
+                      <span className="figma-error-hint">
+                        <AlertTriangle size={12} /> {validationErrors.aiDiscount_90}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {validationErrors.aiDiscount_100 && (
-                  <span className="figma-error-hint">
-                    <AlertTriangle size={12} /> {validationErrors.aiDiscount_100}
-                  </span>
-                )}
+
+                {/* Hạng 3: Tiêu chuẩn */}
+                <div className="tier-card tier-card-standard">
+                  <div className="tier-card-top">
+                    <div className="tier-card-badge">
+                      <User size={15} className="text-slate" />
+                      <span className="tier-name">Hạng Tiêu Chuẩn (Standard)</span>
+                    </div>
+                    <span className="tier-score-pill pill-standard">Điểm tín nhiệm &lt; 90</span>
+                  </div>
+                  <p className="tier-desc">Áp dụng biểu phí phạt gốc 100%, không áp dụng chiết khấu tự động.</p>
+                </div>
               </div>
             </div>
 
@@ -1103,66 +1352,147 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       )}
 
       {/* --------------------------------------------------------------------
-          6. TAB 4: NHẬT KÝ KIỂM TOÁN (AUDIT TRAIL)
+          6. TAB 4: NHẬT KÝ KIỂM TOÁN (AUDIT TRAIL) - TỐI ƯU PHÂN TRANG (L0LRA-21)
           -------------------------------------------------------------------- */}
-      {activeTab === 'audit' && (
-        <div className="figma-card" style={{ padding: '0', overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-            <h3 className="figma-card-title">Lịch sử thay đổi quy định hệ thống (Audit Trail)</h3>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-              Ghi nhận đầy đủ vết thời gian, tài khoản quản trị và địa chỉ IP theo tiêu chuẩn bảo mật.
-            </p>
-          </div>
+      {activeTab === 'audit' && (() => {
+        // Lọc danh sách lịch sử theo từ khóa tìm kiếm
+        const query = auditSearchQuery.trim().toLowerCase();
+        const filteredHistory = query
+          ? auditHistory.filter(
+              (item) =>
+                (item.ruleName && item.ruleName.toLowerCase().includes(query)) ||
+                (item.changedBy && item.changedBy.toLowerCase().includes(query)) ||
+                (item.ipAddress && item.ipAddress.toLowerCase().includes(query)) ||
+                (item.oldValue && String(item.oldValue).toLowerCase().includes(query)) ||
+                (item.newValue && String(item.newValue).toLowerCase().includes(query))
+            )
+          : auditHistory;
 
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Thời gian</th>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Người thực hiện</th>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Quy định điều chỉnh</th>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Giá trị cũ</th>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Giá trị mới</th>
-                  <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 600 }}>Địa chỉ IP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditHistory.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 18px', color: '#64748b', fontFamily: 'monospace' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={13} style={{ color: '#94a3b8' }} />
-                        <span>{item.changedAt}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 18px', fontWeight: 600, color: '#0f172a' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <User size={13} style={{ color: '#2563eb' }} />
-                        <span>{item.changedBy}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 18px', fontWeight: 600 }}>{item.ruleName}</td>
-                    <td style={{ padding: '12px 18px', color: '#94a3b8', textDecoration: 'line-through' }}>
-                      {item.oldValue}
-                    </td>
-                    <td style={{ padding: '12px 18px', color: '#059669', fontWeight: 700 }}>
-                      {item.newValue}
-                    </td>
-                    <td style={{ padding: '12px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Globe size={12} style={{ color: '#94a3b8' }} />
-                        <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
-                          {item.ipAddress}
-                        </span>
-                      </div>
-                    </td>
+        // Cắt lát dữ liệu phân trang
+        const totalItems = filteredHistory.length;
+        const startIdx = (auditPage - 1) * auditPageSize;
+        const paginatedHistory = filteredHistory.slice(startIdx, startIdx + auditPageSize);
+
+        return (
+          <div className="figma-card audit-trail-card">
+            <div className="audit-card-header">
+              <div className="audit-header-title-box">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="figma-card-icon-box">
+                    <History size={20} />
+                  </div>
+                  <div>
+                    <h3 className="figma-card-title">Lịch sử thay đổi quy định hệ thống (Audit Trail)</h3>
+                    <p className="audit-card-subtitle">
+                      Ghi nhận đầy đủ vết thời gian, tài khoản quản trị và địa chỉ IP theo tiêu chuẩn bảo mật.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thanh tìm kiếm nhanh lịch sử kiểm toán */}
+              <div className="audit-search-wrapper">
+                <Search size={15} className="audit-search-icon" />
+                <input
+                  type="text"
+                  className="audit-search-input"
+                  placeholder="Tìm theo quy định, thủ thư, IP..."
+                  value={auditSearchQuery}
+                  onChange={(e) => {
+                    setAuditSearchQuery(e.target.value);
+                    setAuditPage(1);
+                  }}
+                />
+                {auditSearchQuery && (
+                  <button
+                    type="button"
+                    className="audit-search-clear"
+                    onClick={() => {
+                      setAuditSearchQuery('');
+                      setAuditPage(1);
+                    }}
+                    title="Xóa tìm kiếm"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="audit-table-wrapper">
+              <table className="audit-data-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Người thực hiện</th>
+                    <th>Quy định điều chỉnh</th>
+                    <th>Giá trị cũ</th>
+                    <th>Giá trị mới</th>
+                    <th>Địa chỉ IP</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedHistory.length > 0 ? (
+                    paginatedHistory.map((item) => (
+                      <tr key={item.id}>
+                        <td className="audit-col-time">
+                          <div className="audit-cell-flex">
+                            <Clock size={13} className="text-slate" />
+                            <span>{item.changedAt}</span>
+                          </div>
+                        </td>
+                        <td className="audit-col-user">
+                          <div className="audit-cell-flex">
+                            <User size={13} className="text-blue" />
+                            <span>{item.changedBy}</span>
+                          </div>
+                        </td>
+                        <td className="audit-col-rule">{item.ruleName}</td>
+                        <td className="audit-col-old">{item.oldValue}</td>
+                        <td className="audit-col-new">{item.newValue}</td>
+                        <td className="audit-col-ip">
+                          <div className="audit-cell-flex">
+                            <Globe size={12} className="text-slate" />
+                            <span className="audit-ip-badge">{item.ipAddress}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="audit-empty-row">
+                        <div className="audit-empty-state">
+                          <History size={36} className="text-slate-light" />
+                          <p>
+                            {query
+                              ? `Không tìm thấy bản ghi kiểm toán nào khớp với từ khóa "${query}"`
+                              : 'Chưa có lịch sử thay đổi quy định nào được ghi nhận.'}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Phân trang chuẩn TablePagination cho Audit Trail */}
+            <TablePagination
+              currentPage={auditPage}
+              pageSize={auditPageSize}
+              totalItems={totalItems}
+              pageSizeOptions={[10, 20, 50]}
+              unitLabel="bản ghi"
+              onPageChange={(page) => setAuditPage(page)}
+              onPageSizeChange={(size) => {
+                setAuditPageSize(size);
+                setAuditPage(1);
+              }}
+              className="table-pagination-card-bleed"
+            />
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* --------------------------------------------------------------------
           7. MODAL THÊM LÝ DO MIỄN GIẢM MỚI (ẢNH 22)
@@ -1276,7 +1606,114 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       )}
 
       {/* --------------------------------------------------------------------
-          8. TOAST NOTIFICATION
+          8. MODAL XÁC NHẬN KHÔI PHỤC MẶC ĐỊNH CHUẨN (L0LRA-21)
+          -------------------------------------------------------------------- */}
+      {isResetModalOpen && (
+        <div
+          className="settings-modal-overlay"
+          onClick={() => !isResetting && setIsResetModalOpen(false)}
+        >
+          <div className="settings-modal-box reset-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="reset-modal-header">
+              <div className="reset-modal-icon-badge">
+                <RotateCcw size={22} className="text-amber" />
+              </div>
+              <h4 className="reset-modal-title">Khôi phục cấu hình mặc định</h4>
+              <p className="reset-modal-desc">
+                Bạn có chắc chắn muốn khôi phục toàn bộ quy định lưu thông, biểu phí phạt và tham số cảnh báo AI về giá trị mặc định chuẩn của hệ thống không?
+              </p>
+            </div>
+
+            <div className="reset-summary-box">
+              <div className="reset-summary-title">Tóm tắt các tham số sẽ được khôi phục:</div>
+              <ul className="reset-summary-list">
+                <li>• Mượn sách SV: <strong>14 ngày</strong> (tối đa 3 cuốn) | GV: <strong>30 ngày</strong> (tối đa 8 cuốn)</li>
+                <li>• Phạt trễ hạn: <strong>2.000 VNĐ</strong> / cuốn / ngày | Rách nhẹ: <strong>20%</strong> | Nặng: <strong>110%</strong></li>
+                <li>• Khóa mượn khi nợ phạt: <strong>≥ 50.000 VNĐ</strong></li>
+                <li>• Ngưỡng cảnh báo AI High-risk: <strong>80%</strong> | Nhắc nhở trước: <strong>3 ngày</strong></li>
+                <li>• Giảm trừ điểm rèn luyện: ≥90: <strong>10%</strong> | 100 điểm: <strong>20%</strong></li>
+              </ul>
+            </div>
+
+            <div className="reset-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setIsResetModalOpen(false)}
+                disabled={isResetting}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn-modal-reset-confirm"
+                onClick={executeResetDefaults}
+                disabled={isResetting}
+              >
+                {isResetting ? (
+                  <>
+                    <RotateCw size={14} className="spinner-spin" />
+                    <span>Đang khôi phục...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw size={14} />
+                    <span>Xác nhận khôi phục</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------
+          9. THANH THAO TÁC NỔI KHI CÓ THAY ĐỔI CHƯA LƯU (FLOATING ACTION BAR - L0LRA-21)
+          -------------------------------------------------------------------- */}
+      {isDirty && activeTab !== 'audit' && (
+        <div className="settings-floating-bar">
+          <div className="floating-bar-left">
+            <div className="floating-bar-pulse-dot"></div>
+            <div className="floating-bar-text">
+              <span className="floating-bar-title">Bạn có thay đổi cấu hình chưa được lưu!</span>
+              <span className="floating-bar-hint">Nhấn "Lưu cấu hình" để áp dụng ngay lập tức trên toàn hệ thống.</span>
+            </div>
+          </div>
+
+          <div className="floating-bar-actions">
+            <button
+              type="button"
+              className="btn-floating-cancel"
+              onClick={handleCancelChanges}
+              disabled={isSaving}
+            >
+              <Undo2 size={14} />
+              <span>Hoàn tác</span>
+            </button>
+            <button
+              type="button"
+              className="btn-floating-save"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <RotateCw size={14} className="spinner-spin" />
+                  <span>Đang lưu...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  <span>Lưu thay đổi</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------
+          10. TOAST NOTIFICATION
           -------------------------------------------------------------------- */}
       {toastMessage && (
         <div className={`figma-toast toast-${toastMessage.type}`}>

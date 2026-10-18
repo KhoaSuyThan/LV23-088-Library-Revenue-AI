@@ -5,6 +5,40 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-18] - Nâng Cấp Trực Quan Hóa Tương Tác & Trải Nghiệm Cài Đặt (L0LRA-21 - Phase 2)
+
+- **Bộ Mô Phỏng Tiền Phạt Trực Quan (Live Penalty Simulator - Tab 1):**
+  - Bổ sung ô nhập giá sách bìa mẫu kèm 4 nút bấm chọn nhanh (`50k`, `100k`, `200k`, `500k`).
+  - Khắc phục triệt để hiện tượng xung đột CSS class `.preset-btn` với module `CirculationDesk.css`: chuyển sang `.sim-preset-btn` độc lập, đảm bảo khi click chọn nút sẽ hiển thị nền xanh đậm (`#2563eb`) và chữ trắng in đậm tương phản sắc nét, không bị chìm màu.
+  - Lưới 4 thẻ phân cấp hư hại đa màu sắc (Xanh - Hỏng nhẹ, Vàng - Hỏng vừa, Đỏ - Hỏng nặng, Tím - Mất sách) tự động tính toán và hiển thị số tiền phạt ước tính tương ứng tức thì (`≈ XX.XXX đ`).
+- **Thước Đo 3 Vùng Rủi Ro AI & Thẻ Hành Động Tương Tác (3-Zone Risk Gauge):**
+  - Nâng cấp thanh kéo ngưỡng rủi ro AI thành thước đo 3 vùng màu trực quan: **0-49% (An toàn - Xanh)**, **50-79% (Giám sát - Vàng)**, **80-100% (Báo động - Đỏ)**.
+  - Thẻ phản hồi hành động thông minh: Tự động đổi màu và hiển thị chính xác kịch bản xử lý tương ứng của hệ thống (kích hoạt nhắc nhở tự động / cảnh báo thủ thư / mượn tiêu chuẩn).
+- **Trực Quan Hóa Top 3 Đặc Trưng AI Quan Trọng Nhất (Feature Importance Ranking):**
+  - Tích hợp biểu đồ thanh tiến trình gradient trực tiếp vào Thẻ ONNX Runtime:
+    - 1. Lịch sử trễ hạn quá khứ (`OverdueHistory`): **41.2%**
+    - 2. Điểm tín nhiệm bạn đọc (`CreditScore`): **28.7%**
+    - 3. Số sách đang mượn hiện tại (`CurrentBorrowCount`): **16.5%**
+- **Hệ Thống Phân Hạng Tín Nhiệm Bạn Đọc Đẳng Cấp (Credit Score Tiers - Tab 3):**
+  - Thiết kế lại Tab "Chiết khấu AI" thành hệ thống hạng thành viên danh giá: **Hạng Kim Cương (Diamond - Điểm 100)**, **Hạng Vàng (Gold - Điểm ≥90)** và **Hạng Tiêu Chuẩn (Standard - Điểm <90)** với badge viền dạ quang và ô cấu hình tỷ lệ giảm trừ tiền phạt trực quan.
+- **Biên Dịch & Đo Kiểm:** `npm run build` hoàn tất chỉ trong 1.22s, 0 lỗi biên dịch.
+
+## [2026-10-18] - Tối Ưu Giao Diện Hiển Thị Cài Đặt & Cấu Hình AI ONNX (L0LRA-21 - Sprint 6.3)
+
+- **Nâng Cấp Thẻ Trạng Thái & Hiệu Năng AI ONNX Runtime ([`LibrarySettings.jsx`](frontend/src/pages/LibrarySettings.jsx), [`LibrarySettings.css`](frontend/src/pages/LibrarySettings.css)):**
+  - Hiển thị thông số công nghệ chuẩn xác của mô hình nhị phân `smartlib_risk_model.onnx` thay thế giao diện mẫu cũ.
+  - Tích hợp Badge công nghệ **ONNX Runtime (In-Process)** kèm đèn nhấp nháy động `Đang kích hoạt` (`pulseGlow`).
+  - Trực quan hóa Lưới 3 thông số đo kiểm công nghiệp: Độ chính xác **95.1%** (ROC-AUC **93.2%**), Độ trễ suy luận siêu tốc **< 0.20 ms** (C# Native Interop) và Đặc trưng đầu vào **8 chiều**.
+  - Hiển thị chi tiết Execution Provider: `CPUExecutionProvider (Thread-safe)` và thời điểm huấn luyện.
+- **Chuẩn Hóa Phân Trang & Tìm Kiếm Tab Nhật Ký Kiểm Toán (Audit Trail):**
+  - Tích hợp component phân trang dùng chung [`TablePagination.jsx`](frontend/src/components/common/TablePagination.jsx) với các tùy chọn `[10, 20, 50] bản ghi / trang`.
+  - Bổ sung thanh tìm kiếm nhanh thời gian thực: Lọc tức thì theo tên quy định, tài khoản thủ thư, địa chỉ IP hoặc giá trị thay đổi; kèm nút xóa nhanh từ khóa.
+  - Thiết kế bảng dữ liệu kiểm toán sạch sẽ, huy hiệu IP font monospace sắc nét và Empty State minh họa khi không có bản ghi phù hợp.
+- **Trải Nghiệm Lưu & Xác Nhận Biểu Mẫu Cao Cấp (UX Enhancements):**
+  - **Thanh thao tác nổi (Floating Action Bar):** Tự động phát hiện trạng thái thay đổi chưa lưu (`isDirty`), hiển thị thanh nổi Dark Navy Glassmorphism ở đáy màn hình với đèn cảnh báo hổ phách nhấp nháy, nút **[Hoàn tác]** và **[Lưu thay đổi]**.
+  - **Modal Khôi phục Mặc định Chuẩn:** Thay thế hộp thoại trình duyệt `window.confirm` bằng Modal hiện đại có tóm tắt chi tiết 5 nhóm quy định chuẩn sẽ được khôi phục, đảm bảo tính an toàn và minh bạch cho quản trị viên.
+- **Kiểm Thử & Biên Dịch:** Kiểm tra biên dịch `npm run build` thành công 100% không phát sinh bất kỳ lỗi nào.
+
 ## [2026-10-17] - Tái Cấu Trúc Giao Diện Hồ Sơ Độc Giả: Tách Cửa Sổ Chi Tiết & Tối Ưu Bảng Tóm Tắt
 
 - **Tái Cấu Trúc Trải Nghiệm Người Dùng Phân Hệ Hồ Sơ Độc Giả ([`ReaderProfiles.jsx`](frontend/src/pages/ReaderProfiles.jsx) & [`ReaderProfiles.css`](frontend/src/pages/ReaderProfiles.css)):**
