@@ -39,10 +39,11 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             }
 
             var pattern = $"%{keyword}%";
+            // Tối ưu hóa hiệu năng: Sử dụng LIKE trực tiếp với Collation CI của CSDL, tránh ép Collate động làm nghẽn CPU và timeout (L0LRA-115)
             query = query.Where(b =>
-                EF.Functions.Like(EF.Functions.Collate(b.Title, "SQL_Latin1_General_CP1_CI_AI"), pattern) ||
-                EF.Functions.Like(EF.Functions.Collate(b.Author, "SQL_Latin1_General_CP1_CI_AI"), pattern) ||
-                (b.ISBN != null && EF.Functions.Like(EF.Functions.Collate(b.ISBN, "SQL_Latin1_General_CP1_CI_AI"), pattern)) ||
+                EF.Functions.Like(b.Title, pattern) ||
+                EF.Functions.Like(b.Author, pattern) ||
+                (b.ISBN != null && EF.Functions.Like(b.ISBN, pattern)) ||
                 (searchBookId.HasValue && b.BookID == searchBookId.Value));
         }
 

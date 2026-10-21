@@ -36,6 +36,7 @@ import ReaderProfiles from './ReaderProfiles';
 import BookCatalog from './BookCatalog';
 import CirculationDesk from './CirculationDesk';
 import FineRevenue from './FineRevenue';
+import UserProfileModal from '../components/UserProfileModal';
 import './DashboardPage.css';
 
 /**
@@ -48,10 +49,45 @@ export default function DashboardPage({
   user,
   activeTab: propActiveTab,
   onTabChange,
-  onLogout
+  onLogout,
+  onUserUpdated
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Quản lý Modal Thông tin cá nhân & Tài khoản người dùng
+  const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
+  const [currentUserAvatar, setCurrentUserAvatar] = React.useState(() => {
+    const storageKey = `smartlib_avatar_${user?.userID || user?.email || 'default'}`;
+    return (
+      localStorage.getItem(storageKey) ||
+      user?.avatarUrl ||
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+    );
+  });
+
+  // Đồng bộ avatar khi user thay đổi
+  React.useEffect(() => {
+    if (user) {
+      const storageKey = `smartlib_avatar_${user.userID || user.email || 'default'}`;
+      const saved = localStorage.getItem(storageKey);
+      setCurrentUserAvatar(
+        saved ||
+        user.avatarUrl ||
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+      );
+    }
+  }, [user]);
+
+  // Xử lý khi hồ sơ cá nhân được lưu thành công
+  const handleProfileUpdated = (updatedUser) => {
+    if (updatedUser?.avatarUrl) {
+      setCurrentUserAvatar(updatedUser.avatarUrl);
+    }
+    if (onUserUpdated) {
+      onUserUpdated(updatedUser);
+    }
+  };
 
   // Xác định activeTab chuẩn xác từ đường dẫn URL (ví dụ: /settings/general -> activeTab là 'settings')
   const pathParts = location.pathname.replace(/^\//, '').split('/');
@@ -1259,8 +1295,13 @@ export default function DashboardPage({
               )}
             </div>
 
-            {/* Thông tin người dùng đăng nhập */}
-            <div className="user-profile">
+            {/* Thông tin người dùng đăng nhập (Nhấp để mở hồ sơ cá nhân) */}
+            <div
+              className="user-profile"
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Nhấp để xem hồ sơ và chỉnh sửa thông tin cá nhân"
+              style={{ cursor: 'pointer' }}
+            >
               <div className="user-text">
                 <span className="user-name-title">
                   {user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)'}
@@ -1271,11 +1312,11 @@ export default function DashboardPage({
               </div>
               <div className="user-avatar" title={user?.role || 'Admin'}>
                 <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
-                  alt="Admin"
+                  src={currentUserAvatar}
+                  alt={user?.fullName || 'Avatar'}
                   className="user-avatar-img"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80';
                   }}
                 />
               </div>
@@ -2081,6 +2122,14 @@ export default function DashboardPage({
           )}
         </div>
       </main>
+
+      {/* Modal Hồ sơ cá nhân & Cập nhật tài khoản */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={user}
+        onProfileUpdated={handleProfileUpdated}
+      />
     </div>
   );
 }
