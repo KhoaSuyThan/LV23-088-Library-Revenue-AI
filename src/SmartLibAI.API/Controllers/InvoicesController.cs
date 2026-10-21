@@ -134,4 +134,15 @@ public class InvoicesController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo trên màn hình Thu phạt).
+    /// </summary>
+    [HttpGet("ai-forecast-readers")]
+    [ProducesResponseType(typeof(ApiResponse<List<AiForecastReaderDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAiForecastReaders()
+    {
+        var result = await _invoiceService.GetAiForecastReadersAsync();
+        return Ok(result);
+    }
 }

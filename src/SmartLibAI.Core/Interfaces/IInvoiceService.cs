@@ -42,4 +42,10 @@ public interface IInvoiceService
         DateTime? toDate = null,
         int pageNumber = 1,
         int pageSize = 20);
+
+    /// <summary>
+    /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo trên màn hình Thu phạt).
+    /// </summary>
+    Task<ApiResponse<List<AiForecastReaderDto>>> GetAiForecastReadersAsync();
 }
+
