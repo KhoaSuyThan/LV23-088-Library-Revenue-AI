@@ -12,9 +12,4 @@ public interface IAuthService
     Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginRequestDto request);
 
     string GenerateToken(User user, string roleName);
-
-    /// <summary>
-    /// Cập nhật thông tin họ tên và mật khẩu của người dùng hiện tại (bảo toàn Email đăng nhập).
-    /// </summary>
-    Task<ApiResponse<UserProfileDto>> UpdateProfileAsync(int userId, UpdateProfileRequestDto request);
 }

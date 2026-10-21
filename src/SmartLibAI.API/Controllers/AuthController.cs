@@ -90,29 +90,4 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<UserProfileDto>.SuccessResult(profile, "Lấy thông tin tài khoản thành công"));
     }
-
-    /// <summary>
-    /// Cập nhật thông tin cá nhân (Họ tên, Mật khẩu) của người dùng hiện tại (bảo toàn Email đăng nhập).
-    /// </summary>
-    [HttpPut("profile")]
-    [Authorize]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
-    {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) 
-            ?? User.FindFirstValue("sub") 
-            ?? User.FindFirstValue("nameid");
-
-        if (!int.TryParse(userIdStr, out int userId) || userId <= 0)
-        {
-            return Unauthorized(ApiResponse<UserProfileDto>.ErrorResult("Phiên làm việc không hợp lệ hoặc đã hết hạn."));
-        }
-
-        var result = await _authService.UpdateProfileAsync(userId, request);
-        if (!result.Success)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
-    }
 }

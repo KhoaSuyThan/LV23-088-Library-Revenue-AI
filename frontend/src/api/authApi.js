@@ -46,14 +46,8 @@ export const authApi = {
     return response.data;
   },
 
-  updateProfile: async (data) => {
-    const response = await apiClient.put('/api/Auth/profile', data);
-    return response.data;
-  },
-
   logout: () => {
     localStorage.removeItem('smartlib_token');
     localStorage.removeItem('smartlib_user');
   }
 };
-
