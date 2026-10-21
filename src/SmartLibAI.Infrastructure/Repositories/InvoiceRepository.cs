@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartLibAI.Core.Common;
+using SmartLibAI.Core.DTOs.Invoices;
 using SmartLibAI.Core.Entities;
 using SmartLibAI.Core.Interfaces;
 using SmartLibAI.Infrastructure.Data;
@@ -448,6 +449,82 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
         }).ToList();
 
         return (dtos, totalCount);
+    }
+
+    /// <summary>
+    /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo trên màn hình Thu phạt).
+    /// </summary>
+    public async Task<List<AiForecastReaderDto>> GetAiForecastReadersAsync()
+    {
+        // Lấy danh sách dự báo AI mới nhất kèm thông tin phiếu mượn, độc giả và sách
+        var logs = await _context.AIPredictionLogs
+            .Include(l => l.Borrowing)
+                .ThenInclude(b => b.Reader)
+                    .ThenInclude(r => r.User)
+            .Include(l => l.Borrowing)
+                .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(bc => bc.Book)
+            .OrderByDescending(l => l.RiskScore)
+            .ThenByDescending(l => l.EvaluatedAt)
+            .Take(100)
+            .ToListAsync();
+
+        var defaultRule = await _context.FineRules.FirstOrDefaultAsync(r => r.IsActive);
+        var finePerDay = defaultRule?.FinePerDay ?? 5000m;
+
+        var result = logs.Select(l =>
+        {
+            var b = l.Borrowing;
+            var reader = b?.Reader;
+            var user = reader?.User;
+            var detail = b?.BorrowingDetails?.FirstOrDefault();
+            var copy = detail?.BookCopy;
+            var book = copy?.Book;
+
+            var score = (int)Math.Round(l.RiskScore);
+            string riskLevel = score >= 80 ? "very_high" : (score >= 70 ? "high" : (score >= 50 ? "medium" : "low"));
+            string riskLabel = score >= 80 ? "Nguy cơ rất cao" : (score >= 70 ? "Nguy cơ cao" : (score >= 50 ? "Nguy cơ trung bình" : "Nguy cơ thấp"));
+            string scoreColor = score >= 80 ? "#ef4444" : (score >= 70 ? "#f97316" : (score >= 50 ? "#f59e0b" : "#3b82f6"));
+
+            int daysOverdue = b != null && DateTime.Now > b.DueDate ? (int)(DateTime.Now - b.DueDate).TotalDays : 0;
+
+            var factors = new List<AiRiskFactorDto>();
+            if (daysOverdue > 0)
+            {
+                factors.Add(new AiRiskFactorDto { Label = $"Đang quá hạn {daysOverdue} ngày", Weight = "+50%" });
+            }
+            if (reader != null && reader.CreditScore < 90)
+            {
+                factors.Add(new AiRiskFactorDto { Label = $"Điểm tín nhiệm thấp ({reader.CreditScore}/100)", Weight = "+30%" });
+            }
+            else
+            {
+                factors.Add(new AiRiskFactorDto { Label = $"Điểm tín nhiệm hiện tại: {reader?.CreditScore ?? 100}/100", Weight = "-15%" });
+            }
+
+            return new AiForecastReaderDto
+            {
+                BorrowingId = b?.BorrowingID ?? 0,
+                Id = $"PM-{b?.BorrowingID:D4}",
+                Name = user?.FullName ?? "Độc giả",
+                StudentCode = reader?.ReaderCode ?? string.Empty,
+                Department = !string.IsNullOrEmpty(reader?.Faculty) ? $"Khoa {reader.Faculty}" : "Chưa phân khoa",
+                BookTitle = book?.Title ?? "Tài liệu thư viện",
+                BookCode = copy?.Barcode ?? string.Empty,
+                DueDate = b?.DueDate.ToString("dd/MM/yyyy") ?? string.Empty,
+                Score = score,
+                ScoreColor = scoreColor,
+                RiskLevel = riskLevel,
+                RiskLabel = riskLabel,
+                SuggestedAction = l.SuggestedAction ?? string.Empty,
+                Factors = factors,
+                ReminderSent = false,
+                EstimatedDailyFine = $"{finePerDay:N0} đ/ngày"
+            };
+        }).ToList();
+
+        return result;
     }
 }
 

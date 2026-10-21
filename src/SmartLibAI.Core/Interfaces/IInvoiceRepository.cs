@@ -57,4 +57,9 @@ public interface IInvoiceRepository : IGenericRepository<PenaltyInvoice>
         DateTime? toDate = null,
         int pageNumber = 1,
         int pageSize = 20);
+
+    /// <summary>
+    /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá.
+    /// </summary>
+    Task<List<AiForecastReaderDto>> GetAiForecastReadersAsync();
 }

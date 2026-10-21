@@ -80,6 +80,7 @@ LV23-088-Library-Revenue-AI/
 │   ├── 01_schema_smartlib_ai.sql  # Script tạo cấu trúc 12 bảng CSDL SQL Server
 │   ├── 02_seed_dummy_data.sql     # Script nạp danh mục mẫu, độc giả kiểm thử & quy định phạt
 │   ├── 03_import_books_and_copies.sql # Script nạp 11.123 đầu sách & bản sao mã vạch
+│   ├── 04_reset_demo_seed.sql     # Reset dữ liệu lưu thông demo theo Jira LOLRA-94
 │   ├── clean_kaggle_books.py      # Script Python tiền xử lý dữ liệu sách Kaggle
 │   ├── cleaned_books.csv          # Dữ liệu 11.123 sách chuẩn hóa
 │   ├── cleaned_book_copies.csv    # Dữ liệu 22.246 bản sao sách có barcode
@@ -126,7 +127,13 @@ sqlcmd -S localhost -E -i data/02_seed_dummy_data.sql
 
 # 3. Nạp kho dữ liệu hơn 11.000 sách và bản sao mã vạch Barcode
 sqlcmd -S localhost -E -i data/03_import_books_and_copies.sql
+
+# 4. Chỉ trên database demo/UAT sau khi backup: reset và tạo dữ liệu cân bằng (Jira LOLRA-94)
+# (Khuyến nghị thêm cờ -f 65001 để đảm bảo nạp tiếng Việt có dấu chuẩn xác)
+sqlcmd -S localhost -E -f 65001 -i data/04_reset_demo_seed.sql
 ```
+
+> `04_reset_demo_seed.sql` xóa dữ liệu mượn/trả, phạt, thông báo và hồ sơ độc giả hiện có; giữ danh mục sách, bản sao, tài khoản Admin/Staff và cấu hình. Chỉ chạy trên database demo/UAT không chứa dữ liệu cần giữ. Script cần tối thiểu 100 bản sao khả dụng và tạo 100 độc giả demo: 50 phiếu quá hạn, 30 lượt trả đúng hạn, 20 lượt đang mượn chưa đến hạn, 40 khoản phạt chờ thu và 10 hóa đơn đã thu.
 
 ---
 

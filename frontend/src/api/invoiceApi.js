@@ -55,5 +55,13 @@ export const invoiceApi = {
     const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
     const response = await apiClient.get(`/api/invoices/history${queryString}`);
     return response.data;
+  },
+
+  /**
+   * Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo)
+   */
+  getAiForecastReaders: async () => {
+    const response = await apiClient.get('/api/invoices/ai-forecast-readers');
+    return response.data;
   }
 };

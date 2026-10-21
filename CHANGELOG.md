@@ -5,40 +5,19 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-21] - Đồng Bộ Dữ Liệu Bảng Dự Báo Rủi Ro AI Thu Phạt & Reset Seed Demo (LOLRA-94)
 
-## [2026-10-21] - Nâng Cấp Modal Hồ Sơ Cá Nhân & Quản Trị Tài Khoản Người Dùng
+- **API Dự Báo Rủi Ro AI Trễ Hạn ([`InvoicesController.cs`](src/SmartLibAI.API/Controllers/InvoicesController.cs), [`IInvoiceService.cs`](src/SmartLibAI.Core/Interfaces/IInvoiceService.cs), [`InvoiceRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs)):**
+  - Xây dựng endpoint mới `GET /api/invoices/ai-forecast-readers` và DTO [`AiForecastReaderDto.cs`](src/SmartLibAI.Core/DTOs/Invoices/AiForecastReaderDto.cs).
+  - Truy vấn trực tiếp từ bảng `AIPredictionLogs` kết hợp `Borrowings`, `Readers`, `Users` và `BookCopies`, phân loại tự động 4 cấp độ nguy cơ (`very_high`, `high`, `medium`, `low`) kèm đề xuất xử lý và các yếu tố giải thích trọng số.
+- **Tích Hợp Giao Diện Trực Quan ([`FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx), [`invoiceApi.js`](frontend/src/api/invoiceApi.js)):**
+  - Thay thế mảng mock 6 sinh viên cứng bằng hàm nạp động `fetchAiForecastReaders()`, tự động đồng bộ 50 hồ sơ quá hạn có điểm rủi ro cao (80% - 99%) từ database SQL Server.
+  - Cập nhật số lượng tự động trên badge bộ lọc `Tất cả (50)` và tích hợp cơ chế phân trang 5/10/20 bản ghi/trang cùng cơ chế graceful fallback an toàn.
+- **Khởi Tạo Script Reset Seed Demo ([`04_reset_demo_seed.sql`](data/04_reset_demo_seed.sql), [`README.md`](README.md)):**
+  - Tạo script reset dữ liệu demo cân bằng (100 độc giả, 50 quá hạn, 30 đã trả, 20 đang mượn, 50 khoản phạt).
+  - Chuẩn hóa định dạng `UTF-8 with BOM` (`EF BB BF`) và hướng dẫn cờ `-f 65001` khi thực thi bằng `sqlcmd` đảm bảo hiển thị tiếng Việt Unicode chuẩn xác.
 
-- **Giao diện Modal Hồ sơ cá nhân (`UserProfileModal.jsx` & `UserProfileModal.css`):**
-  - Tích hợp tính năng tương tác nhấp vào ô Avatar/Tên người dùng trên thanh Header (`DashboardPage.jsx`).
-  - Giao diện thiết kế cao cấp, hiện đại: Glassmorphism backdrop, Cover banner nghệ thuật, Avatar bo tròn nổi bật kèm chấm trạng thái Online màu xanh lá.
-  - Hiển thị đầy đủ thông tin định danh: Họ tên, Email đăng nhập, Tên tài khoản (Username), Vai trò hệ thống (Role badge: Admin/Staff), Phân hệ công tác và Mã định danh người dùng (`#USR-xxxx`).
-  - **Bảo mật tuyệt đối Email:** Email được khóa ở chế độ Read-only (`disabled`) kèm biểu tượng ổ khóa 🔒, nhãn "Cố định" và chú thích rõ ràng: *Email được dùng để định danh đăng nhập nên không thể sửa đổi*.
-  - **Tùy biến Avatar linh hoạt:** Hỗ trợ chọn nhanh 6 ảnh đại diện phong cách chất lượng cao (nam/nữ/chuyên gia) hoặc tải ảnh đại diện tùy ý từ máy tính cá nhân (lưu trữ theo mã UserID trong `localStorage`).
-  - **Đổi họ tên & Đổi mật khẩu:** Cho phép cập nhật Họ và tên hiển thị; tích hợp khối đổi mật khẩu bảo mật (mật khẩu hiện tại, mật khẩu mới tối thiểu 6 ký tự, xác nhận mật khẩu, nút ẩn/hiện mật khẩu).
-- **Backend API Cập nhật hồ sơ (`AuthController.cs`, `AuthService.cs`, `UpdateProfileRequestDto.cs`):**
-  - Bổ sung endpoint `PUT /api/auth/profile` có gắn `[Authorize]` đảm bảo an toàn truy cập qua JWT Token.
-  - Kiểm tra mật khẩu cũ bằng BCrypt trước khi hash và lưu mật khẩu mới. Bảo vệ tuyệt đối trường `Email` không bị ghi đè trong database.
-- **Tương thích & Biên dịch:**
-  - `npm run build` Vite Frontend và `dotnet build` .NET Backend đều đạt 0 lỗi biên dịch.
-
-## [2026-10-21] - Kiểm Thử Hồi Quy Toàn Diện & Vá Lỗi Hệ Thống (L0LRA-115 - Sprint 7.1)
-
-- **Kiểm Thử Hồi Quy Mô Hình AI (ONNX Runtime In-Process):**
-  - Kiểm thử đối chiếu trên 2.000 mẫu kiểm thử: Độ trễ suy luận đơn lẻ đạt **0.0396 ms/mẫu** (vượt xa tiêu chuẩn yêu cầu < 1.0 ms), P95 đạt **0.0749 ms**.
-  - Độ chính xác toàn diện: Accuracy đạt **95.10%**, Precision đạt **92.51%**, Recall đạt **81.68%**, F1-Score đạt **86.76%**.
-  - Kiểm thử ca biên rủi ro: Ca độc giả VIP an toàn cho xác suất trễ hạn **0.10%**, ca độc giả nguy cơ cao cho xác suất trễ hạn **93.16%**.
-- **Vá Lỗi Truy Vấn Tìm Kiếm Sách (Defect Fix - `BookRepository.cs`):**
-  - *Hiện tượng:* API `GET /api/books?keyword=...` bị quá thời gian xử lý (Execution Timeout > 35s) trên 11.123 đầu sách.
-  - *Nguyên nhân:* Mệnh đề `WHERE` sử dụng hàm `EF.Functions.Collate(..., "SQL_Latin1_General_CP1_CI_AI")` ép SQL Server chuyển đổi bảng mã động từng dòng, làm vô hiệu hóa toàn bộ index và gây nghẽn CPU.
-  - *Giải pháp:* Chuyển sang sử dụng `EF.Functions.Like(...)` trực tiếp dựa trên Collation Case-Insensitive có sẵn của database `SmartLibAI`. Thời gian phản hồi giảm từ > 35s xuống còn **343.5 ms** (nhanh hơn 100 lần).
-- **Kiểm Thử Hồi Quy Toàn Bộ 23 Test Cases (API & Phân quyền RBAC):**
-  - Hoàn thành kiểm thử 23/23 ca kiểm thử: **100% PASSED**, độ trễ trung bình toàn hệ thống đạt **145.3 ms**.
-  - Bảo mật RBAC: Chặn đúng mã HTTP 403 Forbidden cho tài khoản Reader và 401 Unauthorized khi sai thông tin.
-- **Biên Dịch Frontend React & Tổng Hợp Báo Cáo:**
-  - `npm --prefix frontend run build` hoàn tất xuất sắc trong 2.62s với 0 Errors.
-  - Đã xuất bản tệp báo cáo nghiệm thu chuyên nghiệp dạng Word tại: `docs/Bao_Cao_Kiem_Thu_Hoi_Quy_L0LRA-115.docx`.
-
-
+## [2026-10-18] - Nâng Cấp Trực Quan Hóa Tương Tác & Trải Nghiệm Cài Đặt (L0LRA-21 - Phase 2)
 
 - **Bộ Mô Phỏng Tiền Phạt Trực Quan (Live Penalty Simulator - Tab 1):**
   - Bổ sung ô nhập giá sách bìa mẫu kèm 4 nút bấm chọn nhanh (`50k`, `100k`, `200k`, `500k`).
