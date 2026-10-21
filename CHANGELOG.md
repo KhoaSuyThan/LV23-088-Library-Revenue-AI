@@ -5,6 +5,18 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-21] - Đồng Bộ Dữ Liệu Bảng Dự Báo Rủi Ro AI Thu Phạt & Reset Seed Demo (LOLRA-94)
+
+- **API Dự Báo Rủi Ro AI Trễ Hạn ([`InvoicesController.cs`](src/SmartLibAI.API/Controllers/InvoicesController.cs), [`IInvoiceService.cs`](src/SmartLibAI.Core/Interfaces/IInvoiceService.cs), [`InvoiceRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs)):**
+  - Xây dựng endpoint mới `GET /api/invoices/ai-forecast-readers` và DTO [`AiForecastReaderDto.cs`](src/SmartLibAI.Core/DTOs/Invoices/AiForecastReaderDto.cs).
+  - Truy vấn trực tiếp từ bảng `AIPredictionLogs` kết hợp `Borrowings`, `Readers`, `Users` và `BookCopies`, phân loại tự động 4 cấp độ nguy cơ (`very_high`, `high`, `medium`, `low`) kèm đề xuất xử lý và các yếu tố giải thích trọng số.
+- **Tích Hợp Giao Diện Trực Quan ([`FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx), [`invoiceApi.js`](frontend/src/api/invoiceApi.js)):**
+  - Thay thế mảng mock 6 sinh viên cứng bằng hàm nạp động `fetchAiForecastReaders()`, tự động đồng bộ 50 hồ sơ quá hạn có điểm rủi ro cao (80% - 99%) từ database SQL Server.
+  - Cập nhật số lượng tự động trên badge bộ lọc `Tất cả (50)` và tích hợp cơ chế phân trang 5/10/20 bản ghi/trang cùng cơ chế graceful fallback an toàn.
+- **Khởi Tạo Script Reset Seed Demo ([`04_reset_demo_seed.sql`](data/04_reset_demo_seed.sql), [`README.md`](README.md)):**
+  - Tạo script reset dữ liệu demo cân bằng (100 độc giả, 50 quá hạn, 30 đã trả, 20 đang mượn, 50 khoản phạt).
+  - Chuẩn hóa định dạng `UTF-8 with BOM` (`EF BB BF`) và hướng dẫn cờ `-f 65001` khi thực thi bằng `sqlcmd` đảm bảo hiển thị tiếng Việt Unicode chuẩn xác.
+
 ## [2026-10-18] - Nâng Cấp Trực Quan Hóa Tương Tác & Trải Nghiệm Cài Đặt (L0LRA-21 - Phase 2)
 
 - **Bộ Mô Phỏng Tiền Phạt Trực Quan (Live Penalty Simulator - Tab 1):**

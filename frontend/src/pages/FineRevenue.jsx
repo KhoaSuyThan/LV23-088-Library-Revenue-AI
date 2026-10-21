@@ -280,10 +280,23 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     }
   };
 
+  // Tải danh sách độc giả có nguy cơ trễ hạn cao từ Backend SQL Server / AI Log
+  const fetchAiForecastReaders = async () => {
+    try {
+      const res = await invoiceApi.getAiForecastReaders();
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setReaders(res.data);
+      }
+    } catch (err) {
+      console.warn('Chưa nạp được danh sách dự báo AI từ Backend:', err.message);
+    }
+  };
+
   useEffect(() => {
     fetchPendingFines();
     fetchRevenueSummary();
     fetchReceiptHistory();
+    fetchAiForecastReaders();
   }, []);
 
   // Tính toán các chỉ số KPI động từ dữ liệu SQL Server (không dùng fallback số giả)

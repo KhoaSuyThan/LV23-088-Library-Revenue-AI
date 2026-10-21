@@ -237,5 +237,23 @@ public class InvoiceService : IInvoiceService
             return ApiResponse<PagedResult<InvoiceHistoryDto>>.ErrorResult($"Lỗi truy vấn danh sách biên lai: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo trên màn hình Thu phạt).
+    /// </summary>
+    public async Task<ApiResponse<List<AiForecastReaderDto>>> GetAiForecastReadersAsync()
+    {
+        try
+        {
+            var list = await _invoiceRepository.GetAiForecastReadersAsync();
+            return ApiResponse<List<AiForecastReaderDto>>.SuccessResult(
+                list,
+                $"Lấy danh sách độc giả nguy cơ cao thành công ({list.Count} độc giả).");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<AiForecastReaderDto>>.ErrorResult($"Lỗi truy vấn dự báo AI: {ex.Message}");
+        }
+    }
 }
 

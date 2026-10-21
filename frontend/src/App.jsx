@@ -71,7 +71,13 @@ function AppContent() {
         />
       );
     }
-    return <DashboardPage user={currentUser} onLogout={handleLogout} />;
+    return (
+      <DashboardPage
+        user={currentUser}
+        onUserUpdated={setCurrentUser}
+        onLogout={handleLogout}
+      />
+    );
   };
 
   return (

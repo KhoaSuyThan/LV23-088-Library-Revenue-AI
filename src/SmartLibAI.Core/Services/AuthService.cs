@@ -143,4 +143,63 @@ public class AuthService : IAuthService
 
         return tokenHandler.WriteToken(token);
     }
+
+    /// <summary>
+    /// Cập nhật thông tin họ tên và mật khẩu của người dùng hiện tại (bảo toàn Email đăng nhập).
+    /// </summary>
+    public async Task<ApiResponse<UserProfileDto>> UpdateProfileAsync(int userId, UpdateProfileRequestDto request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return ApiResponse<UserProfileDto>.ErrorResult("Không tìm thấy thông tin tài khoản người dùng");
+        }
+
+        // 1. Cập nhật Họ và tên nếu có
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            user.FullName = request.FullName.Trim();
+        }
+
+        // 2. Xử lý đổi mật khẩu nếu người dùng yêu cầu
+        if (!string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            {
+                return ApiResponse<UserProfileDto>.ErrorResult("Vui lòng nhập mật khẩu hiện tại để xác thực đổi mật khẩu");
+            }
+
+            bool isCurrentValid = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
+            if (!isCurrentValid)
+            {
+                return ApiResponse<UserProfileDto>.ErrorResult("Mật khẩu hiện tại không chính xác");
+            }
+
+            if (request.NewPassword.Length < 6)
+            {
+                return ApiResponse<UserProfileDto>.ErrorResult("Mật khẩu mới phải có ít nhất 6 ký tự");
+            }
+
+            // Mã hóa mật khẩu mới bằng BCrypt an toàn
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        }
+
+        // 3. Lưu cập nhật vào CSDL
+        await _userRepository.UpdateAsync(user);
+
+        // Nạp thông tin vai trò
+        var role = await _roleRepository.GetByIdAsync(user.RoleID);
+        string roleName = role?.RoleName ?? "Staff";
+
+        var profileDto = new UserProfileDto
+        {
+            UserID = user.UserID,
+            Username = user.Username,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            Role = roleName
+        };
+
+        return ApiResponse<UserProfileDto>.SuccessResult(profileDto, "Cập nhật thông tin hồ sơ cá nhân thành công");
+    }
 }
