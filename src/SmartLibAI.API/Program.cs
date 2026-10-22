@@ -147,6 +147,16 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE Books ADD IsActive BIT NOT NULL DEFAULT 1;
             END
 
+            -- Tự động mở rộng độ dài cột Title, Author, Publisher của Books
+            IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Books') AND name = 'Author' AND max_length < 1600)
+            BEGIN
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Books_IsActive_CategoryID' AND object_id = OBJECT_ID('Books'))
+                    DROP INDEX IX_Books_IsActive_CategoryID ON Books;
+                ALTER TABLE Books ALTER COLUMN Title NVARCHAR(500) NOT NULL;
+                ALTER TABLE Books ALTER COLUMN Author NVARCHAR(1000) NOT NULL;
+                ALTER TABLE Books ALTER COLUMN Publisher NVARCHAR(255) NULL;
+            END
+
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Readers') AND name = 'CreditScore')
             BEGIN
                 ALTER TABLE Readers ADD CreditScore INT NOT NULL DEFAULT 100;
