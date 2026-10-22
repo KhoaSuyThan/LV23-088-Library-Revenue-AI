@@ -4,6 +4,13 @@
 > **Học kỳ:** HK1 (2026 - 2027)  
 > **Thời gian thực hiện:** 08/09/2026 – 08/11/2026 (8 tuần kỹ thuật + 1 tuần bảo vệ)
 
+> [!IMPORTANT]
+> ### 🌐 ĐỊA CHỈ TRUY CẬP HỆ THỐNG TRỰC TUYẾN (LIVE DEMO & CLOUD DEPLOYMENT)
+> * **Cổng Quản trị Thư viện (Frontend Vercel):** [https://lv-23-088-library-revenue-ai-git-main-khoa-suy-than.vercel.app](https://lv-23-088-library-revenue-ai-git-main-khoa-suy-than.vercel.app) *(kết nối Vercel Reverse Proxy)*
+> * **Máy chủ Backend Web API (MonsterASP Cloud):** [http://smartlib-ai-api.runasp.net](http://smartlib-ai-api.runasp.net)
+> * **Tài liệu Swagger UI API:** [http://smartlib-ai-api.runasp.net/index.html](http://smartlib-ai-api.runasp.net/index.html)
+> * **Giám sát Sức khỏe Hệ thống & AI (Health Check):** [http://smartlib-ai-api.runasp.net/api/health](http://smartlib-ai-api.runasp.net/api/health)
+
 ---
 
 ## 1. Giới thiệu tổng quan
@@ -59,7 +66,12 @@ Hệ thống được phát triển theo mô hình phân tách độc lập (Dec
 * **Kiến trúc N-Tier chuẩn hóa:**
   * **`SmartLibAI.Core`:** Định nghĩa Entities, DTOs, Interfaces và Services nghiệp vụ (`BorrowService`, `ReturnService`, `BookService`, `InvoiceService`, `AuthService`).
   * **`SmartLibAI.Infrastructure`:** Quản lý truy cập dữ liệu với Entity Framework Core 10 (`SmartLibDbContext`), triển khai Repositories với Database Transactions đảm bảo tính toàn vẹn ACID.
-  * **`SmartLibAI.API`:** Cung cấp RESTful APIs với các Controllers (`BorrowsController`, `ReturnsController`, `BooksController`, `InvoicesController`, `AuthController`...), tích hợp Swagger UI, Global Exception Middleware và CORS.
+  * **`SmartLibAI.API`:** Cung cấp RESTful APIs với các Controllers (`BorrowsController`, `ReturnsController`, `BooksController`, `InvoicesController`, `AuthController`, `HealthController`...), tích hợp Swagger UI, Global Exception Middleware và CORS có kiểm soát.
+* **Mô hình Trí tuệ Nhân tạo (Machine Learning ONNX Runtime In-Process):**
+  * Tích hợp mô hình Random Forest phân tích 8 đặc trưng hành vi độc giả (`Faculty`, `MemberType`, `CreditScore`, `CurrentHoldingBooks`, `HistoricalOverdueCount`, `BorrowDurationDays`, `TotalCurrentDebt`, `IsExamSeason`).
+  * Nhúng trực tiếp trong tiến trình Backend (In-Process) qua ONNX Runtime với độ trễ siêu thấp (<1ms), kèm cơ chế Heuristic Fallback tự động khi chưa có file model.
+* **Giám sát sức khỏe hệ thống (`Health Check`):**
+  * Endpoint `GET /api/health` tự động kiểm tra tình trạng kết nối CSDL SQL Server và trạng thái sẵn sàng của mô hình AI ONNX.
 * **Tối ưu hóa CSDL SQL Server:**
   * Đánh chỉ mục Non-Clustered Indexes kết hợp (`IX_Books_IsActive_CategoryID`, `IX_BookCopies_BookID_Status`) giúp truy vấn tìm kiếm và phân trang đạt tốc độ 31 - 36ms trên 11.123 bản ghi.
   * 12 bảng quan hệ chuẩn hóa: `Roles`, `Users`, `Readers`, `Categories`, `Books`, `BookCopies`, `Borrowings`, `BorrowingDetails`, `FineRules`, `FineReceipts`, `Notifications`, `AIPredictionLogs`.
@@ -70,6 +82,11 @@ Hệ thống được phát triển theo mô hình phân tách độc lập (Dec
 
 ```text
 LV23-088-Library-Revenue-AI/
+├── .agents/skills/                # Bộ Custom Skills tự động hóa chuẩn Jira, QA, DB Sync & AI
+│   ├── jira-git/SKILL.md          # Chuẩn hóa nhánh Git & thông điệp commit Jira bằng tiếng Việt
+│   ├── quality-gate/SKILL.md      # Quy trình tự động chạy test, build và cập nhật CHANGELOG
+│   ├── db-sync/SKILL.md           # Hướng dẫn đồng bộ CSDL MonsterASP an toàn qua WAF
+│   └── ai-pipeline/SKILL.md       # Chuẩn hóa đặc trưng & nhúng mô hình AI ONNX In-Process
 ├── CHANGELOG.md                   # Nhật ký chi tiết lịch sử thay đổi mã nguồn
 ├── LICENSE                        # Giấy phép học thuật phi thương mại
 ├── README.md                      # Tài liệu tổng quan và hướng dẫn dự án
@@ -94,12 +111,14 @@ LV23-088-Library-Revenue-AI/
 │   │   ├── App.jsx
 │   │   └── main.jsx
 │   ├── package.json
-│   └── vite.config.js
-└── src/                           # Mã nguồn Backend N-Tier .NET 10
-    ├── SmartLibAI.sln             # File Solution quản lý giải pháp Backend
-    ├── SmartLibAI.Core/           # Entities, DTOs, Service & Repository Interfaces
-    ├── SmartLibAI.Infrastructure/ # DbContext, Entity Framework Core Repositories
-    └── SmartLibAI.API/            # Controllers, Middlewares, Program.cs
+│   └── vite.config.js             # Cấu hình Vendor Chunks tối ưu bundle dưới 500 kB
+├── src/                           # Mã nguồn Backend N-Tier .NET 10
+│   ├── SmartLibAI.sln             # File Solution quản lý giải pháp Backend & Tests
+│   ├── SmartLibAI.Core/           # Entities, DTOs, Service & Repository Interfaces
+│   ├── SmartLibAI.Infrastructure/ # DbContext, Entity Framework Core Repositories, ONNX Service
+│   └── SmartLibAI.API/            # Controllers, Middlewares, Program.cs
+└── tests/                         # Dự án Kiểm thử Tự động (Unit & Integration Tests)
+    └── SmartLibAI.Tests/          # Bộ kiểm thử xUnit trên .NET 10 (AI inference, quy chế phạt)
 ```
 
 ---
@@ -153,7 +172,8 @@ Tại thư mục gốc của dự án, bạn có thể chọn **1 trong các cá
   dotnet run --project src/SmartLibAI.API/SmartLibAI.API.csproj
   ```
 
-👉 **Swagger UI API Document:** Mở trình duyệt tại **`http://localhost:5264/index.html`**
+👉 **Swagger UI API Document:** Mở trình duyệt tại **`http://localhost:5264/`** hoặc **`http://localhost:5264/index.html`**  
+👉 **Kiểm tra Sức khỏe API & AI:** Truy cập **`http://localhost:5264/api/health`**
 
 ---
 
@@ -170,7 +190,18 @@ Mở một tab terminal mới tại **thư mục gốc của dự án**:
 
 ---
 
-#### Bước 4: Danh sách tài khoản kiểm thử sẵn có trong hệ thống
+#### Bước 4: Chạy kiểm thử tự động (Unit Tests)
+Hệ thống tích hợp sẵn bộ kiểm thử tự động xUnit trên nền tảng .NET 10 kiểm tra tính đúng đắn của logic tính tiền phạt lưu thông và mô hình suy luận AI:
+
+```bash
+# Chạy toàn bộ test cases tự động
+dotnet test tests/SmartLibAI.Tests/SmartLibAI.Tests.csproj
+```
+*(Kết quả chuẩn: 13/13 test cases PASSED 100%)*
+
+---
+
+#### Bước 5: Danh sách tài khoản kiểm thử sẵn có trong hệ thống
 
 | Vai trò | Tên đăng nhập | Địa chỉ Email | Mật khẩu mặc định | Họ và tên | Quyền hạn truy cập |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -206,9 +237,9 @@ L0LRA-<Số> <Mô tả nội dung bằng tiếng Việt>
 | **Sprint 2** | 14/09 – 20/09/2026 | Hoàn thiện SRS, WBS, sơ đồ Gantt, thiết kế CSDL 12 bảng SQL Server & Seeding | **Hoàn thành** |
 | **Sprint 3** | 21/09 – 27/09/2026 | Dựng khung Backend API N-Tier, phân quyền RBAC JWT, phân trang & đánh index 11.000 sách | **Hoàn thành** |
 | **Sprint 4** | 28/09 – 04/10/2026 | Tích hợp máy quét Barcode, hoàn thiện API Mượn/Trả sách, kiểm tra vi phạm & in biên lai | **Hoàn thành** |
-| **Sprint 5** | 05/10 – 11/10/2026 | Báo cáo doanh thu thu phạt, hoàn thiện pipeline mô hình AI dự báo trễ hạn | Đang thực hiện |
-| **Sprint 6** | 12/10 – 18/10/2026 | Tích hợp hệ thống toàn diện, kiểm thử chức năng, khắc phục Defect Log | Kế hoạch |
-| **Sprint 7** | 19/10 – 25/10/2026 | Triển khai môi trường thử nghiệm (Staging Cloud), kiểm thử nghiệm thu UAT | Kế hoạch |
+| **Sprint 5** | 05/10 – 11/10/2026 | Báo cáo doanh thu thu phạt, hoàn thiện pipeline mô hình AI dự báo trễ hạn ONNX | **Hoàn thành** |
+| **Sprint 6** | 12/10 – 18/10/2026 | Tích hợp hệ thống toàn diện, tối ưu truy vấn Indexing, kiểm thử chức năng & Defect Log | **Hoàn thành** |
+| **Sprint 7** | 19/10 – 25/10/2026 | Triển khai Cloud (Vercel/MonsterASP), Remediation Plan P0-P2, Unit Tests tự động | **Đang thực hiện** |
 | **Sprint 8** | 26/10 – 01/11/2026 | Đóng gói sản phẩm Release v1.0, hoàn thiện tài liệu thuyết minh đồ án | Kế hoạch |
 | **Hậu kỳ** | 02/11 – 15/11/2026 | Chuẩn bị slide thuyết trình, video demo sản phẩm và tham gia bảo vệ đồ án | Kế hoạch |
 
