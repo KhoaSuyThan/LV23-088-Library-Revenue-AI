@@ -25,133 +25,6 @@ import RevenueReceiptsTab from '../components/revenue/RevenueReceiptsTab';
 import RevenueBreakdownTab from '../components/revenue/RevenueBreakdownTab';
 import './FineRevenue.css';
 
-/**
- * Dữ liệu giả lập 6 độc giả có nguy cơ trễ hạn cao (Khớp 100% Mockup Figma)
- */
-const INITIAL_AI_READERS = [
-  {
-    id: 'PM-9920',
-    name: 'Nguyễn Văn Minh',
-    studentCode: '102220184',
-    department: 'Khoa Công Nghệ Thông Tin',
-    bookTitle: 'Harry Potter and the Half-Blood Prince (Harry Potter #6)',
-    bookCode: 'BC000001-B',
-    dueDate: '20/09/2026',
-    score: 94,
-    scoreColor: '#ef4444',
-    riskLevel: 'very_high',
-    riskLabel: 'Nguy cơ rất cao',
-    factors: [
-      { label: 'Lịch sử trả sách trễ hạn 3/4 lần trước', weight: '+40%' },
-      { label: 'Trùng lịch thi học phần cuối kỳ', weight: '+27%' },
-      { label: 'Đang mượn cùng lúc 3 cuốn sách', weight: '+25%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  },
-  {
-    id: 'PM-9842',
-    name: 'Trần Thị Hồng Hạnh',
-    studentCode: '102210103',
-    department: 'Khoa Điện Tử Viễn Thông',
-    bookTitle: 'Giáo trình Cấu trúc dữ liệu',
-    bookCode: 'BC000002-A',
-    dueDate: '26/09/2026',
-    score: 78,
-    scoreColor: '#f97316',
-    riskLevel: 'high',
-    riskLabel: 'Nguy cơ cao',
-    factors: [
-      { label: 'Có 1 lần trễ hạn kỳ trước', weight: '+35%' },
-      { label: 'Khoảng cách địa lý sinh viên xa trường', weight: '+23%' },
-      { label: 'Thời gian mượn đã kéo dài 20 ngày', weight: '+20%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  },
-  {
-    id: 'PM-9811',
-    name: 'Lê Hoàng Nam',
-    studentCode: '102220455',
-    department: 'Khoa Quản Trị Kinh Doanh',
-    bookTitle: 'Database Systems 10th Ed',
-    bookCode: 'BC000003-A',
-    dueDate: '28/09/2026',
-    score: 55,
-    scoreColor: '#f59e0b',
-    riskLevel: 'medium',
-    riskLabel: 'Nguy cơ trung bình',
-    factors: [
-      { label: 'Chưa từng trễ hạn nhưng mượn sách chuyên khảo dày', weight: '+30%' },
-      { label: 'Tần suất đến thư viện giảm 40%', weight: '+25%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  },
-  {
-    id: 'PM-9799',
-    name: 'Phạm Minh Đức',
-    studentCode: '102200234',
-    department: 'Khoa Luật & Hành Chính',
-    bookTitle: 'Lịch sử Triết học Tây Phương',
-    bookCode: 'BC000004-A',
-    dueDate: '29/09/2026',
-    score: 34,
-    scoreColor: '#3b82f6',
-    riskLevel: 'low',
-    riskLabel: 'Nguy cơ thấp',
-    factors: [
-      { label: 'Lịch sử trả sách uy tín đúng hạn 100%', weight: '-40%' },
-      { label: 'Điểm tín nhiệm bạn đọc xuất sắc (98/100)', weight: '-26%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  },
-  {
-    id: 'PM-9780',
-    name: 'Vũ Thị Mai',
-    studentCode: '102210889',
-    department: 'Khoa Ngôn Ngữ Anh',
-    bookTitle: 'Oxford Advanced Learner Dictionary',
-    bookCode: 'BC000005-A',
-    dueDate: '29/09/2026',
-    score: 28,
-    scoreColor: '#3b82f6',
-    riskLevel: 'low',
-    riskLabel: 'Nguy cơ thấp',
-    factors: [
-      { label: 'Thường xuyên gia hạn trực tuyến chủ động', weight: '-35%' },
-      { label: 'Chỉ còn 1 ngày đến hạn nhưng chưa có cảnh báo', weight: '-20%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  },
-  {
-    id: 'PM-9745',
-    name: 'Đặng Tuấn Anh',
-    studentCode: '102210443',
-    department: 'Khoa Xây Dựng',
-    bookTitle: 'Cơ học Kết cấu Công trình',
-    bookCode: 'BC000006-A',
-    dueDate: '25/09/2026',
-    score: 82,
-    scoreColor: '#ef4444',
-    riskLevel: 'very_high',
-    riskLabel: 'Nguy cơ rất cao',
-    factors: [
-      { label: 'Quá hạn 4 ngày chưa liên hệ thư viện', weight: '+55%' },
-      { label: 'Số điện thoại liên lạc tạm khóa', weight: '+30%' }
-    ],
-    reminderSent: false,
-    estimatedDailyFine: '5.000 đ/ngày'
-  }
-];
-
-/**
- * Danh sách biên lai thu phạt ban đầu (sẽ được tải trực tiếp từ SQL Server)
- */
-const INITIAL_RECENT_RECEIPTS = [];
-
 export default function FineRevenue({ user, externalSearch = '', subTab: propSubTab }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -175,8 +48,8 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     }
   };
 
-  // Dữ liệu danh sách độc giả nguy cơ
-  const [readers, setReaders] = useState(INITIAL_AI_READERS);
+  // Dữ liệu danh sách độc giả nguy cơ (khởi tạo rỗng, nạp 100% từ API Backend SQL Server)
+  const [readers, setReaders] = useState([]);
 
   // Bộ lọc mức độ nguy cơ
   const [filterRisk, setFilterRisk] = useState('all');
@@ -284,11 +157,14 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
   const fetchAiForecastReaders = async () => {
     try {
       const res = await invoiceApi.getAiForecastReaders();
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         setReaders(res.data);
+      } else {
+        setReaders([]);
       }
     } catch (err) {
       console.warn('Chưa nạp được danh sách dự báo AI từ Backend:', err.message);
+      setReaders([]);
     }
   };
 
@@ -334,14 +210,14 @@ export default function FineRevenue({ user, externalSearch = '', subTab: propSub
     if (revenueSummary && revenueSummary.totalOverdueBorrowsCount != null) {
       return revenueSummary.totalOverdueBorrowsCount;
     }
-    return backendPendingFines.length > 0 ? 11 : 0;
+    return backendPendingFines.length;
   }, [revenueSummary, backendPendingFines]);
 
   const totalDamageValue = useMemo(() => {
     if (revenueSummary && revenueSummary.totalDamageBookValue != null) {
       return Number(revenueSummary.totalDamageBookValue);
     }
-    return 3800000;
+    return 0;
   }, [revenueSummary]);
 
   // Mở ReceiptModal ở chế độ xem trước (Preview) trước khi xác nhận thu tiền (LOLRA-19)
