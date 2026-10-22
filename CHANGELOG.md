@@ -5,6 +5,22 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-22] - Đồng Bộ & Cập Nhật Toàn Diện Tài Liệu README Dự Án
+
+- **Cập Nhật Tài Liệu Hướng Dẫn & Kiến Trúc ([`README.md`](README.md)):**
+  - **Mô Hình AI & Sức Khỏe API:** Bổ sung thông tin mô hình Machine Learning ONNX Runtime In-Process (<1ms), cơ chế Heuristic Fallback và endpoint giám sát `/api/health`.
+  - **Cây Thư Mục Toàn Diện:** Bổ sung thư mục kiểm thử tự động `tests/SmartLibAI.Tests/` và bộ kỹ năng tự động hóa `.agents/skills/`.
+  - **Hướng Dẫn Chạy Kiểm Thử:** Bổ sung hướng dẫn chạy test tự động (`dotnet test`) đạt chuẩn 13/13 test cases.
+  - **Đồng Bộ Lộ Trình Sprint:** Cập nhật trạng thái hoàn thành Sprint 5, Sprint 6 và ghi nhận Sprint 7 đang triển khai.
+
+## [2026-10-22] - Thiết Lập Bộ Custom Skills Tự Động Hóa Quy Trình Chuẩn Jira & QA
+
+- **Khởi Tạo Bộ Kỹ Năng Tự Động Hóa ([`.agents/skills/`](.agents/skills/)):**
+  - **`jira-git` ([`SKILL.md`](.agents/skills/jira-git/SKILL.md)):** Chuẩn hóa quy tắc tạo nhánh (`L0LRA-<id>-<slug>`) và thông điệp commit 100% tiếng Việt gắn mã Jira.
+  - **`quality-gate` ([`SKILL.md`](.agents/skills/quality-gate/SKILL.md)):** Quy trình tự động chạy `dotnet test`, `npm run build` và cập nhật `CHANGELOG.md` trước khi bàn giao.
+  - **`db-sync` ([`SKILL.md`](.agents/skills/db-sync/SKILL.md)):** Hướng dẫn đồng bộ CSDL Cloud MonsterASP an toàn, tránh WAF và chia nhỏ batch 500 dòng.
+  - **`ai-pipeline` ([`SKILL.md`](.agents/skills/ai-pipeline/SKILL.md)):** Chuẩn hóa thứ tự 8 đặc trưng đầu vào, cơ chế nhúng ONNX In-Process và luật dự phòng Heuristic.
+
 ## [2026-10-22] - Hoàn Thiện & Cải Tiến Toàn Diện Theo Remediation Plan (P0, P1, P2)
 
 - **Bảo Mật & Phân Quyền Endpoint (P0 - [`Program.cs`](src/SmartLibAI.API/Program.cs), [`BooksController.cs`](src/SmartLibAI.API/Controllers/BooksController.cs), [`ReadersController.cs`](src/SmartLibAI.API/Controllers/ReadersController.cs), [`CategoriesController.cs`](src/SmartLibAI.API/Controllers/CategoriesController.cs), [`RulesController.cs`](src/SmartLibAI.API/Controllers/RulesController.cs)):**
