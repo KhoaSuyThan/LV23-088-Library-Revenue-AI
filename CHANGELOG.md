@@ -5,6 +5,35 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-22] - Hiển Thị Đầy Đủ Số Liệu Hồ Sơ Bạn Đọc Thực Tế Lên Thẻ KPI Dashboard
+
+- **Nguyên Nhân:**
+  - Thẻ KPI "Hồ sơ Bạn đọc" trên Dashboard trước đó đọc nhầm từ `bookCatalogSummary?.totalReaders`. Do API `/api/Books/summary` của phân hệ Sách không trả về trường này, giá trị luôn là `undefined` dẫn tới thẻ hiển thị nhãn chữ `"Hồ sơ Độc giả"` thay vì con số thống kê.
+- **Khắc Phục:**
+  - Tích hợp `readerApi.getSummary()` từ phân hệ Quản trị Hồ sơ Độc giả (`/api/readers/summary`) vào `loadGeneralStats` của [`DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx).
+  - Cập nhật Thẻ 3 hiển thị đầy đủ: Tổng số bạn đọc thực tế (`totalReaders bạn đọc`) và số lượng tài khoản độc giả đang kích hoạt hoạt động (`totalActiveReaders kích hoạt`).
+  - Cập nhật số lượng bản sao ở Thẻ 1 tự động đồng bộ theo tổng đầu sách thực tế trong kho.
+
+
+- **Nguyên Nhân:**
+  - Trong quá trình dọn dẹp các mảng dữ liệu mẫu giả lập trước đó, biến `revenueSources` đã được gỡ bỏ nhưng hàm `computedRevenueSources` tại [`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx#L407) vẫn còn tham chiếu tới biến này khi `breakdown` rỗng, gây lỗi ném ngoại lệ Runtime và làm crash toàn bộ cây component Dashboard (màn hình trắng).
+- **Khắc Phục:**
+  - Khởi tạo mảng tĩnh an toàn `defaultEmptyRevenueSources` chuẩn định dạng với các giá trị 0đ / 0% cho 4 danh mục thu phạt thực tế.
+  - Cập nhật `computedRevenueSources` trả về `defaultEmptyRevenueSources` khi chưa có dữ liệu thu phạt hoặc chưa có phát sinh giao dịch, giải quyết triệt để lỗi màn hình trắng và đảm bảo giao diện hiển thị mượt mà.
+
+
+- **Thu Phạt & Dự Báo Rủi Ro AI ([`FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx)):**
+  - Xóa bỏ hoàn toàn mảng dữ liệu mẫu `INITIAL_AI_READERS` (6 sinh viên giả lập).
+  - Khởi tạo danh sách độc giả rỗng `[]` và nạp 100% dữ liệu thực từ API Backend `invoiceApi.getAiForecastReaders()`.
+- **Lưu Thông Mượn Trả Quầy ([`CirculationDesk.jsx`](frontend/src/pages/CirculationDesk.jsx)):**
+  - Xóa bỏ mảng giao dịch mẫu `INITIAL_TRANSACTIONS` (giao dịch giả lập PM-0003, PM-9920,...).
+  - Toàn bộ bảng lưu thông trong ngày hiển thị dữ liệu thực từ `borrowApi.getRecentBorrows(50)`.
+- **Danh Mục Sách & Bản Sao ([`BookCatalog.jsx`](frontend/src/pages/BookCatalog.jsx)):**
+  - Xóa bỏ mảng sách mẫu `INITIAL_BOOKS`.
+  - Triệt tiêu cơ chế tự sinh bản sao ảo (`fallbackCopies` và `generatedCopies`) trong các hàm nạp và thêm mới bản sao hàng loạt, bắt buộc phải đồng bộ và báo lỗi chính xác từ máy chủ Backend.
+- **Thống Kê Doanh Thu ([`RevenueBreakdownTab.jsx`](frontend/src/components/revenue/RevenueBreakdownTab.jsx)):**
+  - Loại bỏ giá trị mặc định cứng (`totalDamage = 3800000`), chuyển về 0 và đồng bộ theo phản hồi thực tế từ API Backend.
+
 ## [2026-10-22] - Chuẩn Bị Triển Khai Cloud: Frontend Lên Vercel & Backend/DB Lên MonsterASP.net (L0LRA-91, L0LRA-92)
 
 - **Cấu hình Frontend SPA Vercel ([`vercel.json`](frontend/vercel.json)):**

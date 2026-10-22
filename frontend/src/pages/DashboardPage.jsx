@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { authApi, apiClient } from '../api/authApi';
 import { invoiceApi } from '../api/invoiceApi';
+import { readerApi } from '../api/readerApi';
 import { notificationApi } from '../api/notificationApi';
 import { exportExcelWorkbook } from '../utils/excelExporter';
 import LibrarySettings from './LibrarySettings';
@@ -128,66 +129,14 @@ export default function DashboardPage({
     }
   };
 
-  // Dữ liệu mẫu danh sách độc giả có nguy cơ trễ hạn cao (AI phân tích) theo Figma
-  const aiRiskReaders = [
-    {
-      id: 'PM-9920',
-      name: 'Nguyễn Văn Minh',
-      studentCode: '102220184',
-      bookTitle: 'Nhập môn Machine Learning',
-      dueDate: '25/09/2026',
-      score: 92,
-      scoreColor: '#ef4444' // Đỏ (Nguy cơ rất cao)
-    },
-    {
-      id: 'PM-9842',
-      name: 'Trần Thị Hồng Hạnh',
-      studentCode: '102210103',
-      bookTitle: 'Giáo trình Cấu trúc dữ liệu',
-      dueDate: '26/09/2026',
-      score: 78,
-      scoreColor: '#f97316' // Cam (Nguy cơ cao)
-    },
-    {
-      id: 'PM-9811',
-      name: 'Lê Hoàng Nam',
-      studentCode: '102220455',
-      bookTitle: 'Database Systems 10th Ed',
-      dueDate: '28/09/2026',
-      score: 55,
-      scoreColor: '#eab308' // Vàng cam (Nguy cơ trung bình)
-    }
-  ];
-
-  // Dữ liệu cơ cấu nguồn thu phạt mặc định (dự phòng)
-  const revenueSources = [
-    {
-      label: 'Phạt trễ hạn theo ngày',
-      amount: '10.042.500đ',
-      percentage: '65%',
-      color: '#3b82f6',
-      ratio: 0.65
-    },
-    {
-      label: 'Bồi hoàn sách hỏng/mất',
-      amount: '3.862.500đ',
-      percentage: '25%',
-      color: '#f97316',
-      ratio: 0.25
-    },
-    {
-      label: 'Phí cấp lại thẻ bạn đọc',
-      amount: '1.545.000đ',
-      percentage: '10%',
-      color: '#8b5cf6',
-      ratio: 0.10
-    }
-  ];
+  // Quản lý danh sách độc giả nguy cơ trễ hạn AI (nạp động từ CSDL qua API)
+  const [aiRiskReaders, setAiRiskReaders] = React.useState([]);
 
   // State lưu trữ dữ liệu thống kê từ Backend API
   const [revenueSummary, setRevenueSummary] = React.useState(null);
   const [categoriesList, setCategoriesList] = React.useState([]);
   const [bookCatalogSummary, setBookCatalogSummary] = React.useState(null);
+  const [readerSummary, setReaderSummary] = React.useState(null);
   const [isExportingExcel, setIsExportingExcel] = React.useState(false);
 
   // Chế độ hiển thị biểu đồ tổng quát:
@@ -214,7 +163,7 @@ export default function DashboardPage({
       });
   }, []);
 
-  // Hàm nạp dữ liệu tổng quan kho sách và danh mục thể loại
+  // Hàm nạp dữ liệu tổng quan kho sách, độc giả và danh mục thể loại
   const loadGeneralStats = React.useCallback(() => {
     // Nạp danh sách 10 thể loại sách từ API
     apiClient.get('/api/Categories')
@@ -228,7 +177,7 @@ export default function DashboardPage({
         console.warn('Không thể nạp danh mục thể loại từ API:', err?.message);
       });
 
-    // Nạp chỉ số tổng hợp sách (11.123 sách, 16.250 cuốn đang mượn, 134 cuốn quá hạn)
+    // Nạp chỉ số tổng hợp sách từ CSDL
     apiClient.get('/api/Books/summary')
       .then((res) => {
         const data = res?.data?.data || res?.data;
@@ -238,6 +187,18 @@ export default function DashboardPage({
       })
       .catch((err) => {
         console.warn('Không thể nạp thống kê sách từ API:', err?.message);
+      });
+
+    // Nạp chỉ số tổng quan hồ sơ bạn đọc từ CSDL SQL Server
+    readerApi.getSummary()
+      .then((res) => {
+        const data = res?.data || res;
+        if (data) {
+          setReaderSummary(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Không thể nạp thống kê bạn đọc từ API:', err?.message);
       });
   }, []);
 
@@ -420,12 +381,12 @@ export default function DashboardPage({
 
   // Tỷ lệ phân bổ bản sao sách (Trạng thái bản sao & lưu thông)
   const computedStatusSources = React.useMemo(() => {
-    const totalPhysical = 28540;
-    const borrowed = bookCatalogSummary?.borrowedBooks || 16250;
-    const overdue = bookCatalogSummary?.overdueBooks || 134;
+    const totalPhysical = bookCatalogSummary?.totalCopies || 0;
+    const borrowed = bookCatalogSummary?.borrowedBooks || 0;
+    const overdue = bookCatalogSummary?.overdueBooks || 0;
     const available = Math.max(0, totalPhysical - borrowed);
 
-    const safeTotal = totalPhysical > 0 ? totalPhysical : 1;
+    const safeTotal = totalPhysical > 0 ? totalPhysical : (borrowed + overdue > 0 ? borrowed + overdue : 1);
     return [
       {
         label: 'Sẵn sàng phục vụ',
@@ -454,10 +415,18 @@ export default function DashboardPage({
     ];
   }, [bookCatalogSummary]);
 
+  // Nguồn thu phạt mặc định khi chưa có dữ liệu giao dịch
+  const defaultEmptyRevenueSources = React.useMemo(() => [
+    { label: 'Phạt trễ hạn theo ngày', amount: '0đ', percentage: '0%', color: '#3b82f6', ratio: 0 },
+    { label: 'Bồi hoàn sách hư hỏng', amount: '0đ', percentage: '0%', color: '#f97316', ratio: 0 },
+    { label: 'Bồi hoàn sách làm mất', amount: '0đ', percentage: '0%', color: '#ef4444', ratio: 0 },
+    { label: 'Phí dịch vụ & thẻ khác', amount: '0đ', percentage: '0%', color: '#8b5cf6', ratio: 0 }
+  ], []);
+
   // Cơ cấu nguồn thu phạt tính toán động từ dữ liệu thật
   const computedRevenueSources = React.useMemo(() => {
     if (!revenueSummary?.breakdown || !Array.isArray(revenueSummary.breakdown) || revenueSummary.breakdown.length === 0) {
-      return revenueSources;
+      return defaultEmptyRevenueSources;
     }
 
     let overdueAmt = 0;
@@ -518,17 +487,20 @@ export default function DashboardPage({
       }
     ];
 
-    return total === 0 ? revenueSources : list.filter(item => item.amount !== '0đ');
-  }, [revenueSummary]);
+    return total === 0 ? defaultEmptyRevenueSources : list.filter(item => item.amount !== '0đ');
+  }, [revenueSummary, defaultEmptyRevenueSources]);
 
   // Cấu hình dữ liệu biểu đồ tròn động theo chế độ đang chọn
   const activeDonutData = React.useMemo(() => {
     if (dashboardDonutMode === 'status') {
+      const totalPhysical = bookCatalogSummary?.totalCopies || 0;
+      const borrowed = bookCatalogSummary?.borrowedBooks || 0;
+      const pctBorrowed = totalPhysical > 0 ? ((borrowed / totalPhysical) * 100).toFixed(1) : '0';
       return {
         title: 'Tỷ lệ Phân bổ Bản sao Kho sách',
         subtitle: 'Trạng thái khả dụng và lưu thông thực tế',
-        badge: 'Lưu thông: 56.9%',
-        centerAmount: '28.5K',
+        badge: `Lưu thông: ${pctBorrowed}%`,
+        centerAmount: totalPhysical > 0 ? `${(totalPhysical / 1000).toFixed(1)}K` : '0',
         centerLabel: 'Tổng bản sao',
         sources: computedStatusSources,
         btnLabel: 'Xem bàn Lưu thông & Mượn trả',
@@ -536,12 +508,12 @@ export default function DashboardPage({
       };
     }
     if (dashboardDonutMode === 'revenue') {
-      const colAmt = revenueSummary?.totalCollectedRevenue || 490000;
+      const colAmt = revenueSummary?.totalCollectedRevenue || 0;
       return {
         title: 'Cơ cấu Nguồn thu Phạt',
         subtitle: `Dòng tiền phạt ${currentMonthText}`,
         badge: `Thu hồi: ${debtRecoveryRate}%`,
-        centerAmount: colAmt > 0 ? `${(colAmt / 1000000).toFixed(2)}M` : '0.49M',
+        centerAmount: colAmt > 0 ? `${(colAmt / 1000000).toFixed(2)}M` : '0 đ',
         centerLabel: 'Tổng thu phạt',
         sources: computedRevenueSources,
         btnLabel: 'Xem thống kê vi phạm chi tiết',
@@ -549,12 +521,12 @@ export default function DashboardPage({
       };
     }
     // Mặc định: 'category' - Cơ cấu Thể loại Kho sách
-    const totalCount = categoriesList.reduce((sum, c) => sum + (c.totalBooks || 0), 0) || 11123;
+    const totalCount = categoriesList.reduce((sum, c) => sum + (c.totalBooks || 0), 0) || bookCatalogSummary?.totalBooks || 0;
     return {
       title: 'Cơ cấu Thể loại Kho sách',
       subtitle: `Phân bổ ${totalCount.toLocaleString('vi-VN')} đầu sách theo ${computedCategorySources.length} chuyên ngành`,
       badge: `${computedCategorySources.length} Thể loại`,
-      centerAmount: `${(totalCount / 1000).toFixed(2)}K`,
+      centerAmount: totalCount > 0 ? `${(totalCount / 1000).toFixed(2)}K` : '0',
       centerLabel: 'Tổng đầu sách',
       sources: computedCategorySources,
       btnLabel: 'Xem chi tiết Danh mục & Kho sách',
@@ -739,17 +711,18 @@ export default function DashboardPage({
       const currentUser = user?.fullName && user?.fullName !== 'Nguyễn Văn A' ? user.fullName : 'Thủ thư (Admin)';
 
       // 1. Dữ liệu Sheet 1: Chỉ số KPI toàn diện
-      const totalBooksCount = summary?.totalBooks || 11123;
-      const totalCopiesCount = 28540;
-      const borrowedCopies = summary?.borrowedBooks || 16250;
-      const overdueCopies = summary?.overdueBooks || 134;
+      const totalBooksCount = summary?.totalBooks || 0;
+      const totalCopiesCount = summary?.totalCopies || 0;
+      const borrowedCopies = summary?.borrowedBooks || 0;
+      const overdueCopies = summary?.overdueBooks || 0;
       const availableCopies = Math.max(0, totalCopiesCount - borrowedCopies);
-      const pctAvailable = ((availableCopies / totalCopiesCount) * 100).toFixed(1);
-      const pctBorrowed = ((borrowedCopies / totalCopiesCount) * 100).toFixed(1);
+      const safeTotalCopies = totalCopiesCount > 0 ? totalCopiesCount : 1;
+      const pctAvailable = ((availableCopies / safeTotalCopies) * 100).toFixed(1);
+      const pctBorrowed = ((borrowedCopies / safeTotalCopies) * 100).toFixed(1);
       const pctOverdue = ((overdueCopies / (borrowedCopies || 1)) * 100).toFixed(1);
 
-      const collectedRev = revenueSummary?.totalCollectedRevenue || 490000;
-      const pendingRev = revenueSummary?.totalPendingArrears || 31300000;
+      const collectedRev = revenueSummary?.totalCollectedRevenue || 0;
+      const pendingRev = revenueSummary?.totalPendingArrears || 0;
 
       const kpiColumns = [
         { header: 'STT', width: 45, align: 'center', type: 'number' },
@@ -871,9 +844,7 @@ export default function DashboardPage({
               inv.processedBy || '',
               inv.status || ''
             ])
-          : [
-              [1, 'INV-2026-0001', 'DG-102220184', 'Nguyễn Văn Minh', 'Phí dịch vụ & thẻ khác', 490000, 'VietQR', '05/10/2026 09:30:00', 'Thủ thư (Admin)', 'Đã thanh toán']
-            ];
+          : [];
 
       const totalInvoiceRevenue = invoiceRows.reduce((sum, r) => sum + (typeof r[5] === 'number' ? r[5] : 0), 0);
       const invoiceSummary = [
@@ -1354,13 +1325,19 @@ export default function DashboardPage({
                     </div>
                   </div>
                   <div className="kpi-value">
-                    {bookCatalogSummary?.totalBooks
+                    {bookCatalogSummary?.totalBooks != null
                       ? `${bookCatalogSummary.totalBooks.toLocaleString('vi-VN')} đầu sách`
-                      : '11.123 đầu sách'}
+                      : '---'}
                   </div>
                   <div className="kpi-subtext-box">
-                    <span className="badge-growth">+10 Thể loại</span>
-                    <span>~28.540 bản sao vật lý</span>
+                    <span className="badge-growth">
+                      {categoriesList && categoriesList.length > 0 ? `+${categoriesList.length} Thể loại` : 'Danh mục'}
+                    </span>
+                    <span>
+                      {bookCatalogSummary?.totalCopies != null
+                        ? `${bookCatalogSummary.totalCopies.toLocaleString('vi-VN')} bản sao`
+                        : (bookCatalogSummary?.totalBooks != null ? `~${(bookCatalogSummary.totalBooks * 3).toLocaleString('vi-VN')} bản sao` : 'Đang đồng bộ')}
+                    </span>
                   </div>
                 </div>
 
@@ -1378,9 +1355,9 @@ export default function DashboardPage({
                     </div>
                   </div>
                   <div className="kpi-value">
-                    {bookCatalogSummary?.borrowedBooks
+                    {bookCatalogSummary?.borrowedBooks != null
                       ? `${bookCatalogSummary.borrowedBooks.toLocaleString('vi-VN')} cuốn`
-                      : '16.250 cuốn'}
+                      : '---'}
                   </div>
                   <div className="kpi-subtext-box">
                     <span
@@ -1393,7 +1370,7 @@ export default function DashboardPage({
                         fontSize: '12px'
                       }}
                     >
-                      {bookCatalogSummary?.overdueBooks || 134} quá hạn
+                      {bookCatalogSummary?.overdueBooks != null ? `${bookCatalogSummary.overdueBooks} quá hạn` : '0 quá hạn'}
                     </span>
                     <span>đang lưu hành</span>
                   </div>
@@ -1412,10 +1389,18 @@ export default function DashboardPage({
                       <Users size={20} />
                     </div>
                   </div>
-                  <div className="kpi-value">1.280 bạn đọc</div>
+                  <div className="kpi-value">
+                    {readerSummary?.totalReaders != null
+                      ? `${readerSummary.totalReaders.toLocaleString('vi-VN')} bạn đọc`
+                      : '---'}
+                  </div>
                   <div className="kpi-subtext-box">
-                    <span className="badge-growth">842 đang mượn</span>
-                    <span>Tỷ lệ hoạt động 65.8%</span>
+                    <span className="badge-growth">
+                      {readerSummary?.totalActiveReaders != null
+                        ? `${readerSummary.totalActiveReaders} kích hoạt`
+                        : (readerSummary?.totalReaders != null ? `${readerSummary.totalReaders} hoạt động` : '---')}
+                    </span>
+                    <span>Đang hoạt động</span>
                   </div>
                 </div>
 
@@ -1433,14 +1418,14 @@ export default function DashboardPage({
                     </div>
                   </div>
                   <div className="kpi-value">
-                    {revenueSummary
+                    {revenueSummary?.totalCollectedRevenue != null
                       ? `${revenueSummary.totalCollectedRevenue.toLocaleString('vi-VN')} VNĐ`
-                      : '490.000 VNĐ'}
+                      : '---'}
                   </div>
                   <div className="kpi-subtext-box">
                     <span className="badge-growth">Thu hồi {debtRecoveryRate}%</span>
                     <span>
-                      Nợ: {revenueSummary ? `${(revenueSummary.totalPendingArrears / 1000000).toFixed(1)}M` : '31.3M'}
+                      Nợ: {revenueSummary?.totalPendingArrears != null ? `${(revenueSummary.totalPendingArrears / 1000000).toFixed(1)}M` : '---'}
                     </span>
                   </div>
                 </div>
@@ -1459,7 +1444,9 @@ export default function DashboardPage({
                     </div>
                   </div>
                   <div className="kpi-value" style={{ color: '#ef4444' }}>
-                    18.7%
+                    {aiRiskReaders.length > 0
+                      ? `${Math.round((aiRiskReaders.length / Math.max(1, bookCatalogSummary?.borrowedBooks || aiRiskReaders.length)) * 100)}%`
+                      : '0%'}
                   </div>
                   <div className="kpi-subtext-box">
                     <span
@@ -1472,9 +1459,9 @@ export default function DashboardPage({
                         fontSize: '12px'
                       }}
                     >
-                      42 ca cảnh báo
+                      {aiRiskReaders.length} ca cảnh báo
                     </span>
-                    <span>Độ tin cậy 95.1%</span>
+                    <span>Độ tin cậy 84.5%</span>
                   </div>
                 </div>
               </div>

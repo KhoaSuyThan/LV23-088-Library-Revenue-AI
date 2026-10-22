@@ -62,126 +62,7 @@ function removeVietnameseTones(str) {
   return res.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-/**
- * Danh sách sách mẫu ban đầu khớp 100% theo ảnh thiết kế Figma của người dùng
- */
-const INITIAL_BOOKS = [
-  {
-    id: 1,
-    code: 'BK-0001',
-    title: 'Dế Mèn Phiêu Lưu Ký',
-    author: 'Tô Hoài',
-    category: 'Văn học',
-    year: 2019,
-    price: 85000,
-    availableCopies: 8,
-    totalCopies: 10,
-    status: 'available', // Sẵn sàng
-    coverColor: '#3b82f6',
-    isbn: '9786042123011',
-    publisher: 'NXB Kim Đồng',
-    copies: [
-      { barcode: 'BC0001-A', status: 'Available' },
-      { barcode: 'BC0001-B', status: 'Borrowed' },
-      { barcode: 'BC0001-C', status: 'Available' }
-    ]
-  },
-  {
-    id: 2,
-    code: 'BK-0002',
-    title: 'Số Đỏ',
-    author: 'Vũ Trọng Phụng',
-    category: 'Văn học',
-    year: 2020,
-    price: 92000,
-    availableCopies: 0,
-    totalCopies: 5,
-    status: 'borrowed_all', // Đang mượn hết
-    coverColor: '#f59e0b',
-    isbn: '9786042123028',
-    publisher: 'NXB Văn Học',
-    copies: [
-      { barcode: 'BC0002-A', status: 'Borrowed' },
-      { barcode: 'BC0002-B', status: 'Borrowed' }
-    ]
-  },
-  {
-    id: 3,
-    code: 'BK-0003',
-    title: 'Lập Trình Python Cơ Bản',
-    author: 'Nguyễn Văn An',
-    category: 'Tin học',
-    year: 2022,
-    price: 175000,
-    availableCopies: 12,
-    totalCopies: 15,
-    status: 'available',
-    coverColor: '#38bdf8',
-    isbn: '9786042123035',
-    publisher: 'NXB Thông Tin & Truyền Thông',
-    copies: [
-      { barcode: 'BC0003-A', status: 'Available' },
-      { barcode: 'BC0003-B', status: 'Available' }
-    ]
-  },
-  {
-    id: 4,
-    code: 'BK-0004',
-    title: 'Giải Tích Toán Học Cao Cấp',
-    author: 'Trần Minh Đức',
-    category: 'Khoa học',
-    year: 2021,
-    price: 120000,
-    availableCopies: 3,
-    totalCopies: 8,
-    status: 'available',
-    coverColor: '#34d399',
-    isbn: '9786042123042',
-    publisher: 'NXB Đại Học Quốc Gia',
-    copies: [
-      { barcode: 'BC0004-A', status: 'Available' },
-      { barcode: 'BC0004-B', status: 'Borrowed' }
-    ]
-  },
-  {
-    id: 5,
-    code: 'BK-0005',
-    title: 'Lịch Sử Việt Nam Toàn Thư',
-    author: 'Lê Thị Hương',
-    category: 'Lịch sử',
-    year: 2023,
-    price: 145000,
-    availableCopies: 0,
-    totalCopies: 8,
-    status: 'borrowed_all',
-    coverColor: '#a855f7',
-    isbn: '9786042123059',
-    publisher: 'NXB Khoa Học Xã Hội',
-    copies: [
-      { barcode: 'BC0005-A', status: 'Borrowed' },
-      { barcode: 'BC0005-B', status: 'Borrowed' }
-    ]
-  },
-  {
-    id: 6,
-    code: 'BK-0006',
-    title: 'Tâm Lý Học Đám Đông',
-    author: 'Phạm Quốc Bảo',
-    category: 'Tâm lý',
-    year: 2020,
-    price: 110000,
-    availableCopies: 5,
-    totalCopies: 7,
-    status: 'available',
-    coverColor: '#f472b6',
-    isbn: '9786042123066',
-    publisher: 'NXB Lao Động',
-    copies: [
-      { barcode: 'BC0006-A', status: 'Available' },
-      { barcode: 'BC0006-B', status: 'Available' }
-    ]
-  }
-];
+
 
 /**
  * Danh sách 10 thể loại sách chuẩn dùng làm dữ liệu dự phòng (fallback)
@@ -784,19 +665,8 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         );
       }
     } catch (err) {
-      // Fallback: nếu backend chưa có bản sao trong DB cho sách này, tự động sinh bản sao mẫu
-      if (!book.copies || book.copies.length === 0) {
-        const fallbackCopies = [];
-        const count = book.totalCopies || 3;
-        for (let i = 1; i <= count; i++) {
-          fallbackCopies.push({
-            copyId: Date.now() + i,
-            barcode: `BC${String(book.id).padStart(6, '0')}-${String(i).padStart(3, '0')}`,
-            status: i <= (book.availableCopies ?? count) ? 'Available' : 'Borrowed'
-          });
-        }
-        setSelectedBook((prev) => (prev && prev.id === book.id ? { ...prev, copies: fallbackCopies } : prev));
-      }
+      console.warn('Lỗi tải danh sách bản sao:', err.message);
+      setSelectedBook((prev) => (prev && prev.id === book.id ? { ...prev, copies: [] } : prev));
     }
   };
 
@@ -806,7 +676,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
     setBulkAddLoading(true);
 
     try {
-      // 1. Thử gọi API Backend .NET 10
+      // 1. Gọi API Backend .NET 10
       const res = await apiClient.post(`/api/books/${selectedBook.id}/copies/bulk`, {
         count: bulkAddCount
       });
@@ -819,7 +689,7 @@ export default function BookCatalog({ user, externalSearch = '' }) {
           status: c.status || 'Available'
         }));
       } else {
-        throw new Error('API format mismatch, fallback to client');
+        throw new Error('Định dạng dữ liệu trả về từ máy chủ không hợp lệ');
       }
 
       const updatedCopies = [...(selectedBook.copies || []), ...newCopies];
@@ -840,57 +710,8 @@ export default function BookCatalog({ user, externalSearch = '' }) {
       playScannerBeep(true);
       showToast(`Đã thêm thành công ${bulkAddCount} bản sao mới cho sách "${selectedBook.title}"!`);
     } catch (err) {
-      // 2. Client-side fallback mượt mà
-      const currentCopies = selectedBook.copies || [];
-      const firstBarcode = currentCopies.find((c) => c.barcode)?.barcode;
-      let prefix = `BC${String(selectedBook.id).padStart(6, '0')}`;
-      if (firstBarcode && firstBarcode.includes('-')) {
-        prefix = firstBarcode.split('-')[0];
-      }
-
-      let maxSeq = currentCopies.length;
-      currentCopies.forEach((c) => {
-        if (!c.barcode) return;
-        const parts = c.barcode.split('-');
-        if (parts.length > 1) {
-          const suffix = parts[parts.length - 1].trim();
-          const num = parseInt(suffix, 10);
-          if (!isNaN(num)) {
-            if (num > maxSeq) maxSeq = num;
-          } else if (suffix.length === 1 && /[a-zA-Z]/.test(suffix)) {
-            const charCode = suffix.toUpperCase().charCodeAt(0) - 65 + 1;
-            if (charCode > maxSeq) maxSeq = charCode;
-          }
-        }
-      });
-
-      const generatedCopies = [];
-      for (let i = 1; i <= bulkAddCount; i++) {
-        const seq = maxSeq + i;
-        generatedCopies.push({
-          copyId: Date.now() + i,
-          barcode: `${prefix}-${String(seq).padStart(3, '0')}`,
-          status: 'Available'
-        });
-      }
-
-      const updatedCopies = [...currentCopies, ...generatedCopies];
-      const updatedTotal = updatedCopies.length;
-      const updatedAvail = updatedCopies.filter((c) => c.status === 'Available').length;
-
-      const updatedBook = {
-        ...selectedBook,
-        copies: updatedCopies,
-        totalCopies: updatedTotal,
-        availableCopies: updatedAvail,
-        status: updatedAvail > 0 ? 'available' : 'borrowed_all'
-      };
-
-      setSelectedBook(updatedBook);
-      setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? updatedBook : b)));
-      setIsBulkAddOpen(false);
-      playScannerBeep(true);
-      showToast(`Đã tạo thành công ${bulkAddCount} bản sao với mã vạch liên tiếp!`);
+      console.error('Lỗi khi thêm bản sao:', err);
+      showToast(err.response?.data?.message || 'Có lỗi xảy ra khi tạo bản sao từ máy chủ.');
     } finally {
       setBulkAddLoading(false);
     }
@@ -905,7 +726,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         await apiClient.patch(`/api/bookcopies/${copy.copyId}/status`, { status: newStatus });
       }
     } catch (err) {
-      // fallback
+      console.error('Lỗi cập nhật trạng thái bản sao:', err);
+      showToast(err.response?.data?.message || 'Không thể cập nhật trạng thái bản sao trên máy chủ.');
+      return;
     }
 
     const updatedCopies = (selectedBook.copies || []).map((c) =>
@@ -948,7 +771,9 @@ export default function BookCatalog({ user, externalSearch = '' }) {
         await apiClient.delete(`/api/bookcopies/${copy.copyId}`);
       }
     } catch (err) {
-      // fallback
+      console.error('Lỗi xóa bản sao:', err);
+      showToast(err.response?.data?.message || 'Không thể xóa bản sao trên máy chủ.');
+      return;
     }
 
     const updatedCopies = (selectedBook.copies || []).filter((c) => c.barcode !== copy.barcode);
