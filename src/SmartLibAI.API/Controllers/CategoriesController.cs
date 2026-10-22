@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.Interfaces;
 
@@ -32,6 +33,7 @@ public class CategoriesController : ControllerBase
     /// </summary>
     /// <param name="dto">Dữ liệu thể loại gồm CategoryName</param>
     [HttpPost]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> CreateCategory([FromBody] SmartLibAI.Core.DTOs.Categories.CreateCategoryDto dto)
     {
         var result = await _categoryService.CreateCategoryAsync(dto);

@@ -17,6 +17,16 @@ public class OnnxAIPredictionService : IAIPredictionService, IDisposable
     private readonly InferenceSession? _session;
     private readonly bool _isModelLoaded;
 
+    /// <summary>
+    /// Cho biết mô hình ONNX đã được nạp thành công vào bộ nhớ hay chưa.
+    /// </summary>
+    public bool IsModelLoaded => _isModelLoaded;
+
+    /// <summary>
+    /// Mô tả chi tiết trạng thái hoạt động hiện tại của phân hệ AI.
+    /// </summary>
+    public string ModelStatus => _isModelLoaded ? "ONNX Runtime In-Process" : "Heuristic Fallback Rule";
+
     public OnnxAIPredictionService(IConfiguration configuration, ILogger<OnnxAIPredictionService> logger)
     {
         _logger = logger;
@@ -102,7 +112,7 @@ public class OnnxAIPredictionService : IAIPredictionService, IDisposable
 
             var riskScoreDecimal = (decimal)Math.Round(overdueProbability, 4);
 
-            return BuildResultDto(riskScoreDecimal);
+            return BuildResultDto(riskScoreDecimal, isFallback: false);
         }
         catch (Exception ex)
         {
@@ -111,7 +121,7 @@ public class OnnxAIPredictionService : IAIPredictionService, IDisposable
         }
     }
 
-    private static RiskEvaluationResultDto BuildResultDto(decimal riskScore)
+    private static RiskEvaluationResultDto BuildResultDto(decimal riskScore, bool isFallback = false)
     {
         string tier;
         string badgeColor;
@@ -142,6 +152,8 @@ public class OnnxAIPredictionService : IAIPredictionService, IDisposable
             RiskTier = tier,
             BadgeColor = badgeColor,
             SuggestedAction = action,
+            IsHeuristicFallback = isFallback,
+            PredictionSource = isFallback ? "Heuristic_Fallback" : "ONNX_Model",
             EvaluatedAt = DateTime.UtcNow
         };
     }
@@ -184,7 +196,7 @@ public class OnnxAIPredictionService : IAIPredictionService, IDisposable
             fallbackScore = 0.45m;
         }
 
-        return BuildResultDto(fallbackScore);
+        return BuildResultDto(fallbackScore, isFallback: true);
     }
 
     private static string ResolveModelPath(string relativePath)

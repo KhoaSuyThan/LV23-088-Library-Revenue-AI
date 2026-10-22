@@ -54,31 +54,14 @@ function AppContent() {
     navigate('/login');
   };
 
-  // Layout được bảo vệ dành cho Thủ thư (Admin & Staff)
-  const ProtectedLayout = () => {
-    if (!currentUser) {
-      return <Navigate to="/login" replace state={{ from: location }} />;
-    }
-    // Chặn dứt điểm tài khoản Bạn đọc (Reader) truy cập Cổng quản trị
-    if (currentUser.role === 'Reader') {
-      localStorage.removeItem('smartlib_token');
-      localStorage.removeItem('smartlib_user');
-      return (
-        <Navigate
-          to="/login"
-          replace
-          state={{ error: 'Tài khoản Bạn đọc không có quyền truy cập Cổng Quản trị Thư viện.' }}
-        />
-      );
-    }
-    return (
-      <DashboardPage
-        user={currentUser}
-        onUserUpdated={setCurrentUser}
-        onLogout={handleLogout}
-      />
-    );
-  };
+  const protectedElement = (
+    <ProtectedLayout
+      currentUser={currentUser}
+      location={location}
+      onUserUpdated={setCurrentUser}
+      onLogout={handleLogout}
+    />
+  );
 
   return (
     <Routes>
@@ -98,14 +81,14 @@ function AppContent() {
       />
 
       {/* Các Route Phân hệ được bảo vệ bằng tài khoản đăng nhập */}
-      <Route path="/dashboard" element={<ProtectedLayout />} />
-      <Route path="/catalog" element={<ProtectedLayout />} />
-      <Route path="/circulation" element={<ProtectedLayout />} />
-      <Route path="/revenue" element={<ProtectedLayout />} />
-      <Route path="/revenue/*" element={<ProtectedLayout />} />
-      <Route path="/readers" element={<ProtectedLayout />} />
-      <Route path="/settings" element={<ProtectedLayout />} />
-      <Route path="/settings/*" element={<ProtectedLayout />} />
+      <Route path="/dashboard" element={protectedElement} />
+      <Route path="/catalog" element={protectedElement} />
+      <Route path="/circulation" element={protectedElement} />
+      <Route path="/revenue" element={protectedElement} />
+      <Route path="/revenue/*" element={protectedElement} />
+      <Route path="/readers" element={protectedElement} />
+      <Route path="/settings" element={protectedElement} />
+      <Route path="/settings/*" element={protectedElement} />
 
       {/* Điều hướng mặc định */}
       <Route
@@ -121,6 +104,35 @@ function AppContent() {
         }
       />
     </Routes>
+  );
+}
+
+/**
+ * Layout được bảo vệ dành riêng cho Thủ thư (Admin & Staff).
+ * Định nghĩa bên ngoài AppContent để tránh nested component re-declaration anti-pattern.
+ */
+function ProtectedLayout({ currentUser, location, onUserUpdated, onLogout }) {
+  if (!currentUser) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  // Chặn dứt điểm tài khoản Bạn đọc (Reader) truy cập Cổng quản trị
+  if (currentUser.role === 'Reader') {
+    localStorage.removeItem('smartlib_token');
+    localStorage.removeItem('smartlib_user');
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ error: 'Tài khoản Bạn đọc không có quyền truy cập Cổng Quản trị Thư viện.' }}
+      />
+    );
+  }
+  return (
+    <DashboardPage
+      user={currentUser}
+      onUserUpdated={onUserUpdated}
+      onLogout={onLogout}
+    />
   );
 }
 

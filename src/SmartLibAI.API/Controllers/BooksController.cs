@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Books;
 using SmartLibAI.Core.DTOs.Common;
@@ -70,6 +71,7 @@ public class BooksController : ControllerBase
     /// </summary>
     /// <param name="file">Tệp bảng tính .csv (tối đa 15MB)</param>
     [HttpPost("import-csv")]
+    [Authorize(Roles = "Admin,Staff")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> ImportBooksFromCsv([FromForm] BookImportCsvUploadDto dto)
     {
@@ -121,6 +123,7 @@ public class BooksController : ControllerBase
     /// Thêm mới một đầu sách vào thư viện (kèm tự động sinh bản sao vật lý ban đầu).
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> CreateBook([FromBody] CreateBookDto dto)
     {
         var result = await _bookService.CreateBookAsync(dto);
@@ -136,6 +139,7 @@ public class BooksController : ControllerBase
     /// Cập nhật thông tin chi tiết một đầu sách hiện có.
     /// </summary>
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> UpdateBook(int id, [FromBody] UpdateBookDto dto)
     {
         var result = await _bookService.UpdateBookAsync(id, dto);
@@ -151,6 +155,7 @@ public class BooksController : ControllerBase
     /// Ngừng lưu thông đầu sách (xóa mềm - IsActive = 0, chặn nếu đang có sách cho mượn).
     /// </summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> SoftDeleteBook(int id)
     {
         var result = await _bookService.SoftDeleteBookAsync(id);
