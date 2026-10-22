@@ -5,7 +5,14 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-22] - Cập Nhật Logo Thương Hiệu Vuông Tách Nền Và Đổi Mới Toàn Bộ Favicon Dự Án
+## [2026-10-22] - Cấu Hình Vercel Reverse Proxy Kết Nối Trực Tiếp API Backend MonsterASP
+
+- **Khắc Phục Lỗi Mất Dữ Liệu Trên Vercel Deploy:**
+  - **Nguyên Nhân:** Cổng HTTPS của gói MonsterASP miễn phí gặp sự cố bắt tay SSL (`Connection was reset`), đồng thời trình duyệt chặn tải dữ liệu nếu gọi chéo HTTP/HTTPS (Mixed Content). Trong khi đó, `vercel.json` cũ bắt toàn bộ URL `/(.*)` dẫn đến mọi request `/api/...` bị trả về mã HTML thay vì JSON.
+  - **Khắc Phục Toàn Diện ([`vercel.json`](frontend/vercel.json), [`authApi.js`](frontend/src/api/authApi.js)):**
+    - Cấu hình Vercel Reverse Proxy: Chuyển tiếp toàn bộ request `/api/:path*` trực tiếp từ Vercel Edge Server sang `http://smartlib-ai-api.runasp.net/api/:path*` qua giao thức HTTP an toàn, triệt tiêu 100% lỗi SSL, Mixed Content và CORS.
+    - Cập nhật `API_BASE_URL` trong `authApi.js` ưu tiên đường dẫn tương đối `/api` trên môi trường Cloud Vercel để luôn đi qua proxy an toàn.
+
 
 - **Tạo Ảnh Logo Vuông Tách Nền ([`smartlib_logo_square.png`](docs/assets/smartlib_logo_square.png), [`smartlib_logo.png`](frontend/public/smartlib_logo.png)):**
   - Trích xuất biểu tượng cuốn sách và bộ não AI từ ảnh gốc `docs/assets/smartlib_logo.jpg`, loại bỏ hoàn toàn phần chữ text phía dưới.
