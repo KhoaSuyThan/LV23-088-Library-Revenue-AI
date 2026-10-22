@@ -5,6 +5,17 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-22] - Chuẩn Bị Triển Khai Cloud: Frontend Lên Vercel & Backend/DB Lên MonsterASP.net (L0LRA-91, L0LRA-92)
+
+- **Cấu hình Frontend SPA Vercel ([`vercel.json`](frontend/vercel.json)):**
+  - Bổ sung cấu hình điều hướng URL SPA (`rewrites: [{ source: "/(.*)", destination: "/" }]`) để đảm bảo không bị lỗi 404 khi truy cập hoặc F5 tải lại các route con trên React Router DOM v7.
+  - Tối ưu hóa biến môi trường `VITE_API_URL` trỏ linh hoạt tới domain Backend HTTPS khi deploy lên Cloud.
+- **Tối ưu hóa Backend Đóng Gói Cloud ([`SmartLibAI.API.csproj`](src/SmartLibAI.API/SmartLibAI.API.csproj), [`Program.cs`](src/SmartLibAI.API/Program.cs)):**
+  - Cấu hình ItemGroup tự động đóng gói file mô hình dự đoán AI ONNX (`smartlib_risk_model.onnx`) vào thư mục `data/` khi chạy lệnh `dotnet publish`.
+  - Mở kích hoạt Swagger UI trên cả môi trường Production và Cloud để phục vụ kiểm thử, demo trực quan và bảo vệ đồ án.
+- **Tài liệu & Hướng dẫn Deploy:**
+  - Soạn thảo quy trình từng bước đăng ký MonsterASP.net miễn phí, tạo database MS SQL Server, import dữ liệu và đưa mã nguồn .NET 10 lên Internet kèm chứng chỉ HTTPS.
+
 ## [2026-10-21] - Đồng Bộ Dữ Liệu Bảng Dự Báo Rủi Ro AI Thu Phạt & Reset Seed Demo (LOLRA-94)
 
 - **API Dự Báo Rủi Ro AI Trễ Hạn ([`InvoicesController.cs`](src/SmartLibAI.API/Controllers/InvoicesController.cs), [`IInvoiceService.cs`](src/SmartLibAI.Core/Interfaces/IInvoiceService.cs), [`InvoiceRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs)):**
