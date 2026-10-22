@@ -100,7 +100,7 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
         <div className="hero-panel">
           <div className="hero-content">
             <div className="hero-logo-box">
-              <BookOpen size={36} color="#ffffff" strokeWidth={2.2} />
+              <img src="/smartlib_logo.png" alt="SmartLib AI Logo" className="hero-logo-img" />
             </div>
             <h1 className="hero-title">Xin chào!</h1>
             <p className="hero-subtitle">

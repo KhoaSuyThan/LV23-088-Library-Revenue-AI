@@ -27,9 +27,14 @@ appsettings.Secret.json
 [Ll]og/
 [Ll]ogs/
 publish/
+publish_*/
 publish_monsterasp/
 publish_monsterasp.zip
 dist-dotnet/
+*.zip
+*.tar.gz
+*.7z
+*.rar
 *.nupkg
 *.snupkg
 *.suo

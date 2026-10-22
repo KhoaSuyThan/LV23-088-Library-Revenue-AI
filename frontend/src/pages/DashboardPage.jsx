@@ -947,9 +947,7 @@ export default function DashboardPage({
         <div className="sidebar-top">
           {/* Logo Brand SmartLib AI */}
           <div className="sidebar-brand">
-            <div className="brand-icon-box">
-              <BookOpen size={22} strokeWidth={2.4} />
-            </div>
+            <img src="/smartlib_logo.png" alt="SmartLib AI Logo" className="brand-logo-img" />
             <span className="brand-name">SmartLib AI</span>
           </div>
 
