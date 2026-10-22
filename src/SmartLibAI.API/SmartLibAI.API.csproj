@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,6 +16,14 @@
   <ItemGroup>
     <ProjectReference Include="..\SmartLibAI.Core\SmartLibAI.Core.csproj" />
     <ProjectReference Include="..\SmartLibAI.Infrastructure\SmartLibAI.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Đóng gói file mô hình AI ONNX phục vụ chạy dự đoán rủi ro khi deploy lên Cloud -->
+  <ItemGroup>
+    <None Include="..\..\data\smartlib_risk_model.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>data\smartlib_risk_model.onnx</Link>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -117,15 +117,13 @@ var app = builder.Build();
 // 6. Middleware Pipeline
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// Bật Swagger UI ở cả Development và Production (MonsterASP / Cloud) để kiểm thử và phục vụ chấm điểm đồ án
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartLib AI API v1");
-        c.RoutePrefix = string.Empty; // Mở Swagger UI tại trang chủ root "/"
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartLib AI API v1");
+    c.RoutePrefix = string.Empty; // Mở Swagger UI trực tiếp tại trang chủ root "/"
+});
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
