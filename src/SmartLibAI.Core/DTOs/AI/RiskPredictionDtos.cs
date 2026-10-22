@@ -41,6 +41,16 @@ public class RiskEvaluationResultDto
     public string SuggestedAction { get; set; } = string.Empty;
 
     /// <summary>
+    /// Cờ đánh dấu kết quả được suy luận từ Heuristic Fallback (true) hay từ Mô hình máy học ONNX (false).
+    /// </summary>
+    public bool IsHeuristicFallback { get; set; }
+
+    /// <summary>
+    /// Nguồn suy luận dự báo: "ONNX_Model" hoặc "Heuristic_Fallback".
+    /// </summary>
+    public string PredictionSource { get; set; } = "ONNX_Model";
+
+    /// <summary>
     /// Thời điểm dự đoán
     /// </summary>
     public DateTime EvaluatedAt { get; set; } = DateTime.UtcNow;

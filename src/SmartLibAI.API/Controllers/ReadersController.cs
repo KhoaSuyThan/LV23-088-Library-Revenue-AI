@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartLibAI.Core.DTOs.Common;
 using SmartLibAI.Core.DTOs.Readers;
@@ -10,6 +11,7 @@ namespace SmartLibAI.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin,Staff")]
 public class ReadersController : ControllerBase
 {
     private readonly IReaderService _readerService;

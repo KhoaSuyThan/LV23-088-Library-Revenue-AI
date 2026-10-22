@@ -5,6 +5,29 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-22] - Hoàn Thiện & Cải Tiến Toàn Diện Theo Remediation Plan (P0, P1, P2)
+
+- **Bảo Mật & Phân Quyền Endpoint (P0 - [`Program.cs`](src/SmartLibAI.API/Program.cs), [`BooksController.cs`](src/SmartLibAI.API/Controllers/BooksController.cs), [`ReadersController.cs`](src/SmartLibAI.API/Controllers/ReadersController.cs), [`CategoriesController.cs`](src/SmartLibAI.API/Controllers/CategoriesController.cs), [`RulesController.cs`](src/SmartLibAI.API/Controllers/RulesController.cs)):**
+  - **CORS An Toàn:** Thay thế chính sách `AllowAnyOrigin()` mở toang bằng danh sách kiểm soát origin linh hoạt theo môi trường (`localhost`, `127.0.0.1`, `*.vercel.app`, `*.runasp.net` và cấu hình qua `Cors:AllowedOrigins`), triệt tiêu rủi ro CSRF/CORS.
+  - **Bảo Vệ JWT Secret:** Bổ sung cơ chế nạp `JWT_SECRET_KEY` từ biến môi trường và cảnh báo bảo mật nếu môi trường Production sử dụng khóa mặc định.
+  - **Phân Quyền Chi Tiết:**
+    - `BooksController.cs`: Khóa chặt các thao tác tạo mới (`POST`), cập nhật (`PUT`), xóa mềm (`DELETE`) và nạp file CSV (`POST import-csv`) bằng `[Authorize(Roles = "Admin,Staff")]`. Giữ các endpoint tra cứu dữ liệu công khai.
+    - `ReadersController.cs`: Gắn `[Authorize(Roles = "Admin,Staff")]` cho toàn bộ controller phân hệ quản trị thủ thư và khóa/mở thẻ bạn đọc.
+    - `CategoriesController.cs`: Gắn `[Authorize(Roles = "Admin,Staff")]` cho thao tác tạo thể loại sách.
+    - `RulesController.cs`: Khóa `[Authorize(Roles = "Admin,Staff")]` đối với `POST waivers` và `GET history`, chấm dứt việc lộ nhật ký kiểm toán quy chế thư viện.
+
+- **Ổn Định Backend & Giám Sát Sức Khỏe Hệ Thống (P1 - [`HealthController.cs`](src/SmartLibAI.API/Controllers/HealthController.cs)):**
+  - Nâng cấp endpoint `GET /api/health` tự động kiểm tra kết nối CSDL thực tế (`CanConnectAsync()`) và trạng thái nạp mô hình AI (`IsModelLoaded`). Trả về trạng thái chi tiết `Healthy`, `Degraded` hoặc `Unhealthy` (kèm mã lỗi 503 nếu mất kết nối CSDL).
+
+- **Minh Bạch Hóa Dự Báo AI ONNX & Fallback (P1 - [`RiskPredictionDtos.cs`](src/SmartLibAI.Core/DTOs/AI/RiskPredictionDtos.cs), [`IAIPredictionService.cs`](src/SmartLibAI.Core/Interfaces/IAIPredictionService.cs), [`OnnxAIPredictionService.cs`](src/SmartLibAI.Infrastructure/Services/OnnxAIPredictionService.cs)):**
+  - Bổ sung trường `IsHeuristicFallback` (bool) và `PredictionSource` (string: `"ONNX_Model"` hoặc `"Heuristic_Fallback"`) vào kết quả dự báo `RiskEvaluationResultDto`.
+  - Phơi bày thuộc tính `IsModelLoaded` và `ModelStatus` trong `IAIPredictionService` giúp các phân hệ và UI nhận biết chính xác nguồn gốc suy luận.
+
+- **Tối Ưu Frontend & Bộ Kiểm Thử Tự Động (P2 - [`App.jsx`](frontend/src/App.jsx), [`vite.config.js`](frontend/vite.config.js), [`SmartLibAI.Tests`](tests/SmartLibAI.Tests/)):**
+  - **Khắc Phục Kiến Trúc React ([`App.jsx`](frontend/src/App.jsx)):** Tách component `ProtectedLayout` ra khỏi hàm `AppContent`, triệt tiêu hoàn toàn lỗi nested component render anti-pattern làm unmount/remount DOM liên tục.
+  - **Tối Ưu Kích Thước Bundle ([`vite.config.js`](frontend/vite.config.js)):** Cấu hình phân tách thư viện nặng (Vendor Chunks) tương thích Rolldown/Vite 8, giúp giảm kích thước bundle `index.js` chính từ 1.8 MB xuống còn 416 kB (giảm hơn 76%).
+  - **Xây Dựng Dự Án Test Tự Động ([`SmartLibAI.Tests.csproj`](tests/SmartLibAI.Tests/SmartLibAI.Tests.csproj)):** Khởi tạo project xUnit trên .NET 10 với 13 bài test tự động kiểm thử suy luận rủi ro AI, Heuristic fallback, và quy chế tính phạt lưu thông. Toàn bộ 13/13 test cases đều PASSED 100%.
+
 ## [2026-10-22] - Khắc Phục Lỗi Hiển Thị Tỷ Lệ Rủi Ro Trễ Hẹn AI Trên Dashboard
 
 - **Kết Nối Dữ Liệu Dự Báo Rủi Ro AI Lên Thẻ KPI & Bảng Cảnh Báo ([`DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
