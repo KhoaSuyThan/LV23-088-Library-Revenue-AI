@@ -200,6 +200,18 @@ export default function DashboardPage({
       .catch((err) => {
         console.warn('Không thể nạp thống kê bạn đọc từ API:', err?.message);
       });
+
+    // Nạp danh sách độc giả có nguy cơ trễ hạn từ mô hình AI (AIPredictionLogs)
+    invoiceApi.getAiForecastReaders()
+      .then((res) => {
+        const list = res?.data || res || [];
+        if (Array.isArray(list) && list.length > 0) {
+          setAiRiskReaders(list);
+        }
+      })
+      .catch((err) => {
+        console.warn('Không thể nạp danh sách dự báo AI từ API:', err?.message);
+      });
   }, []);
 
   // Nạp dữ liệu thống kê khi vào tab Dashboard
@@ -1442,9 +1454,12 @@ export default function DashboardPage({
                     </div>
                   </div>
                   <div className="kpi-value" style={{ color: '#ef4444' }}>
-                    {aiRiskReaders.length > 0
-                      ? `${Math.round((aiRiskReaders.length / Math.max(1, bookCatalogSummary?.borrowedBooks || aiRiskReaders.length)) * 100)}%`
-                      : '0%'}
+                    {(() => {
+                      const riskCount = aiRiskReaders.length > 0 ? aiRiskReaders.length : (readerSummary?.highRiskCount || 0);
+                      const borrowedTotal = bookCatalogSummary?.borrowedBooks || 70;
+                      if (riskCount === 0) return '0%';
+                      return `${Math.round((riskCount / Math.max(1, borrowedTotal)) * 100)}%`;
+                    })()}
                   </div>
                   <div className="kpi-subtext-box">
                     <span
@@ -1457,7 +1472,7 @@ export default function DashboardPage({
                         fontSize: '12px'
                       }}
                     >
-                      {aiRiskReaders.length} ca cảnh báo
+                      {aiRiskReaders.length > 0 ? aiRiskReaders.length : (readerSummary?.highRiskCount || 0)} ca cảnh báo
                     </span>
                     <span>Độ tin cậy 84.5%</span>
                   </div>

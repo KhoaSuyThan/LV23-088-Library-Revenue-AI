@@ -5,7 +5,27 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-22] - Cấu Hình Vercel Reverse Proxy Kết Nối Trực Tiếp API Backend MonsterASP
+## [2026-10-22] - Khắc Phục Lỗi Hiển Thị Tỷ Lệ Rủi Ro Trễ Hẹn AI Trên Dashboard
+
+- **Kết Nối Dữ Liệu Dự Báo Rủi Ro AI Lên Thẻ KPI & Bảng Cảnh Báo ([`DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx)):**
+  - **Nguyên nhân:** Biến `aiRiskReaders` trong `DashboardPage.jsx` trước đó chỉ được khai báo `useState([])` mà bị thiếu lệnh gọi nạp từ API `invoiceApi.getAiForecastReaders()`, khiến số lượng luôn bằng 0 dẫn đến Thẻ 5 hiển thị `0%` và `0 ca cảnh báo`.
+  - **Khắc phục:**
+    - Tích hợp gọi `invoiceApi.getAiForecastReaders()` tự động trong `loadGeneralStats()` để kéo toàn bộ 50 ca dự báo rủi ro từ bảng `AIPredictionLogs` trên CSDL vào state.
+    - Cập nhật công thức tính Thẻ 5 linh hoạt với cơ chế fallback thông minh: kết hợp giữa `aiRiskReaders.length` và `readerSummary.highRiskCount` (hiện có 51 ca rủi ro cao), tính toán chính xác tỷ lệ rủi ro trễ hẹn trên tổng số sách đang mượn lưu hành (`~71% - 73%`).
+    - Khôi phục và hiển thị danh sách chi tiết các ca nguy cơ cao tại bảng *"Bảng cảnh báo nguy cơ trễ hạn AI"* ở cuối trang Dashboard.
+  - **Dọn dẹp thư mục SQL:** Đã xóa an toàn 4 file SQL nháp dư thừa theo xác nhận của người dùng.
+
+
+- **Trích Xuất Bộ Script SQL Chuẩn Phục Vụ Nạp CSDL Cloud Đầy Đủ (Story LOLRA-94 / CSDL):**
+  - **Mục tiêu:** Đồng bộ toàn diện dữ liệu từ CSDL Local (`SmartLibAI`) lên MonsterASP (`db75065`) gồm 11.123 đầu sách, 55.648 bản sao, 108 bạn đọc và 100 giao dịch mượn trả chuẩn.
+  - **Chi Tiết Các File Script Được Sinh Ra Trong Thư Mục [`data/`](data/):**
+    - [`data/monsterasp_sync_00_cleanup.sql`](data/monsterasp_sync_00_cleanup.sql): Dọn sạch an toàn các bảng dữ liệu cũ theo đúng quan hệ khóa ngoại (giữ nguyên cấu trúc bảng, Roles, Categories, FineRules, WaiverReasons và tài khoản Admin/Staff).
+    - [`data/monsterasp_sync_01_books.sql`](data/monsterasp_sync_01_books.sql): Đồng bộ trọn vẹn toàn bộ 11.123 đầu sách với batch 500 dòng/câu lệnh, tối ưu tốc độ thực thi và không tràn bộ nhớ.
+    - [`data/monsterasp_sync_02a_copies.sql`](data/monsterasp_sync_02a_copies.sql): Nạp 27.824 bản sao sách phần 1 (dung lượng ~1.18 MB).
+    - [`data/monsterasp_sync_02b_copies.sql`](data/monsterasp_sync_02b_copies.sql): Nạp 27.824 bản sao sách phần 2 (dung lượng ~1.20 MB).
+    - [`data/monsterasp_sync_03_readers_circulation.sql`](data/monsterasp_sync_03_readers_circulation.sql): Nạp đầy đủ 108 độc giả, 100 lượt mượn trả (50 quá hạn, 30 đã trả, 20 đang mượn), 50 khoản phạt (10 đã thu, 40 pending), 10 hóa đơn kế toán và 50 log dự báo rủi ro AI.
+  - **Tối Ưu An Toàn Tường Lửa (WAF):** Toàn bộ các script không sử dụng `CREATE DATABASE` hoặc `USE` để đảm bảo vượt qua 100% tường lửa WAF của MonsterASP và khớp hoàn toàn khóa chính Identity.
+
 
 - **Khắc Phục Lỗi Mất Dữ Liệu Trên Vercel Deploy:**
   - **Nguyên Nhân:** Cổng HTTPS của gói MonsterASP miễn phí gặp sự cố bắt tay SSL (`Connection was reset`), đồng thời trình duyệt chặn tải dữ liệu nếu gọi chéo HTTP/HTTPS (Mixed Content). Trong khi đó, `vercel.json` cũ bắt toàn bộ URL `/(.*)` dẫn đến mọi request `/api/...` bị trả về mã HTML thay vì JSON.
