@@ -43,7 +43,19 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // 3. Cấu hình JWT Authentication & Authorization
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["Key"] ?? jwtSettings["SecretKey"] ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
+var envSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+var configSecretKey = jwtSettings["Key"] ?? jwtSettings["SecretKey"];
+var secretKey = !string.IsNullOrWhiteSpace(envSecretKey) 
+    ? envSecretKey 
+    : (!string.IsNullOrWhiteSpace(configSecretKey) ? configSecretKey : "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10");
+
+// Cảnh báo nếu Production đang chạy với key mặc định
+if (builder.Environment.IsProduction() && secretKey == "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10")
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("[SECURITY WARNING] Đang chạy môi trường Production nhưng chưa cấu hình biến môi trường JWT_SECRET_KEY. Hãy thiết lập khóa an toàn.");
+    Console.ResetColor();
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -71,14 +83,38 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// 4. Cấu hình CORS mở rộng cho kết nối Frontend
+// 4. Cấu hình CORS an toàn theo môi trường (chặn origin lạ, cho phép Localhost & Vercel)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        if (configuredOrigins.Length > 0)
+        {
+            policy.WithOrigins(configuredOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else
+        {
+            // Cho phép các nguồn gốc an toàn: localhost dev và các deployment domain đã biết
+            policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrEmpty(origin)) return false;
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return uri.Host == "localhost" 
+                        || uri.Host == "127.0.0.1" 
+                        || uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+                        || uri.Host.EndsWith(".runasp.net", StringComparison.OrdinalIgnoreCase);
+                }
+                return false;
+            })
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+        }
     });
 });
 

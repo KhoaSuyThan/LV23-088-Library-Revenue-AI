@@ -115,6 +115,7 @@ public class RulesController : ControllerBase
     /// Thêm lý do miễn giảm tiền phạt thủ công mới (POST /api/rules/waivers - Ảnh 22).
     /// </summary>
     [HttpPost("waivers")]
+    [Authorize(Roles = "Admin,Staff")]
     [ProducesResponseType(typeof(ApiResponse<WaiverReasonDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AddWaiverReason([FromBody] WaiverReasonDto dto)
     {
@@ -130,7 +131,7 @@ public class RulesController : ControllerBase
     /// Lấy nhật ký kiểm toán ghi nhận lịch sử thay đổi cấu hình quy định (GET /api/rules/history).
     /// </summary>
     [HttpGet("history")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Staff")]
     [ProducesResponseType(typeof(ApiResponse<List<RuleAuditLogDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAuditHistory()
     {
