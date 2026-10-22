@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Địa chỉ cổng API Backend (Mặc định dùng relative path để đi qua Vite dev/preview proxy, triệt tiêu 100% CORS preflight và tránh kẹt socket 10s trên Chrome)
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Địa chỉ cổng API Backend (Mặc định dùng relative path để đi qua Vite dev proxy ở Local hoặc Vercel Reverse Proxy trên Cloud, triệt tiêu 100% CORS và lỗi SSL)
+const rawApiUrl = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = rawApiUrl.includes('smartlib-ai-api.runasp.net') ? '' : rawApiUrl;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

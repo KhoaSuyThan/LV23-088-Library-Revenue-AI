@@ -5,6 +5,27 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-22] - Cấu Hình Vercel Reverse Proxy Kết Nối Trực Tiếp API Backend MonsterASP
+
+- **Khắc Phục Lỗi Mất Dữ Liệu Trên Vercel Deploy:**
+  - **Nguyên Nhân:** Cổng HTTPS của gói MonsterASP miễn phí gặp sự cố bắt tay SSL (`Connection was reset`), đồng thời trình duyệt chặn tải dữ liệu nếu gọi chéo HTTP/HTTPS (Mixed Content). Trong khi đó, `vercel.json` cũ bắt toàn bộ URL `/(.*)` dẫn đến mọi request `/api/...` bị trả về mã HTML thay vì JSON.
+  - **Khắc Phục Toàn Diện ([`vercel.json`](frontend/vercel.json), [`authApi.js`](frontend/src/api/authApi.js)):**
+    - Cấu hình Vercel Reverse Proxy: Chuyển tiếp toàn bộ request `/api/:path*` trực tiếp từ Vercel Edge Server sang `http://smartlib-ai-api.runasp.net/api/:path*` qua giao thức HTTP an toàn, triệt tiêu 100% lỗi SSL, Mixed Content và CORS.
+    - Cập nhật `API_BASE_URL` trong `authApi.js` ưu tiên đường dẫn tương đối `/api` trên môi trường Cloud Vercel để luôn đi qua proxy an toàn.
+
+
+- **Tạo Ảnh Logo Vuông Tách Nền ([`smartlib_logo_square.png`](docs/assets/smartlib_logo_square.png), [`smartlib_logo.png`](frontend/public/smartlib_logo.png)):**
+  - Trích xuất biểu tượng cuốn sách và bộ não AI từ ảnh gốc `docs/assets/smartlib_logo.jpg`, loại bỏ hoàn toàn phần chữ text phía dưới.
+  - Tách nền trong suốt 100% (Transparent PNG) chuẩn tỷ lệ vuông 1:1 (512x512) với độ sắc nét cao, giữ trọn vẹn dải màu xanh cyan neon và viền ánh sáng công nghệ.
+  - Tạo bộ Favicon đa kích cỡ: [`frontend/public/favicon.ico`](frontend/public/favicon.ico) (16x16, 32x32, 48x48, 64x64, 128x128, 256x256), `favicon.png`, `apple-touch-icon.png`.
+- **Đổi Favicon & Cập Nhật Giao Diện Nhận Diện Thương Hiệu:**
+  - [`frontend/index.html`](frontend/index.html): Thay thế icon Vite mặc định bằng bộ nhận diện SmartLib AI (`/smartlib_logo.png`, `/favicon.ico`).
+  - [`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx) & [`DashboardPage.css`](frontend/src/pages/DashboardPage.css): Đổi icon ở thanh Sidebar góc trên bên trái sang logo SmartLib AI phát sáng công nghệ kèm hiệu ứng hover.
+  - [`frontend/src/pages/LoginPage.jsx`](frontend/src/pages/LoginPage.jsx) & [`LoginPage.css`](frontend/src/pages/LoginPage.css): Đổi biểu tượng ở khung chào mừng bên trái trang đăng nhập sang logo SmartLib AI sắc nét.
+- **Bảo Mật & An Toàn Kho Mã Nguồn ([`.gitignore`](.gitignore)):**
+  - Thêm quy tắc loại trừ các thư mục xuất bản build `publish_*/` (ngăn lộ chuỗi kết nối CSDL và các tệp DLL nhị phân).
+  - Thêm quy tắc chặn các tệp nén `*.zip`, `*.tar.gz`, `*.7z`, `*.rar` (loại bỏ tệp nén `publish_monsterasp.zip` nặng 137 MB khỏi Git, ngăn ngừa triệt để lỗi bị GitHub từ chối lệnh push do vượt hạn mức 100 MB).
+
 ## [2026-10-22] - Hiển Thị Đầy Đủ Số Liệu Hồ Sơ Bạn Đọc Thực Tế Lên Thẻ KPI Dashboard
 
 - **Nguyên Nhân:**
@@ -13,26 +34,15 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Tích hợp `readerApi.getSummary()` từ phân hệ Quản trị Hồ sơ Độc giả (`/api/readers/summary`) vào `loadGeneralStats` của [`DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx).
   - Cập nhật Thẻ 3 hiển thị đầy đủ: Tổng số bạn đọc thực tế (`totalReaders bạn đọc`) và số lượng tài khoản độc giả đang kích hoạt hoạt động (`totalActiveReaders kích hoạt`).
   - Cập nhật số lượng bản sao ở Thẻ 1 tự động đồng bộ theo tổng đầu sách thực tế trong kho.
+  - Khắc phục triệt để lỗi Runtime (`revenueSources is not defined`) làm trắng màn hình, tạo `defaultEmptyRevenueSources` an toàn.
 
+## [2026-10-22] - Triệt Tiêu Hoàn Toàn Các Giá Trị Fallback 490k (Doanh Thu) và 16k Sách (Lưu Thông) Khi Chuyển Tab Nhanh
 
-- **Nguyên Nhân:**
-  - Trong quá trình dọn dẹp các mảng dữ liệu mẫu giả lập trước đó, biến `revenueSources` đã được gỡ bỏ nhưng hàm `computedRevenueSources` tại [`frontend/src/pages/DashboardPage.jsx`](frontend/src/pages/DashboardPage.jsx#L407) vẫn còn tham chiếu tới biến này khi `breakdown` rỗng, gây lỗi ném ngoại lệ Runtime và làm crash toàn bộ cây component Dashboard (màn hình trắng).
-- **Khắc Phục:**
-  - Khởi tạo mảng tĩnh an toàn `defaultEmptyRevenueSources` chuẩn định dạng với các giá trị 0đ / 0% cho 4 danh mục thu phạt thực tế.
-  - Cập nhật `computedRevenueSources` trả về `defaultEmptyRevenueSources` khi chưa có dữ liệu thu phạt hoặc chưa có phát sinh giao dịch, giải quyết triệt để lỗi màn hình trắng và đảm bảo giao diện hiển thị mượt mà.
-
-
-- **Thu Phạt & Dự Báo Rủi Ro AI ([`FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx)):**
-  - Xóa bỏ hoàn toàn mảng dữ liệu mẫu `INITIAL_AI_READERS` (6 sinh viên giả lập).
-  - Khởi tạo danh sách độc giả rỗng `[]` và nạp 100% dữ liệu thực từ API Backend `invoiceApi.getAiForecastReaders()`.
-- **Lưu Thông Mượn Trả Quầy ([`CirculationDesk.jsx`](frontend/src/pages/CirculationDesk.jsx)):**
-  - Xóa bỏ mảng giao dịch mẫu `INITIAL_TRANSACTIONS` (giao dịch giả lập PM-0003, PM-9920,...).
-  - Toàn bộ bảng lưu thông trong ngày hiển thị dữ liệu thực từ `borrowApi.getRecentBorrows(50)`.
-- **Danh Mục Sách & Bản Sao ([`BookCatalog.jsx`](frontend/src/pages/BookCatalog.jsx)):**
-  - Xóa bỏ mảng sách mẫu `INITIAL_BOOKS`.
-  - Triệt tiêu cơ chế tự sinh bản sao ảo (`fallbackCopies` và `generatedCopies`) trong các hàm nạp và thêm mới bản sao hàng loạt, bắt buộc phải đồng bộ và báo lỗi chính xác từ máy chủ Backend.
-- **Thống Kê Doanh Thu ([`RevenueBreakdownTab.jsx`](frontend/src/components/revenue/RevenueBreakdownTab.jsx)):**
-  - Loại bỏ giá trị mặc định cứng (`totalDamage = 3800000`), chuyển về 0 và đồng bộ theo phản hồi thực tế từ API Backend.
+- **Dọn dẹp dữ liệu mẫu Frontend:**
+  - [`FineRevenue.jsx`](frontend/src/pages/FineRevenue.jsx): Xóa hoàn toàn 6 sinh viên giả lập `INITIAL_AI_READERS`, nạp 100% từ API.
+  - [`CirculationDesk.jsx`](frontend/src/pages/CirculationDesk.jsx): Xóa hoàn toàn mảng giao dịch mẫu `INITIAL_TRANSACTIONS`.
+  - [`BookCatalog.jsx`](frontend/src/pages/BookCatalog.jsx): Xóa mảng sách mẫu `INITIAL_BOOKS` và triệt tiêu cơ chế sinh bản sao ảo.
+  - [`RevenueBreakdownTab.jsx`](frontend/src/components/revenue/RevenueBreakdownTab.jsx): Loại bỏ số cứng `3.800.000 VNĐ`.
 
 ## [2026-10-22] - Chuẩn Bị Triển Khai Cloud: Frontend Lên Vercel & Backend/DB Lên MonsterASP.net (L0LRA-91, L0LRA-92)
 
@@ -44,8 +54,6 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Mở kích hoạt Swagger UI trên cả môi trường Production và Cloud để phục vụ kiểm thử, demo trực quan và bảo vệ đồ án.
 - **Tài liệu & Hướng dẫn Deploy:**
   - Soạn thảo quy trình từng bước đăng ký MonsterASP.net miễn phí, tạo database MS SQL Server, import dữ liệu và đưa mã nguồn .NET 10 lên Internet kèm chứng chỉ HTTPS.
-
-## [2026-10-21] - Đồng Bộ Dữ Liệu Bảng Dự Báo Rủi Ro AI Thu Phạt & Reset Seed Demo (LOLRA-94)
 
 - **API Dự Báo Rủi Ro AI Trễ Hạn ([`InvoicesController.cs`](src/SmartLibAI.API/Controllers/InvoicesController.cs), [`IInvoiceService.cs`](src/SmartLibAI.Core/Interfaces/IInvoiceService.cs), [`InvoiceRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs)):**
   - Xây dựng endpoint mới `GET /api/invoices/ai-forecast-readers` và DTO [`AiForecastReaderDto.cs`](src/SmartLibAI.Core/DTOs/Invoices/AiForecastReaderDto.cs).
