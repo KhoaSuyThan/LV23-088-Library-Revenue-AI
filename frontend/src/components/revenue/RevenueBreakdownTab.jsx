@@ -49,7 +49,7 @@ export default function RevenueBreakdownTab({
       : backendPendingFines.reduce((sum, f) => sum + (Number(f.finalAmount) || 0), 0);
     const totalDamage = revenueSummary?.totalDamageBookValue != null
       ? Number(revenueSummary.totalDamageBookValue)
-      : 3800000;
+      : 0;
     const invoicesCount = revenueSummary?.totalInvoicesCount != null
       ? revenueSummary.totalInvoicesCount
       : receiptsList.length;
