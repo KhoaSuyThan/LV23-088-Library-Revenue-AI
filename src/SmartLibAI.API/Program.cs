@@ -45,17 +45,25 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var envSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
 var configSecretKey = jwtSettings["Key"] ?? jwtSettings["SecretKey"];
+
+// [CRITICAL SECURITY GATE - P0/P1] Chặn đứng việc khởi động ở mọi môi trường không phải Development nếu thiếu secret an toàn
+if (!builder.Environment.IsDevelopment())
+{
+    var effectiveKey = !string.IsNullOrWhiteSpace(envSecretKey) ? envSecretKey : configSecretKey;
+    if (string.IsNullOrWhiteSpace(effectiveKey) || 
+        effectiveKey.Contains("SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10") ||
+        effectiveKey.StartsWith("DEV_ONLY_") ||
+        Encoding.UTF8.GetByteCount(effectiveKey) < 32)
+    {
+        throw new InvalidOperationException(
+            $"[CRITICAL SECURITY BLOCKER] Hệ thống bị chặn khởi động trên môi trường '{builder.Environment.EnvironmentName}' (Staging/Production) do thiếu hoặc dùng khóa bí mật JWT mặc định/không an toàn. " +
+            "Bắt buộc phải cấu hình biến môi trường 'JWT_SECRET_KEY' với khóa bảo mật riêng có độ dài tối thiểu 32 ký tự (256-bit).");
+    }
+}
+
 var secretKey = !string.IsNullOrWhiteSpace(envSecretKey) 
     ? envSecretKey 
-    : (!string.IsNullOrWhiteSpace(configSecretKey) ? configSecretKey : "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10");
-
-// Cảnh báo nếu Production đang chạy với key mặc định
-if (builder.Environment.IsProduction() && secretKey == "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10")
-{
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("[SECURITY WARNING] Đang chạy môi trường Production nhưng chưa cấu hình biến môi trường JWT_SECRET_KEY. Hãy thiết lập khóa an toàn.");
-    Console.ResetColor();
-}
+    : (!string.IsNullOrWhiteSpace(configSecretKey) ? configSecretKey : "DEV_ONLY_SmartLibAI_Secret_Key_2026_DotNet10_Min32Bytes!");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -81,9 +89,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+// Áp dụng FallbackPolicy toàn cục: Mặc định 100% endpoint đều bắt buộc có JWT Token hợp lệ,
+// trừ khi endpoint đó được gắn [AllowAnonymous] một cách tường minh.
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
-// 4. Cấu hình CORS an toàn theo môi trường (chặn origin lạ, cho phép Localhost & Vercel)
+// 4. Cấu hình CORS an toàn theo môi trường (chỉ chấp nhận domain frontend chính thức)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -98,16 +113,27 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            // Cho phép các nguồn gốc an toàn: localhost dev và các deployment domain đã biết
+            // Danh sách trắng các origin chính thức được cấp phép, triệt tiêu nguy cơ CORS từ các subdomain lạ
+            var explicitAllowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:3000",
+                "https://lv-23-088-library-revenue-ai-git-main-khoa-suy-than.vercel.app",
+                "https://lv23-088-library-revenue-ai.vercel.app",
+                "http://smartlib-ai-api.runasp.net"
+            };
+
             policy.SetIsOriginAllowed(origin =>
             {
                 if (string.IsNullOrEmpty(origin)) return false;
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
-                    return uri.Host == "localhost" 
-                        || uri.Host == "127.0.0.1" 
-                        || uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
-                        || uri.Host.EndsWith(".runasp.net", StringComparison.OrdinalIgnoreCase);
+                    // Cho phép dev local
+                    if (uri.Host == "localhost" || uri.Host == "127.0.0.1") return true;
+                    // Trên Cloud, chỉ chấp nhận đúng origin đã đăng ký chính thức
+                    return explicitAllowedOrigins.Contains(origin.TrimEnd('/'));
                 }
                 return false;
             })

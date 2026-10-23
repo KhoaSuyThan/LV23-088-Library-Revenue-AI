@@ -810,7 +810,7 @@ export default function BarcodeCameraModal({
             <div className="quick-chips-row">
               {targetField === 'reader'
                 ? [
-                    { label: '✓ RD20260001 (Mượn OK)', code: 'RD20260001' },
+                    { label: '✓ DEMO0001 (Mượn OK)', code: 'DEMO0001' },
                     { label: '✗ 102220184 (Nợ phạt)', code: '102220184' },
                     { label: '✗ 102230045 (Khóa thẻ)', code: '102230045' },
                     { label: '✗ 102220412 (Max 5 cuốn)', code: '102220412' }

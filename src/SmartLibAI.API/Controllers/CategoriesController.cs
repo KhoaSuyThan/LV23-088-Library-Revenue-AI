@@ -6,8 +6,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller cung cấp API tra cứu danh mục thể loại sách.
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền truy cập.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class CategoriesController : ControllerBase
 {

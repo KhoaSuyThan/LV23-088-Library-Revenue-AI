@@ -5,6 +5,46 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-23] - Khắc Phục Lỗi Schema Bảng FineRules Và Nghiệm Thu Tạo Phiếu Mượn Thực Tế Trên MonsterASP
+
+- **Đồng Bộ Schema CSDL FineRules ([`FineRules`](data/monsterasp_init_database.sql), [`SmartLibDbContext.cs`](src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)) - [P0]:**
+  - Chuyển đổi thành công kiểu dữ liệu của 2 cột `AutoLockDebtThreshold` và `AiAutoEmailReminder` trong bảng `FineRules` trên CSDL MonsterASP từ `INT` sang `BIT NOT NULL DEFAULT 1`.
+  - Triệt tiêu 100% ngoại lệ `Unable to cast object of type 'System.Int32' to type 'System.Boolean'` khi truy vấn quy định thư viện và kiểm tra tư cách bạn đọc (`eligibility`).
+  - Cấu hình bổ sung chuyển đổi kiểu `HasConversion<int>()` trong `SmartLibDbContext` để đảm bảo tương thích 2 chiều hoàn hảo giữa C# và SQL Server.
+- **Nghiệm Thu Luồng Mượn Sách Thực Tế:**
+  - Cập nhật các nút thử nghiệm nhanh trên giao diện [BorrowForm.jsx](frontend/src/components/BorrowForm.jsx) và [BarcodeCameraModal.jsx](frontend/src/components/BarcodeCameraModal.jsx) sang mã bạn đọc có thực trong DB (`DEMO0001` - `DEMO0030`).
+  - Đã gửi request kiểm thử thành công tạo phiếu mượn `PM-0214` cho bạn đọc `DEMO0005` với sách có sẵn `BC000014-A` trực tiếp trên máy chủ MonsterASP.
+
+## [2026-10-23] - Khắc Phục Lỗi Đồng Bộ Khóa Ký JWT Giữa AuthService Và JwtBearer Middleware Trên Production
+
+- **Đồng Bộ Khóa Ký Token ([`AuthService.cs`](src/SmartLibAI.Core/Services/AuthService.cs)) - [P0]:**
+  - Cập nhật hàm `GenerateToken` trong `AuthService` để nạp trực tiếp khóa bí mật từ biến môi trường `JWT_SECRET_KEY` hoặc cấu hình `_configuration["JWT_SECRET_KEY"]` trước khi fallback.
+  - Ngăn chặn triệt để tình trạng lệch khóa (Mã hóa bằng default dev key nhưng giải mã bằng Production key), giải quyết lỗi 401 Unauthorized ngay sau khi đăng nhập trên bản Production MonsterASP.
+  - Cập nhật file cấu hình [web.config](publish_monsterasp/web.config) trên MonsterASP bổ sung các alias biến môi trường `JwtSettings__Key` và `JwtSettings__SecretKey` đồng bộ 100% với `JWT_SECRET_KEY`.
+
+## [2026-10-23] - Xử Lý Triệt Để Các Lỗ Hổng Bảo Mật P0/P1 Theo Kết Quả Review Nghiêm Ngặt
+
+- **Chặn Đứng JWT Secret Mặc Định Trên Mọi Môi Trường Không Phải Dev ([`Program.cs`](src/SmartLibAI.API/Program.cs), [`appsettings.json`](src/SmartLibAI.API/appsettings.json)) - [P0/P1]:**
+  - Mở rộng chốt chặn an toàn (`InvalidOperationException`): Ứng dụng lập tức từ chối khởi động trên MỌI môi trường không phải `Development` (`!builder.Environment.IsDevelopment()`, bao gồm cả Staging và Production) nếu thiếu biến môi trường `JWT_SECRET_KEY` hoặc nếu secret key vẫn dùng chuỗi mặc định / có độ dài dưới 32 ký tự (256-bit).
+  - Xóa bỏ hoàn toàn thuộc tính `Key` và `SecretKey` khỏi `appsettings.json` chung; chỉ lưu key thử nghiệm cục bộ trong `appsettings.Development.json` dành riêng cho localhost dev.
+- **Khóa Toàn Bộ Endpoint Quy Định Cấu Hình & Quản Trị ([`RulesController.cs`](src/SmartLibAI.API/Controllers/RulesController.cs)) - [P1]:**
+  - Gắn `[Authorize(Roles = "Admin,Staff")]` ở cấp Class `RulesController`, xóa bỏ hoàn toàn `[AllowAnonymous]` tại `GET /api/rules`.
+  - Toàn bộ thông số phí phạt, ngưỡng nợ, ngưỡng cảnh báo AI và cài đặt nhắc nhở đều được bảo vệ 100%, không cho phép truy cập công khai.
+- **Khóa Toàn Diện Danh Mục Sách & Thể Loại ([`BooksController.cs`](src/SmartLibAI.API/Controllers/BooksController.cs), [`CategoriesController.cs`](src/SmartLibAI.API/Controllers/CategoriesController.cs)):**
+  - Gắn `[Authorize(Roles = "Admin,Staff")]` ở cấp Class cho cả `BooksController` và `CategoriesController`.
+  - Triệt tiêu hoàn toàn bề mặt tấn công tra cứu bản sao/mã vạch của người dùng ẩn danh (do hệ thống chỉ phục vụ cổng quản trị thủ thư).
+- **Thu Gọn Thông Tin Lộ Lọt Tại Endpoint Sức Khỏe ([`HealthController.cs`](src/SmartLibAI.API/Controllers/HealthController.cs)):**
+  - Probe công khai không có token chỉ nhận trạng thái tối thiểu (`Status: Healthy/Unhealthy` và `Timestamp`), tuyệt đối không để lộ phiên bản .NET, chi tiết CSDL hay chế độ mô hình ONNX.
+  - Chỉ người dùng đã đăng nhập với vai trò Thủ thư/Admin mới được phép xem báo cáo chẩn đoán hạ tầng chi tiết.
+- **Siết Chặt Danh Sách Trắng CORS ([`Program.cs`](src/SmartLibAI.API/Program.cs)):**
+  - Xóa bỏ cơ chế wildcard mở rộng `*.vercel.app` và `*.runasp.net`. Thay thế bằng danh sách trắng cụ thể các domain chính thức của dự án (`https://lv-23-088-library-revenue-ai-git-main-khoa-suy-than.vercel.app`, `https://lv23-088-library-revenue-ai.vercel.app`, `http://smartlib-ai-api.runasp.net`).
+- **Khôi Phục Tệp Tài Liệu Nghiệp Vụ Bị Xóa Nhầm ([`Báo cáo QLDACNTT.docx`](docs/Nhóm%201_Bò%20sữa_Báo%20cáo%20QLDACNTT.docx)):**
+  - Khôi phục file Word gốc của dự án, đảm bảo an toàn tuyệt đối cho tài nguyên đồ án.
+- **Kiểm Thử & Biên Dịch Độc Lập (Quality Gate):**
+  - `dotnet build -t:Compile`: Thành công 0 Warning, 0 Error.
+  - `dotnet test`: 13/13 test cases đều ĐẠT (Passed: 13, Failed: 0).
+  - `npm run build`: Đóng gói Vite hoàn tất trong 1.10s, 0 Error.
+
 ## [2026-10-22] - Đồng Bộ & Cập Nhật Toàn Diện Tài Liệu README Dự Án
 
 - **Cập Nhật Tài Liệu Hướng Dẫn & Kiến Trúc ([`README.md`](README.md)):**

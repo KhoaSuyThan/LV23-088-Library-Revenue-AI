@@ -96,7 +96,9 @@ public class AuthService : IAuthService
     /// </summary>
     public string GenerateToken(User user, string roleName)
     {
-        var secretKey = _configuration["JwtSettings:Key"]
+        var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+            ?? _configuration["JWT_SECRET_KEY"]
+            ?? _configuration["JwtSettings:Key"]
             ?? _configuration["JwtSettings:SecretKey"]
             ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
         var issuer = _configuration["JwtSettings:Issuer"] ?? "SmartLibAI";
