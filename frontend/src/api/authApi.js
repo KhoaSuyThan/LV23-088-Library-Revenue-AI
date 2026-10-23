@@ -6,6 +6,7 @@ const API_BASE_URL = rawApiUrl.includes('smartlib-ai-api.runasp.net') ? '' : raw
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 25000,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -413,5 +413,16 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.DefaultDiscountPercent).HasColumnType("decimal(5,2)").HasDefaultValue(100m);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
+
+        // FineRules
+        modelBuilder.Entity<FineRule>(entity =>
+        {
+            entity.ToTable("FineRules");
+            entity.HasKey(e => e.RuleID);
+            entity.Property(e => e.AutoLockDebtThreshold)
+                .HasConversion<int>();
+            entity.Property(e => e.AiAutoEmailReminder)
+                .HasConversion<int>();
+        });
     }
 }

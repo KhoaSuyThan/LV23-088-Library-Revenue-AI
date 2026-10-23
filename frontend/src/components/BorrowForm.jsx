@@ -1036,14 +1036,14 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
             className="test-chip chip-success"
             title="Độc giả hợp lệ, thẻ hoạt động, không nợ phạt, sách Available (Scenario 1)"
             onClick={async () => {
-              setReaderCode('RD20260001');
+              setReaderCode('DEMO0001');
               setSelectedBarcodes([]);
               setBorrowError('');
-              await checkReaderEligibility('RD20260001');
-              await handleAddBarcodeToList('BC000001-C');
+              await checkReaderEligibility('DEMO0001');
+              await handleAddBarcodeToList('BC000001-A');
             }}
           >
-            ✓ RD20260001 (Mượn OK)
+            ✓ DEMO0001 (Mượn OK)
           </button>
           <button
             type="button"

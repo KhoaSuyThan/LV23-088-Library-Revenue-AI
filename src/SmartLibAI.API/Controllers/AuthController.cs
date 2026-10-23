@@ -25,6 +25,7 @@ public class AuthController : ControllerBase
     /// Đăng nhập tài khoản hệ thống và nhận JWT Token.
     /// </summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         if (!ModelState.IsValid)
