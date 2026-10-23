@@ -3,12 +3,50 @@
 > **Phạm vi:** Kế hoạch xử lý các rủi ro và khoảng trống ghi nhận trong đợt rà soát ngày 22/10/2026.  
 > **Nguyên tắc dữ liệu:** Giữ nguyên dữ liệu mẫu và logic seed hiện có trong `src/SmartLibAI.API/Program.cs`. Không xóa hoặc di chuyển phần dữ liệu mẫu đó trong phạm vi kế hoạch này.
 
+> **Ưu tiên bổ sung ngày 23/10/2026:** Ảnh production cho thấy `GET /api/readers` trả hồ sơ độc giả khi mở URL trực tiếp, trong khi mã nguồn hiện tại gắn `[Authorize(Roles = "Admin,Staff")]` tại `ReadersController`. Đây là lỗi bảo mật đã được xác nhận trên bản deploy; nguyên nhân gốc cần đối chiếu giữa artifact/backend thực tế, proxy Vercel và revision trong repo.
+
 ## Mục tiêu
 
 1. Khóa các đường truy cập chưa được phân quyền và loại bỏ bí mật mặc định khỏi cấu hình production.
 2. Làm cho cấu hình chạy local, build và triển khai frontend/backend nhất quán, có thể chẩn đoán.
 3. Xác minh AI đang dùng ONNX hay fallback, và trình bày kết quả đúng với trạng thái thực tế.
 4. Bổ sung kiểm thử cho nghiệp vụ lưu thông, tiền phạt và phân quyền; giảm cảnh báo và thời gian tải frontend.
+
+## Kế hoạch xử lý hai lỗi production đã được báo cáo (P0)
+
+### A. Ngăn API trả dữ liệu sau khi đăng xuất
+
+1. **Chụp trạng thái hiện tại trước khi sửa:** ghi lại URL API production chính xác, thời gian/revision deploy, response headers/status và kết quả gọi `GET /api/readers` không có `Authorization`. Không ghi token thật vào log/chụp màn hình.
+2. **Xác định backend đang phục vụ request:** kiểm tra destination `/api/*` trong `frontend/vercel.json`, domain MonsterASP, cấu hình reverse proxy/deployment và revision/artifact đang chạy. So sánh với endpoint `/api/health` và Swagger để xác nhận đúng instance.
+3. **Kiểm tra build/runtime:** xác nhận artifact production chứa `ReadersController` với class-level `[Authorize(Roles = "Admin,Staff")]`; kiểm tra auth middleware và role claims trong JWT. Không giả định code local chính là code production.
+4. **Khóa API theo mặc định:** áp dụng authorization mặc định cho API; chỉ khai báo `[AllowAnonymous]` rõ ràng cho login và endpoint thực sự được duyệt công khai. Rà soát mọi GET dữ liệu nội bộ (độc giả, sách nếu chỉ dành cho cổng quản trị, doanh thu, mượn/trả, bản sao, lịch sử/quy chế nhạy cảm). Bảo đảm endpoint ghi và endpoint đọc đều có quyền đúng vai trò.
+5. **Triển khai backend đúng đích:** publish revision đã sửa lên backend mà Vercel thực sự proxy tới; xác minh deployment hoàn tất, không chỉ deploy lại frontend.
+6. **Kiểm chứng trước/sau deploy:** không token phải nhận `401`; token Reader nhận `403` với API thủ thư; token Staff/Admin hợp lệ nhận dữ liệu; logout rồi gọi lại bằng trình duyệt và `curl` không token phải không nhận dữ liệu. Kiểm tra cả route phân trang trong ảnh (`/api/readers?pageNumber=1&pageSize=2`) và các route export/summary/detail.
+7. **Đánh giá token cũ:** logout hiện xóa token ở browser, còn JWT stateless có thể tiếp tục dùng nếu bị sao chép trước đó. Trước mắt bảo đảm trình duyệt không gửi token sau logout và API không cho anonymous; nếu yêu cầu thu hồi token ngay lập tức, thiết kế denylist/revocation hoặc đổi cơ chế session riêng.
+
+**Tiêu chí đóng lỗi A:** Production API trả `401` cho mọi request anonymous tới dữ liệu nội bộ; không thể lấy lại dữ liệu bằng URL trực tiếp; kiểm thử role và luồng frontend sau đăng nhập vẫn đạt.
+
+### B. Khôi phục thao tác mượn/trả trên web đã deploy
+
+1. **Tái hiện và thu bằng chứng:** thử riêng đăng nhập, tra cứu độc giả/điều kiện mượn, tra barcode, tạo phiếu mượn, lookup trả sách và xử lý trả. Ghi status HTTP, response body đã ẩn thông tin cá nhân, request URL và console/network error.
+2. **Kiểm tra đăng nhập thật:** `LoginPage` có chế độ demo khi request backend lỗi mạng, tạo chuỗi `demo_smartlib_token_jwt_preview`. Xác nhận người dùng production có nhận token JWT thật từ `/api/Auth/login`; không coi token giả là phiên backend hợp lệ.
+3. **Kiểm tra tuyến API:** xác nhận mọi request frontend đi qua rewrite `/api/*` tới đúng host/backend, không bị SPA rewrite trả `index.html`, không lỗi HTTPS/mixed content/CORS, và proxy chuyển tiếp header `Authorization`.
+4. **Kiểm tra cấu hình backend production:** connection string/DB, migration/schema, tài khoản, role claim và JWT issuer/audience/key phải khớp; xem log của các endpoint borrow/return để tìm lỗi 401/403/5xx/validation.
+5. **Khắc phục theo lỗi gốc:** sửa URL/proxy hoặc cấu hình deploy nếu request đi sai host; sửa cấu hình JWT/role nếu auth thất bại; sửa lỗi DB/schema/nghiệp vụ nếu API nhận request nhưng thất bại. Chế độ demo không được báo như đăng nhập thật hoặc tạo giao dịch giả.
+6. **Kiểm thử end-to-end trên staging rồi production:** với Staff/Admin thật, tạo mượn thành công, xác nhận bản sao chuyển trạng thái, tra cứu phiếu và trả thành công; xác nhận dữ liệu cập nhật và không tạo giao dịch trùng khi retry.
+
+**Tiêu chí đóng lỗi B:** bản production đăng nhập thật và hoàn tất được luồng mượn rồi trả; tất cả request dùng đúng backend/JWT; lỗi được hiển thị rõ, không âm thầm rơi sang dữ liệu/demo giả.
+
+### Thứ tự và cổng phát hành
+
+| Bước | Công việc | Cổng qua bước |
+|---|---|---|
+| 1 | Chụp hiện trạng và xác định backend/revision production | Biết chính xác instance và artifact đang nhận `/api/*` |
+| 2 | Sửa authorization mặc định và cấu hình endpoint public | Unit/integration check 401, 403, 200 theo role |
+| 3 | Sửa cấu hình deploy/proxy/JWT cho luồng lưu thông | Staging hoàn tất mượn và trả bằng JWT thật |
+| 4 | Deploy backend, sau đó xác minh domain production | Smoke check anonymous bị chặn và nghiệp vụ mượn/trả hoạt động |
+
+Không đóng lỗi chỉ bằng việc frontend chuyển về trang login hoặc ẩn nút. Cổng nghiệm thu phải gọi API trực tiếp không token để xác minh backend từ chối.
 
 ## Giai đoạn 1 — Bảo mật và phân quyền (P0)
 

@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SmartLibAI.API.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin")]
 [Route("[controller]")]
 public class WeatherForecastController : ControllerBase
 {

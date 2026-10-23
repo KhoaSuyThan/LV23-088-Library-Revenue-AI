@@ -9,8 +9,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller quản lý cấu hình quy định thư viện & tham số mô hình AI (Story LOLRA-72 / L0LRA-79 - US-03).
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền truy cập và điều chỉnh quy định hệ thống.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class RulesController : ControllerBase
 {
@@ -25,7 +27,6 @@ public class RulesController : ControllerBase
     /// Lấy toàn bộ cấu hình quy định hiện hành của thư viện và AI (GET /api/rules).
     /// </summary>
     [HttpGet]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<SystemRulesDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRules()
     {
@@ -103,7 +104,7 @@ public class RulesController : ControllerBase
     /// Lấy danh mục các lý do miễn giảm tiền phạt thủ công (GET /api/rules/waivers).
     /// </summary>
     [HttpGet("waivers")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Staff")]
     [ProducesResponseType(typeof(ApiResponse<List<WaiverReasonDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWaiverReasons()
     {

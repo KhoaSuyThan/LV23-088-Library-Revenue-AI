@@ -8,8 +8,10 @@ namespace SmartLibAI.API.Controllers;
 
 /// <summary>
 /// Controller cung cấp API tra cứu và quản trị sách thư viện.
+/// Chỉ Thủ thư (Admin, Staff) mới có quyền truy cập và quản lý danh mục sách.
 /// </summary>
 [ApiController]
+[Authorize(Roles = "Admin,Staff")]
 [Route("api/[controller]")]
 public class BooksController : ControllerBase
 {
@@ -35,6 +37,7 @@ public class BooksController : ControllerBase
     /// Lấy toàn bộ sách (không phân trang - phục vụ xuất báo cáo).
     /// </summary>
     [HttpGet("all")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> GetAllBooks()
     {
         var result = await _bookService.GetBooksAsync();
@@ -45,6 +48,7 @@ public class BooksController : ControllerBase
     /// Lấy dữ liệu thống kê tổng hợp cho 4 thẻ KPI của phân hệ Quản lý Sách.
     /// </summary>
     [HttpGet("summary")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> GetCatalogSummary()
     {
         var result = await _bookService.GetCatalogSummaryAsync();
@@ -103,6 +107,7 @@ public class BooksController : ControllerBase
     /// Xuất toàn bộ danh sách sách trong thư viện ra tệp CSV (UTF-8 BOM có chỉ thị sep=,).
     /// </summary>
     [HttpGet("export-csv")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> ExportBooksCsv()
     {
         var csvBytes = await _bookService.ExportBooksToCsvAsync();
@@ -113,6 +118,7 @@ public class BooksController : ControllerBase
     /// Xuất toàn bộ danh sách sách trong thư viện ra tệp bảng tính Excel (.xls SpreadsheetML) có kẻ ô, định dạng thẩm mỹ.
     /// </summary>
     [HttpGet("export-excel")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<IActionResult> ExportBooksExcel()
     {
         var excelBytes = await _bookService.ExportBooksToExcelXmlAsync();

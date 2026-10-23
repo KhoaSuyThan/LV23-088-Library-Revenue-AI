@@ -60,27 +60,11 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
         return;
       }
 
-      // 2. Chỉ khi ngắt kết nối mạng hoàn toàn tới máy chủ Backend mới kích hoạt chế độ Demo dự phòng
-      console.warn('Backend chưa sẵn sàng hoặc lỗi kết nối mạng, kiểm tra chế độ Thử nghiệm (Demo):', err);
-      const isReader = username.toLowerCase().includes('huy') || username.toLowerCase().includes('reader');
-      if (isReader) {
-        setErrorMessage('Tài khoản bạn đọc không có quyền truy cập Cổng quản trị thư viện.');
-        return;
-      }
-
-      const isStaff = username.toLowerCase().includes('nam') || username.toLowerCase().includes('staff');
-      const demoUser = {
-        userId: 1,
-        fullName: isStaff ? 'Nguyễn Thành Nhất Nam' : 'Nguyễn Võ Lê Khoa',
-        email: username.trim(),
-        role: isStaff ? 'Staff' : 'Admin',
-        token: 'demo_smartlib_token_jwt_preview'
-      };
-      localStorage.setItem('smartlib_token', demoUser.token);
-      localStorage.setItem('smartlib_user', JSON.stringify(demoUser));
-      if (onLoginSuccess) {
-        onLoginSuccess(demoUser);
-      }
+      // 2. Khi ngắt kết nối mạng hoặc máy chủ Backend đang khởi động lại (Cold Start)
+      console.error('Không thể kết nối tới máy chủ SmartLib AI Backend:', err);
+      setErrorMessage(
+        'Không thể kết nối đến máy chủ SmartLib AI (Máy chủ đang khởi động lại hoặc kiểm tra kết nối mạng). Vui lòng thử lại sau vài giây.'
+      );
     } finally {
       setLoading(false);
     }

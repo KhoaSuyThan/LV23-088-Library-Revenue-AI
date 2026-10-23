@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartLibAI.Core.DTOs.Common;
@@ -10,6 +11,7 @@ namespace SmartLibAI.API.Controllers;
 /// Controller kiểm tra tình trạng sống (Health Check) của hệ sinh thái SmartLib AI API.
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/[controller]")]
 public class HealthController : ControllerBase
 {
@@ -38,32 +40,43 @@ public class HealthController : ControllerBase
         var isAiLoaded = _aiService.IsModelLoaded;
         var overallStatus = (!dbHealthy) ? "Unhealthy" : (isAiLoaded ? "Healthy" : "Degraded");
 
-        var healthInfo = new
-        {
-            Status = overallStatus,
-            Project = "SmartLib AI",
-            Version = "1.0.0",
-            TargetPlatform = ".NET 10 (net10.0)",
-            Database = new
-            {
-                Connected = dbHealthy,
-                Status = dbHealthy ? "Online" : "Disconnected"
-            },
-            AI = new
-            {
-                ModelLoaded = isAiLoaded,
-                InferenceEngine = _aiService.ModelStatus,
-                Mode = isAiLoaded ? "Machine Learning (ONNX Runtime)" : "Heuristic Rule Fallback"
-            },
-            Timestamp = DateTime.UtcNow
-        };
-
         if (!dbHealthy)
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, 
-                ApiResponse<object>.ErrorResult("Cơ sở dữ liệu thư viện tạm thời mất kết nối.", new List<string> { "Database connection failed" }));
+                ApiResponse<object>.ErrorResult("Dịch vụ tạm thời không khả dụng.", new List<string> { "Service unavailable" }));
         }
 
-        return Ok(ApiResponse<object>.SuccessResult(healthInfo, $"Hệ thống SmartLib AI Backend đang hoạt động ({overallStatus})"));
+        // Nếu là Thủ thư/Admin đã đăng nhập: Cung cấp đầy đủ báo cáo chẩn đoán CSDL và AI
+        if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("Staff")))
+        {
+            var diagnosticInfo = new
+            {
+                Status = overallStatus,
+                Project = "SmartLib AI",
+                Version = "1.0.0",
+                TargetPlatform = ".NET 10 (net10.0)",
+                Database = new
+                {
+                    Connected = dbHealthy,
+                    Status = dbHealthy ? "Online" : "Disconnected"
+                },
+                AI = new
+                {
+                    ModelLoaded = isAiLoaded,
+                    InferenceEngine = _aiService.ModelStatus,
+                    Mode = isAiLoaded ? "Machine Learning (ONNX Runtime)" : "Heuristic Rule Fallback"
+                },
+                Timestamp = DateTime.UtcNow
+            };
+            return Ok(ApiResponse<object>.SuccessResult(diagnosticInfo, $"Báo cáo chẩn đoán hệ thống ({overallStatus})"));
+        }
+
+        // Đối với probe công khai không có token: Chỉ trả về trạng thái tối thiểu, không lộ thông tin hạ tầng
+        var minimalInfo = new
+        {
+            Status = overallStatus,
+            Timestamp = DateTime.UtcNow
+        };
+        return Ok(ApiResponse<object>.SuccessResult(minimalInfo, "SmartLib AI API is active"));
     }
 }
