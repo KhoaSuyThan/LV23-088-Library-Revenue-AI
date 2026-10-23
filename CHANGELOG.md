@@ -5,7 +5,13 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
-## [2026-10-23] - Khắc Phục Lỗi Schema Bảng FineRules Và Nghiệm Thu Tạo Phiếu Mượn Thực Tế Trên MonsterASP
+## [2026-10-23] - Khắc Phục Lỗi Máy Chủ 500 (InvalidCastException) Trong SmartLibDbContext
+
+- **Loại Bỏ HasConversion<int>() Cho Cột BIT Trong FineRules ([`SmartLibDbContext.cs`](src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)) - [P0]:**
+  - Khắc phục triệt để ngoại lệ `System.InvalidCastException: Unable to cast object of type 'System.Boolean' to type 'System.Int32'` phát sinh khi truy vấn bảng `FineRules`.
+  - Nguyên nhân: Hai thuộc tính `AutoLockDebtThreshold` và `AiAutoEmailReminder` có kiểu `bool` trong C# và kiểu `BIT` trong SQL Server. Việc khai báo `.HasConversion<int>()` đã ép EF Core gọi `reader.GetInt32()` trên cột `BIT`, gây lỗi HTTP 500 khi gọi `GET /api/rules` và `POST /api/borrows`.
+  - Giải pháp: Gỡ bỏ toàn bộ `.HasConversion<int>()` và khối `Entity<FineRule>` trùng lặp ở cuối file `SmartLibDbContext.cs`, cấu hình mặc định `.HasDefaultValue(true)` cho 2 trường kiểu `bool/BIT` chuẩn xác.
+
 
 - **Đồng Bộ Schema CSDL FineRules ([`FineRules`](data/monsterasp_init_database.sql), [`SmartLibDbContext.cs`](src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)) - [P0]:**
   - Chuyển đổi thành công kiểu dữ liệu của 2 cột `AutoLockDebtThreshold` và `AiAutoEmailReminder` trong bảng `FineRules` trên CSDL MonsterASP từ `INT` sang `BIT NOT NULL DEFAULT 1`.

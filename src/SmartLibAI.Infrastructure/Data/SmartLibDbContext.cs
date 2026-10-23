@@ -305,6 +305,10 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.AiDiscount_90)
                 .HasColumnType("decimal(5,2)")
                 .HasDefaultValue(10.0m);
+            entity.Property(e => e.AutoLockDebtThreshold)
+                .HasDefaultValue(true);
+            entity.Property(e => e.AiAutoEmailReminder)
+                .HasDefaultValue(true);
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true);
         });
@@ -412,17 +416,6 @@ public class SmartLibDbContext : DbContext
             entity.Property(e => e.ReasonName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.DefaultDiscountPercent).HasColumnType("decimal(5,2)").HasDefaultValue(100m);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-        });
-
-        // FineRules
-        modelBuilder.Entity<FineRule>(entity =>
-        {
-            entity.ToTable("FineRules");
-            entity.HasKey(e => e.RuleID);
-            entity.Property(e => e.AutoLockDebtThreshold)
-                .HasConversion<int>();
-            entity.Property(e => e.AiAutoEmailReminder)
-                .HasConversion<int>();
         });
     }
 }
