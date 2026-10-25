@@ -443,7 +443,7 @@ public class RulesService : IRulesService
         rule.StudentBorrowDays = 14;
         rule.LecturerBorrowLimit = 10;
         rule.LecturerBorrowDays = 30;
-        rule.DamageFeePercent = 20.0m;
+        rule.DamageFeePercent = 30.0m;
         rule.DamageMediumPercent = 40.0m;
         rule.DamageSeverePercent = 110.0m;
         rule.ConductScoreDiscountPercent = 20.0m;

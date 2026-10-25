@@ -94,9 +94,9 @@ public class ReturnLookupResponseDto
     public decimal DamageMultiplier { get; set; } = 1.0m;
 
     /// <summary>
-    /// Mức phạt hư hỏng nhẹ từ bảng FineRules (mặc định 20%).
+    /// Mức phạt hư hỏng nhẹ từ bảng FineRules (chuẩn US-10.3 mặc định 30%).
     /// </summary>
-    public decimal DamageFeePercent { get; set; } = 20.0m;
+    public decimal DamageFeePercent { get; set; } = 30.0m;
 
     /// <summary>
     /// Mức phạt hư hỏng vừa từ bảng FineRules (mặc định 40%).

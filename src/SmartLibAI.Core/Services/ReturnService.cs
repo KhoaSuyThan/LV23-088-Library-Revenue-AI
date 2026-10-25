@@ -131,7 +131,7 @@ public class ReturnService : IReturnService
             IsFineCapped = isFineCapped,
             FinePerDay = finePerDay,
             DamageMultiplier = rule?.DamageMultiplier ?? 1.0m,
-            DamageFeePercent = rule?.DamageFeePercent ?? 20.0m,
+            DamageFeePercent = rule?.DamageFeePercent ?? 30.0m,
             DamageMediumPercent = rule?.DamageMediumPercent ?? 40.0m,
             DamageSeverePercent = rule?.DamageSeverePercent ?? 110.0m,
             CompensationBasePercent = rule?.CompensationBasePercent ?? 110.0m,
@@ -219,10 +219,10 @@ public class ReturnService : IReturnService
 
         if (condition.Equals("DamagedLight", StringComparison.OrdinalIgnoreCase))
         {
-            // Trường hợp 1: Hư hỏng nhẹ (rách nhẹ bìa/mép trang) - mặc định 20%
+            // Trường hợp 1: Hư hỏng nhẹ (rách nhẹ bìa/mép trang) - mặc định 30% (US-10.3)
             decimal lightPct = (request.DamagePercent.HasValue && request.DamagePercent.Value > 0)
                 ? request.DamagePercent.Value
-                : (rule?.DamageFeePercent ?? 20.0m);
+                : (rule?.DamageFeePercent ?? 30.0m);
             damageFee = basePrice * (lightPct / 100m);
         }
         else if (condition.Equals("DamagedMedium", StringComparison.OrdinalIgnoreCase) ||

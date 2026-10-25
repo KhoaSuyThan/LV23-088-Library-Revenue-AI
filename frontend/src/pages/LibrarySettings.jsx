@@ -83,12 +83,12 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     renewalExtraDays: 7,
 
     finePerDay: 2000,
-    damagePenaltyPercent: 20,
+    damagePenaltyPercent: 30,
     damageMediumPercent: 40,
     damageSeverePercent: 110,
     compensationBasePercent: 110,
     compensationFixedFee: 0,
-    damagePenaltyText: '20% giá bìa',
+    damagePenaltyText: '30% giá bìa',
     damageMediumText: '40% giá bìa',
     damageSevereText: '110% giá bìa',
     compensationText: '110% giá bìa',
@@ -168,7 +168,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
       ]);
 
       if (rulesData) {
-        const damagePercent = rulesData.damagePenaltyPercent ?? 20;
+        const damagePercent = rulesData.damagePenaltyPercent ?? 30;
         const damageMed = rulesData.damageMediumPercent ?? 40;
         const damageSev = rulesData.damageSeverePercent ?? 110;
         const compPercent = rulesData.compensationBasePercent ?? 110;
@@ -328,7 +328,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
     try {
       const res = await rulesApi.resetDefaultRules();
       const targetData = res || rulesApi.getDefaultRules();
-      const damagePercent = targetData.damagePenaltyPercent ?? 20;
+      const damagePercent = targetData.damagePenaltyPercent ?? 30;
       const damageMed = targetData.damageMediumPercent ?? 40;
       const damageSev = targetData.damageSeverePercent ?? 110;
       const compPercent = targetData.compensationBasePercent ?? 110;
@@ -797,12 +797,12 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 {/* 1. Rách nhẹ */}
                 <div className="damage-tier-card tier-green">
                   <div className="tier-badge-row">
-                    <span className="tier-badge badge-green">Hỏng nhẹ (10-20%)</span>
+                    <span className="tier-badge badge-green">Hỏng nhẹ (30%)</span>
                     <span className="tier-calc-preview">
                       ≈ {calcSimulatedPenalty(formData.damagePenaltyText, simulatedBookPrice).toLocaleString('vi-VN')} đ
                     </span>
                   </div>
-                  <label className="tier-label" htmlFor="damagePenaltyText">Mức phạt rách / ố nhẹ</label>
+                  <label className="tier-label" htmlFor="damagePenaltyText">Mức phạt rách / ố nhẹ (chuẩn US-10.3)</label>
                   <div className="figma-input-wrapper">
                     <input
                       id="damagePenaltyText"
@@ -818,7 +818,7 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 {/* 2. Hỏng vừa */}
                 <div className="damage-tier-card tier-amber">
                   <div className="tier-badge-row">
-                    <span className="tier-badge badge-amber">Hỏng vừa (30-50%)</span>
+                    <span className="tier-badge badge-amber">Hỏng vừa (40-50%)</span>
                     <span className="tier-calc-preview">
                       ≈ {calcSimulatedPenalty(formData.damageMediumText, simulatedBookPrice).toLocaleString('vi-VN')} đ
                     </span>

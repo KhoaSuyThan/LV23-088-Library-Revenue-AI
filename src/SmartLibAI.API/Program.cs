@@ -322,6 +322,9 @@ using (var scope = app.Services.CreateScope())
                     AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0;
             END
 
+            -- Chuẩn hóa mức phạt hư hỏng nhẹ theo US-10.3 (30% thay vì 20%)
+            UPDATE FineRules SET DamageFeePercent = 30.0 WHERE DamageFeePercent = 20.0;
+
             -- Tự động kiểm tra và tạo bảng RuleAuditLogs
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RuleAuditLogs')
             BEGIN
@@ -393,7 +396,7 @@ using (var scope = app.Services.CreateScope())
                 StudentBorrowDays = 14,
                 LecturerBorrowLimit = 10,
                 LecturerBorrowDays = 30,
-                DamageFeePercent = 20.0m,
+                DamageFeePercent = 30.0m,
                 DamageMediumPercent = 40.0m,
                 DamageSeverePercent = 110.0m,
                 ConductScoreDiscountPercent = 20.0m,

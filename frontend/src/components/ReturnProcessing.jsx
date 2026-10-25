@@ -194,8 +194,8 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const isOverdue = overdueDays > 0;
   const isOnTime = overdueDays === 0;
 
-  // Tỷ lệ phạt rách/hỏng nhẹ, vừa, nặng và đền bù mất sách lấy động theo Cài đặt quy định (Flex theo Setting)
-  const damageLightPct = Number(lookupData?.damageFeePercent ?? systemRules.damagePenaltyPercent) || 20;
+  // Tỷ lệ phạt rách/hỏng nhẹ, vừa, nặng và đền bù mất sách lấy động theo Cài đặt quy định (US-10.3)
+  const damageLightPct = Number(lookupData?.damageFeePercent ?? systemRules.damagePenaltyPercent) || 30;
   const damageMedPct = Number(lookupData?.damageMediumPercent ?? systemRules.damageMediumPercent) || 40;
   const damageSeverePct = Number(lookupData?.damageSeverePercent ?? systemRules.damageSeverePercent) || 110;
   const lostPct = Number(lookupData?.compensationBasePercent ?? systemRules.compensationBasePercent) || 110;
@@ -768,16 +768,13 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                 const cond = getBookCondition(item.barcode);
                 const isDamaged = cond.status === 'damaged';
                 const isLost = cond.status === 'lost';
-                const level = cond.damageLevel || 1; // 1: 20%, 2: 40%, 3: 110%
+                const level = cond.damageLevel || 1; // 1: 30% (Nhẹ), 2: 40% (Vừa), 3: 110% (Nặng)
                 const isSelected = selectedReturnBarcodes.includes(item.barcode);
 
-                const fee20 = Math.round((bPrice * (damageLightPct / 100)) / 1000) * 1000;
-                const fee40 = Math.round((bPrice * (damageMedPct / 100)) / 1000) * 1000;
-                const fee110 = Math.round((bPrice * (damageSeverePct / 100)) / 1000) * 1000;
+                const feeLight = Math.round((bPrice * (damageLightPct / 100)) / 1000) * 1000;
+                const feeMed = Math.round((bPrice * (damageMedPct / 100)) / 1000) * 1000;
+                const feeSevere = Math.round((bPrice * (damageSeverePct / 100)) / 1000) * 1000;
                 const feeLost = Math.round((bPrice * (lostPct / 100)) / 1000) * 1000;
-                const feeLight = fee20;
-                const feeMed = fee40;
-                const feeSevere = fee110;
 
                 let currentDamageFee = feeLight;
                 let currentDamagePct = `${damageLightPct}%`;
@@ -914,7 +911,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                               <span className="tri-cond-badge badge-damaged">
                                 {cond.status === 'damaged'
                                   ? `+${currentDamageFee.toLocaleString('vi-VN')}đ`
-                                  : `+${fee20.toLocaleString('vi-VN')}đ`}
+                                  : `+${feeLight.toLocaleString('vi-VN')}đ`}
                               </span>
                             </div>
 

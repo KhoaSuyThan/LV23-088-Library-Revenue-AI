@@ -5,6 +5,23 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-039: Chuẩn hóa mức phí phạt hư hỏng nhẹ 30% giá bìa theo chuẩn US-10.3
+
+- **Điều chỉnh mức phí phạt hư hỏng nhẹ từ 20% lên 30% theo chuẩn US-10.3 ([`FineRule.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`SystemRulesDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/SystemRulesDto.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**
+  - Khắc phục tình trạng phí bồi thường hư hỏng nhẹ (rách nhẹ mép/ố bìa) bị tính 20% giá bìa (ví dụ cuốn sách 250.000đ ở ca PM-0114 chỉ tính 50.000đ, dẫn đến tổng trước giảm là 105.000đ), thấp hơn 25.000đ so với mức chuẩn 30% đã được chốt trong đặc tả US-10.3 (khung hư hỏng nhẹ/vừa 30% – 50% giá bìa).
+  - Thống nhất mức phí hư hỏng nhẹ mặc định là **30% giá bìa** (`DamageFeePercent = 30.0m`):
+    - Khi tiếp nhận trả sách (ca PM-0114 sách giá 250.000đ), phí hỏng nhẹ tính đúng $250.000 \times 30\% = 75.000$đ.
+    - Tổng nghĩa vụ trước giảm: 55.000đ (trễ 11 ngày) + 75.000đ (hỏng nhẹ) = 130.000đ (thay vì 105.000đ).
+    - Sau khi áp dụng chiết khấu tự động theo điểm tín nhiệm (độc giả điểm 86 được giảm 10% theo US-10.4): giảm 13.000đ, số tiền thực thu là 117.000đ.
+  - Cập nhật database migration tự động và seed scripts (`data/01_schema_smartlib_ai.sql`, `data/02_seed_dummy_data.sql`, `data/monsterasp_init_database.sql`) để đồng bộ chuẩn US-10.3.
+- **Cập nhật giao diện Quầy Tiếp Nhận Trả Sách & Cài Đặt Quy Định ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
+  - Trong màn tiếp nhận trả sách: Tự động hiển thị `Nhẹ (30%)` và tính đúng số tiền phụ thu hỏng nhẹ theo 30% giá bìa.
+  - Trong cài đặt quy định: Cập nhật huy hiệu `Hỏng nhẹ (30%)`, nhãn mô tả *Mức phạt rách / ố nhẹ theo chuẩn US-10.3*, và giá trị khởi tạo `30% giá bìa`.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReturnFineCreditScoreDiscountTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReturnFineCreditScoreDiscountTests.cs)):**
+  - Thêm ca kiểm thử `ProcessReturnItemAsync_DamagedLightCondition_Calculates30PercentDamageFeePerUS103` mô phỏng chính xác ca PM-0114 với sách 250.000đ: phí hỏng nhẹ 75.000đ, tổng trước giảm 130.000đ, giảm tín nhiệm 10% (13.000đ) và thực thu 117.000đ.
+  - Toàn bộ 63 bài kiểm thử đơn vị xUnit và build frontend đều vượt qua thành công 100%.
+
+---
 ## [2026-10-25] - Khắc phục BUG-036: Chuẩn hóa hiển thị và xử lý lỗi chính sách chiết khấu tín nhiệm theo chuẩn US-10.4
 
 - **Chuẩn hóa hệ thống phân hạng tín nhiệm và tỷ lệ chiết khấu chuẩn US-10.4 ([`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**

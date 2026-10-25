@@ -26,7 +26,7 @@ public class ReturnFineCreditScoreDiscountTests
             FinePerDay = 5000m,
             ConductScoreDiscountPercent = 20.0m, // 90-100 điểm: 20%
             AiDiscount_90 = 10.0m,              // 80-89 điểm: 10%
-            DamageFeePercent = 20.0m,
+            DamageFeePercent = 30.0m, // Hư hỏng nhẹ theo US-10.3: 30%
             DamageMediumPercent = 40.0m,
             DamageSeverePercent = 110.0m,
             CompensationBasePercent = 110.0m,
@@ -354,5 +354,50 @@ public class ReturnFineCreditScoreDiscountTests
         Assert.Equal(10000m, preview.CreditDiscountAmount);
         Assert.Equal(50000m, preview.OverdueFine);
         Assert.Equal(40000m, preview.EstimatedFinalFine);
+        Assert.Equal(30.0m, preview.DamageFeePercent);
+    }
+
+    [Fact]
+    public async Task ProcessReturnItemAsync_DamagedLightCondition_Calculates30PercentDamageFeePerUS103()
+    {
+        // Arrange: Sách giá 250.000đ (ca PM-0114, BC000001-A), quá hạn 11 ngày (55.000đ), độc giả điểm 86 (nhóm 80-89)
+        // Khi chọn tình trạng DamagedLight:
+        // Phí hư hỏng nhẹ chuẩn US-10.3 phải là 30% giá bìa (250.000đ x 30% = 75.000đ, thay vì 20% = 50.000đ).
+        var repo = new FakeReturnRepository();
+        var (detail, _, _) = CreateTestContext(creditScore: 86, overdueDays: 11, basePrice: 250000m);
+        repo.ActiveDetail = detail;
+
+        var service = new ReturnService(repo);
+
+        var request = new ReturnBookRequestDto
+        {
+            Barcode = "BC000001-004",
+            Condition = "DamagedLight",
+            WaiverDiscountPercent = 0m,
+            Note = "Rách mép trang 5"
+        };
+
+        // Act
+        var result = await service.ProcessReturnItemAsync(request, librarianId: 1);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var data = result.Data!;
+        // Phạt trễ hạn 11 ngày x 5.000đ = 55.000đ
+        Assert.Equal(55000m, data.OverdueFine);
+        // Phí hư hỏng nhẹ = 250.000đ x 30% = 75.000đ (thay vì 50.000đ)
+        Assert.Equal(75000m, data.DamageFee);
+
+        // Tổng nghĩa vụ trước giảm: 55.000đ + 75.000đ = 130.000đ (thay vì 105.000đ)
+        // Điểm tín nhiệm 86 -> Tự động giảm 10% (130.000đ x 10% = 13.000đ)
+        Assert.Equal(10.0m, data.CreditDiscountPercent);
+        Assert.Equal(13000m, data.CreditDiscountAmount);
+        Assert.Equal(13000m, data.DiscountAmount);
+
+        // Số tiền thực thu cuối cùng = 130.000đ - 13.000đ = 117.000đ
+        Assert.Equal(117000m, data.TotalFine);
+        Assert.Equal(75000m, repo.CapturedDamageFee);
     }
 }

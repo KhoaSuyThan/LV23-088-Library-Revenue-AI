@@ -13,7 +13,7 @@ const DEFAULT_SYSTEM_RULES = {
 
   // Biểu phí phạt vi phạm (chuẩn CSDL FineRules)
   finePerDay: 5000,
-  damagePenaltyPercent: 20,
+  damagePenaltyPercent: 30,
   damageMediumPercent: 40,
   damageSeverePercent: 110,
   compensationBasePercent: 110,
