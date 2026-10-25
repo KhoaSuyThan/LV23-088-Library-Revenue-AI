@@ -322,6 +322,15 @@ using (var scope = app.Services.CreateScope())
                     AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0;
             END
 
+            -- Tự động kiểm tra và thêm cột RenewalCount cho bảng Borrowings (BUG-045 & US-08.2)
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Borrowings') AND name = 'RenewalCount')
+            BEGIN
+                ALTER TABLE Borrowings ADD RenewalCount INT NOT NULL DEFAULT 0;
+            END
+
+            -- Chuẩn hóa mức phạt hư hỏng nhẹ theo US-10.3 (30% thay vì 20%)
+            UPDATE FineRules SET DamageFeePercent = 30.0 WHERE DamageFeePercent = 20.0;
+
             -- Tự động kiểm tra và tạo bảng RuleAuditLogs
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RuleAuditLogs')
             BEGIN
@@ -365,7 +374,7 @@ using (var scope = app.Services.CreateScope())
                 INSERT INTO RuleAuditLogs (RuleKey, RuleName, OldValue, NewValue, ChangedBy, ChangedAt, IpAddress) VALUES
                 ('aiRiskThreshold', N'Ngưỡng kích hoạt rủi ro AI Early Warning', '75%', '80%', N'Thủ thư (Admin)', '2026-09-18 15:10:00', '192.168.1.10'),
                 ('finePerDay', N'Phí phạt trễ hạn theo ngày', N'3.000 VNĐ', N'2.000 VNĐ', N'Thủ thư (Admin)', '2026-09-18 14:32:10', '192.168.1.45'),
-                ('aiDiscount_100', N'Chiết khấu AI điểm tuyệt đối (100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
+                ('aiDiscount_100', N'Chiết khấu tín nhiệm xuất sắc (90-100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
                 ('borrowLimit_MaxTogether', N'Số sách tối đa được mượn cùng lúc', N'4 cuốn', N'5 cuốn', N'Thủ thư (Admin)', '2026-09-10 09:15:00', '192.168.1.12');
             END
         ");
@@ -393,7 +402,7 @@ using (var scope = app.Services.CreateScope())
                 StudentBorrowDays = 14,
                 LecturerBorrowLimit = 10,
                 LecturerBorrowDays = 30,
-                DamageFeePercent = 20.0m,
+                DamageFeePercent = 30.0m,
                 DamageMediumPercent = 40.0m,
                 DamageSeverePercent = 110.0m,
                 ConductScoreDiscountPercent = 20.0m,

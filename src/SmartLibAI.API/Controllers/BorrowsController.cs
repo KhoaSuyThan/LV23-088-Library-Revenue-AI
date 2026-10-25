@@ -108,4 +108,61 @@ public class BorrowsController : ControllerBase
         var result = await _borrowService.GetRecentBorrowingsAsync(count);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Gia hạn phiếu mượn sách theo ID phiếu mượn hoặc quét mã vạch (BUG-045 & US-08.2).
+    /// </summary>
+    [HttpPost("renew")]
+    [ProducesResponseType(typeof(ApiResponse<RenewBorrowResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<RenewBorrowResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RenewBorrow([FromBody] RenewBorrowRequestDto request)
+    {
+        int? currentLibrarianId = null;
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? User.FindFirstValue("sub") 
+            ?? User.FindFirstValue("nameid");
+
+        if (int.TryParse(userIdStr, out int parsedUserId))
+        {
+            currentLibrarianId = parsedUserId;
+        }
+
+        var result = await _borrowService.RenewBorrowingAsync(request, currentLibrarianId);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gia hạn phiếu mượn sách theo BorrowingId trực tiếp (POST /api/borrows/{id}/renew).
+    /// </summary>
+    [HttpPost("{id:int}/renew")]
+    [ProducesResponseType(typeof(ApiResponse<RenewBorrowResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<RenewBorrowResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RenewBorrowById(int id, [FromBody] RenewBorrowRequestDto? request = null)
+    {
+        var req = request ?? new RenewBorrowRequestDto();
+        req.BorrowingId = id;
+
+        int? currentLibrarianId = null;
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? User.FindFirstValue("sub") 
+            ?? User.FindFirstValue("nameid");
+
+        if (int.TryParse(userIdStr, out int parsedUserId))
+        {
+            currentLibrarianId = parsedUserId;
+        }
+
+        var result = await _borrowService.RenewBorrowingAsync(req, currentLibrarianId);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
 }

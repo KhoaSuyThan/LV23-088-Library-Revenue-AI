@@ -195,4 +195,34 @@ public class BorrowRepository : GenericRepository<Borrowing>, IBorrowRepository
         await _context.AIPredictionLogs.AddAsync(log);
         await _context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Tìm phiếu mượn đang hoạt động theo mã vạch bản sao sách (Barcode).
+    /// </summary>
+    public async Task<Borrowing?> GetActiveBorrowingByBarcodeAsync(string barcode)
+    {
+        var clean = barcode.Trim();
+        var detail = await _context.BorrowingDetails
+            .Include(d => d.Borrowing)
+                .ThenInclude(b => b.Reader)
+                    .ThenInclude(r => r.User)
+            .Include(d => d.Borrowing)
+                .ThenInclude(b => b.BorrowingDetails)
+                    .ThenInclude(bd => bd.BookCopy)
+                        .ThenInclude(c => c.Book)
+                            .ThenInclude(bk => bk.Category)
+            .Include(d => d.BookCopy)
+            .FirstOrDefaultAsync(d => d.BookCopy.Barcode == clean && d.ReturnDate == null && d.ItemStatus == "Borrowed");
+
+        return detail?.Borrowing;
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin phiếu mượn và lưu thay đổi vào CSDL.
+    /// </summary>
+    public async Task UpdateBorrowingAsync(Borrowing borrowing)
+    {
+        _context.Borrowings.Update(borrowing);
+        await _context.SaveChangesAsync();
+    }
 }

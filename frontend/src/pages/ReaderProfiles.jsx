@@ -59,11 +59,12 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
   // Toast feedback
   const [toastMessage, setToastMessage] = useState('');
 
-  // Hộp thoại xác nhận Khóa / Mở khóa thẻ độc giả (Ảnh 16)
+  // Hộp thoại xác nhận Khóa / Mở khóa thẻ độc giả (Ảnh 16 & BUG-028)
   const [confirmModalData, setConfirmModalData] = useState({
     isOpen: false,
     reader: null,
-    action: 'lock' // 'lock' | 'unlock'
+    action: 'lock', // 'lock' | 'unlock'
+    targetIsActive: false
   });
 
   // Chuyển đổi mức độ rủi ro AI sang thuần tiếng Việt (Ảnh 15)
@@ -80,24 +81,26 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
     }, 3800);
   }, []);
 
-  // Mở hộp thoại xác nhận trước khi khóa hoặc mở khóa
-  const requestToggleLock = (reader, e) => {
+  // Mở hộp thoại xác nhận trước khi khóa hoặc mở khóa với trạng thái đích xác định (BUG-028)
+  const requestToggleLock = (reader, e = null, explicitTargetActive = null) => {
     if (e) e.stopPropagation();
     if (!reader || updatingLockId) return;
     const isLocked = !reader.isActive;
+    const targetIsActive = explicitTargetActive !== null ? explicitTargetActive : isLocked;
     setConfirmModalData({
       isOpen: true,
       reader,
-      action: isLocked ? 'unlock' : 'lock'
+      action: targetIsActive ? 'unlock' : 'lock',
+      targetIsActive
     });
   };
 
   // Xác nhận hành động từ Modal
   const handleConfirmModalAction = () => {
-    const { reader } = confirmModalData;
-    setConfirmModalData({ isOpen: false, reader: null, action: 'lock' });
+    const { reader, targetIsActive } = confirmModalData;
+    setConfirmModalData({ isOpen: false, reader: null, action: 'lock', targetIsActive: false });
     if (reader) {
-      handleToggleLock(reader);
+      handleToggleLock(reader, targetIsActive);
     }
   };
 
@@ -240,79 +243,84 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
 
   // ====================================================================
   // XỬ LÝ KHÓA / MỞ KHÓA THẺ ĐỘC GIẢ (CẬP NHẬT TRỰC TIẾP SQL SERVER)
-  // Đổi trạng thái ngay sang "Đã khóa" và chặn mượn sách bên quầy lưu thông
+  // BUG-028: Sử dụng cập nhật trạng thái đích PUT /api/readers/{id}/status thay vì đảo mù.
+  // Đồng bộ UI sau khi toàn luồng hoàn tất và đọc lại trạng thái thực từ SQL Server nếu có lỗi.
   // ====================================================================
-  const handleToggleLock = async (reader, e) => {
+  const handleToggleLock = async (reader, targetIsActive = null, e = null) => {
     if (e) e.stopPropagation();
     if (!reader || updatingLockId) return;
 
     const targetReaderId = reader.readerId || reader.readerID;
     const currentIsActive = reader.isActive;
-    const newIsActive = !currentIsActive;
-    const newStatus = newIsActive ? 'active' : 'locked';
-
-    // 1. CẬP NHẬT TRẠNG THÁI GIAO DIỆN NGAY LẬP TỨC (Optimistic UI Update)
-    setReaders((prev) =>
-      prev.map((r) => {
-        const rId = r.readerId || r.readerID;
-        if (rId === targetReaderId) {
-          return {
-            ...r,
-            isActive: newIsActive,
-            status: newStatus
-          };
-        }
-        return r;
-      })
-    );
-
-    // Hiển thị toast thông báo phản hồi ngay lập tức cho người dùng
-    showToast(
-      newIsActive
-        ? `🔓 Đã mở khóa thẻ bạn đọc cho ${reader.fullName} (${reader.readerCode}). Độc giả có thể tiếp tục mượn sách.`
-        : `🔒 ĐÃ KHÓA THẺ độc giả ${reader.fullName} (${reader.readerCode})! Độc giả này bị CHẶN MƯỢN SÁCH bên quầy lưu thông.`
-    );
+    const desiredIsActive = targetIsActive !== null ? targetIsActive : !currentIsActive;
+    const desiredStatus = desiredIsActive ? 'active' : 'locked';
 
     setUpdatingLockId(targetReaderId);
 
-    // 2. GỌI API BACKEND ĐỒNG BỘ VÀO CSDL SQL SERVER
+    // GỌI API BACKEND ĐỒNG BỘ VÀO CSDL SQL SERVER VỚI TRẠNG THÁI ĐÍCH
     try {
-      const res = await readerApi.toggleLock(targetReaderId);
+      const res = await readerApi.setStatus(targetReaderId, desiredIsActive);
       if (res && res.success && res.data) {
-        // Cập nhật lại với dữ liệu chính xác từ SQL Server
+        const finalIsActive = res.data.isActive ?? desiredIsActive;
+        const finalStatus = (res.data.status || (finalIsActive ? 'active' : 'locked')).toLowerCase();
+
+        // Cập nhật lại với dữ liệu chính xác trả về từ Backend
         setReaders((prev) =>
           prev.map((r) => {
             const rId = r.readerId || r.readerID;
             if (rId === targetReaderId) {
               return {
                 ...r,
-                isActive: res.data.isActive,
-                status: res.data.status
+                isActive: finalIsActive,
+                status: finalStatus
               };
             }
             return r;
           })
         );
+
+        // Hiển thị thông báo phản hồi KHI TOÀN LUỒNG ĐÃ HOÀN TẤT THÀNH CÔNG
+        showToast(
+          finalIsActive
+            ? `🔓 Đã mở khóa thẻ bạn đọc cho ${reader.fullName} (${reader.readerCode}). Độc giả có thể tiếp tục mượn sách.`
+            : `🔒 ĐÃ KHÓA THẺ độc giả ${reader.fullName} (${reader.readerCode})! Độc giả này bị CHẶN MƯỢN SÁCH bên quầy lưu thông.`
+        );
+
+        // Đồng bộ lại 4 thẻ KPI đầu trang
+        readerApi.getSummary().then((sumRes) => {
+          if (sumRes && sumRes.success && sumRes.data) {
+            setSummary(sumRes.data);
+          }
+        }).catch(() => {});
       } else {
         throw new Error(res?.message || 'Lỗi khi cập nhật trạng thái thẻ');
       }
     } catch (err) {
       console.error('Lỗi khi gọi API khóa thẻ:', err);
-      // Rollback lại trạng thái cũ nếu gặp sự cố kết nối máy chủ
-      setReaders((prev) =>
-        prev.map((r) => {
-          const rId = r.readerId || r.readerID;
-          if (rId === targetReaderId) {
-            return {
-              ...r,
-              isActive: currentIsActive,
-              status: currentIsActive ? 'active' : 'locked'
-            };
-          }
-          return r;
-        })
-      );
-      showToast(`❌ Không thể lưu vào SQL Server: ${err.message || 'Lỗi mạng'}`);
+
+      // Đọc lại trạng thái thực từ máy chủ sau khi có lỗi để đảm bảo không bị lệch hiển thị
+      try {
+        const fresh = await readerApi.getReaderById(targetReaderId);
+        if (fresh && fresh.success && fresh.data) {
+          setReaders((prev) =>
+            prev.map((r) => {
+              const rId = r.readerId || r.readerID;
+              if (rId === targetReaderId) {
+                return {
+                  ...r,
+                  isActive: fresh.data.isActive,
+                  status: (fresh.data.status || (fresh.data.isActive ? 'active' : 'locked')).toLowerCase()
+                };
+              }
+              return r;
+            })
+          );
+        }
+      } catch (syncErr) {
+        console.error('Không thể đọc lại trạng thái độc giả sau lỗi:', syncErr);
+      }
+
+      showToast(`❌ Không thể lưu vào SQL Server: ${err.message || 'Lỗi mạng hoặc máy chủ'}`);
     } finally {
       setUpdatingLockId(null);
     }
@@ -686,7 +694,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                               <button
                                 type="button"
                                 className={isLocked ? 'action-link-unlock' : 'action-link-lock'}
-                                onClick={(e) => requestToggleLock(r, e)}
+                                onClick={(e) => requestToggleLock(r, e, !r.isActive)}
                                 disabled={isUpdating}
                                 title={
                                   isLocked
@@ -890,7 +898,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                 <button
                   type="button"
                   className={!selectedReader.isActive ? 'btn-summary-unlock' : 'btn-summary-lock'}
-                  onClick={() => requestToggleLock(selectedReader)}
+                  onClick={(e) => requestToggleLock(selectedReader, e, !selectedReader.isActive)}
                   disabled={updatingLockId === (selectedReader.readerId || selectedReader.readerID)}
                   title={!selectedReader.isActive ? 'Mở khóa thẻ' : 'Khóa thẻ bạn đọc'}
                 >
@@ -1210,7 +1218,7 @@ export default function ReaderProfiles({ user, externalSearch = '' }) {
                 type="button"
                 className={!detailReader.isActive ? 'btn-unlock-account' : 'btn-lock-account'}
                 style={{ width: 'auto', padding: '8px 16px' }}
-                onClick={(e) => requestToggleLock(detailReader, e)}
+                onClick={(e) => requestToggleLock(detailReader, e, !detailReader.isActive)}
                 disabled={updatingLockId === (detailReader.readerId || detailReader.readerID)}
               >
                 {!detailReader.isActive ? (

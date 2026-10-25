@@ -89,7 +89,7 @@ public class ReturnRepository : GenericRepository<BorrowingDetail>, IReturnRepos
         int detailId,
         string condition,
         string? note,
-        decimal waiverDiscountPercent,
+        decimal totalDiscountPercent,
         decimal overdueFine,
         decimal damageFee,
         decimal lostFee,
@@ -133,14 +133,14 @@ public class ReturnRepository : GenericRepository<BorrowingDetail>, IReturnRepos
                 copy.Status = isDamagedCond ? "Damaged" : (isLostCond ? "Lost" : "Available");
             }
 
-            // 4. Tính toán và tạo FineReceipt nếu phát sinh tiền phạt
+            // 4. Tính toán và tạo FineReceipt nếu phát sinh tiền phạt (áp dụng tổng tỷ lệ giảm trừ gồm chiết khấu điểm tín nhiệm & miễn giảm thủ công)
             var rule = await GetActiveFineRuleAsync();
             var rawTotal = Math.Round((overdueFine + damageFee + lostFee) / 1000m, MidpointRounding.AwayFromZero) * 1000m;
             FineReceipt? createdReceipt = null;
 
             if (rawTotal > 0 && rule != null)
             {
-                var discountAmt = Math.Round(((rawTotal * waiverDiscountPercent) / 100m) / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+                var discountAmt = Math.Min(rawTotal, Math.Round(((rawTotal * totalDiscountPercent) / 100m) / 1000m, MidpointRounding.AwayFromZero) * 1000m);
                 var finalAmt = Math.Max(0m, rawTotal - discountAmt);
 
                 createdReceipt = new FineReceipt

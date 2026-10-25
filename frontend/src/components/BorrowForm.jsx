@@ -1034,7 +1034,7 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
           <button
             type="button"
             className="test-chip chip-success"
-            title="Độc giả hợp lệ, thẻ hoạt động, không nợ phạt, sách Available (Scenario 1)"
+            title="Độc giả hợp lệ, nợ 40.000đ chưa vượt ngưỡng 50k theo US-08.1, sách Available"
             onClick={async () => {
               setReaderCode('DEMO0001');
               setSelectedBarcodes([]);
@@ -1043,21 +1043,21 @@ export default function BorrowForm({ onBorrowSuccess, onPreviewBorrow, showToast
               await handleAddBarcodeToList('BC000001-A');
             }}
           >
-            ✓ DEMO0001 (Mượn OK)
+            ✓ DEMO0001 (Nợ 40k - Mượn OK)
           </button>
           <button
             type="button"
             className="test-chip chip-danger"
-            title="Đang có nợ phạt quá hạn 45.000đ (Scenario 2 - Từ chối)"
+            title="Đang có nợ phạt 55.000đ vượt ngưỡng 50.000đ (US-08.1 - Từ chối)"
             onClick={async () => {
-              setReaderCode('102220184');
+              setReaderCode('DEMO0004');
               setSelectedBarcodes([]);
               setBorrowError('');
-              await checkReaderEligibility('102220184');
+              await checkReaderEligibility('DEMO0004');
               await handleAddBarcodeToList('BC000002-B');
             }}
           >
-            ✗ 102220184 (Nợ phạt)
+            ✗ DEMO0004 (Nợ &gt;50k)
           </button>
           <button
             type="button"

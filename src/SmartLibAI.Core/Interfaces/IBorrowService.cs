@@ -27,4 +27,9 @@ public interface IBorrowService
     /// Lấy danh sách phiếu mượn gần nhất phục vụ hiển thị quầy lưu thông.
     /// </summary>
     Task<ApiResponse<IReadOnlyList<BorrowResponseDto>>> GetRecentBorrowingsAsync(int count = 20);
+
+    /// <summary>
+    /// Xử lý gia hạn mượn sách theo ID phiếu mượn hoặc mã vạch bản sao (BUG-045 & US-08.2).
+    /// </summary>
+    Task<ApiResponse<RenewBorrowResponseDto>> RenewBorrowingAsync(RenewBorrowRequestDto request, int? librarianId = null);
 }
