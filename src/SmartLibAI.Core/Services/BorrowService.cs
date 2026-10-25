@@ -72,16 +72,19 @@ public class BorrowService : IBorrowService
             return ApiResponse<BorrowResponseDto>.ErrorResult($"Thẻ thư viện của độc giả đã hết hạn vào ngày {reader.ExpiryDate:dd/MM/yyyy}. Vui lòng liên hệ quầy làm thủ tục gia hạn.");
         }
 
-        // 4. Kiểm tra nợ phạt chưa thanh toán (AC Scenario 1 & 2: không có nợ phạt chưa thanh toán)
+        // 4. Lấy quy định lưu thông hiện hành để xác định hạn mức mượn và ngưỡng nợ phạt (Story LOLRA-72, US-08.1)
+        var fineRule = await _borrowRepository.GetActiveFineRuleAsync();
+        var debtThreshold = fineRule?.DebtLockAmount ?? 50000m;
+
+        // 5. Kiểm tra nợ phạt chưa thanh toán (US-08.1: chỉ từ chối mượn khi tổng nợ vượt quá 50.000 VNĐ hoặc ngưỡng quy định)
         var unpaidFines = await _borrowRepository.CheckUnpaidFinesByReaderIdAsync(reader.ReaderID);
-        if (unpaidFines.HasUnpaidFines)
+        if (unpaidFines.TotalUnpaidAmount > debtThreshold)
         {
             return ApiResponse<BorrowResponseDto>.ErrorResult(
-                $"Độc giả đang có tiền phạt chưa thanh toán ({unpaidFines.TotalUnpaidAmount:N0} VNĐ). Hệ thống từ chối tạo phiếu mượn mới cho đến khi hoàn tất đóng phạt.");
+                $"Độc giả đang có tiền phạt chưa thanh toán ({unpaidFines.TotalUnpaidAmount:N0} VNĐ) vượt quá ngưỡng cho phép ({debtThreshold:N0} VNĐ). Hệ thống từ chối tạo phiếu mượn mới cho đến khi hoàn tất đóng phạt.");
         }
 
-        // 5. Kiểm tra hạn mức mượn tối đa của độc giả (AC: không vượt quá 5 cuốn hoặc hạn mức quy định)
-        var fineRule = await _borrowRepository.GetActiveFineRuleAsync();
+        // 6. Kiểm tra hạn mức mượn tối đa của độc giả (AC: không vượt quá 5 cuốn hoặc hạn mức quy định)
         var isLecturer = reader.MemberType.Equals("Lecturer", StringComparison.OrdinalIgnoreCase);
         var maxLimit = fineRule != null
             ? (isLecturer ? fineRule.LecturerBorrowLimit : fineRule.StudentBorrowLimit)
@@ -232,6 +235,7 @@ public class BorrowService : IBorrowService
         var standardBorrowDays = fineRule != null
             ? (isLecturer ? fineRule.LecturerBorrowDays : fineRule.StudentBorrowDays)
             : (isLecturer ? 30 : 14);
+        var debtThreshold = fineRule?.DebtLockAmount ?? 50000m;
 
         var currentBorrowCount = await _borrowRepository.GetActiveBorrowCountByReaderIdAsync(reader.ReaderID);
         var unpaidFines = await _borrowRepository.CheckUnpaidFinesByReaderIdAsync(reader.ReaderID);
@@ -267,6 +271,7 @@ public class BorrowService : IBorrowService
             StandardBorrowDays = standardBorrowDays,
             HasUnpaidFines = unpaidFines.HasUnpaidFines,
             UnpaidFineAmount = unpaidFines.TotalUnpaidAmount,
+            DebtLockThreshold = debtThreshold,
             CreditScore = reader.CreditScore,
             AiRiskScore = aiEvaluation.RiskScore,
             AiRiskTier = aiEvaluation.RiskTier,
@@ -282,9 +287,9 @@ public class BorrowService : IBorrowService
         {
             dto.RejectionReason = $"Thẻ thư viện đã hết hạn vào ngày {reader.ExpiryDate:dd/MM/yyyy}.";
         }
-        else if (dto.HasUnpaidFines)
+        else if (dto.IsDebtBlocked)
         {
-            dto.RejectionReason = $"Độc giả đang có tiền phạt chưa đóng ({dto.UnpaidFineAmount:N0} VNĐ).";
+            dto.RejectionReason = $"Độc giả đang có tiền phạt chưa đóng ({dto.UnpaidFineAmount:N0} VNĐ) vượt quá ngưỡng cho phép ({dto.DebtLockThreshold:N0} VNĐ).";
         }
         else if (dto.RemainingBorrowLimit <= 0)
         {

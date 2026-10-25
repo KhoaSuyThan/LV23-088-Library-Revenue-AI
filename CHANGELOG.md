@@ -5,6 +5,23 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-006: Cho phép mượn sách khi nợ chưa vượt ngưỡng 50.000 đồng (US-08.1)
+
+- **Chuẩn hóa điều kiện chặn mượn theo ngưỡng nợ ([`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowReaderEligibilityDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/BorrowReaderEligibilityDto.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi hệ thống chặn mượn sách độc giả có nợ phạt $\le 50.000$ VNĐ (ví dụ: DEMO0001 nợ 40.000đ, DEMO0003 nợ đúng 50.000đ, hoặc 49.999đ) dù US-08.1 chỉ yêu cầu chặn mượn khi tổng nợ **vượt quá** 50.000 VNĐ.
+  - Nguyên nhân: `BorrowService.CreateBorrowAsync` và `CheckReaderEligibilityAsync` trước đây kiểm tra trực tiếp cờ `unpaidFines.HasUnpaidFines`, từ chối mượn ngay khi có bất kỳ khoản nợ nào (> 0đ). Đồng thời, `BorrowReaderEligibilityDto.CanBorrow` cũng chứa điều kiện `!HasUnpaidFines`.
+  - Giải pháp:
+    - Bổ sung trường `DebtLockThreshold` (lấy từ cấu hình `FineRule.DebtLockAmount`, mặc định 50.000 VNĐ) và thuộc tính tính toán `IsDebtBlocked => UnpaidFineAmount > DebtLockThreshold` trong `BorrowReaderEligibilityDto`.
+    - Cập nhật điều kiện `CanBorrow`: `IsActive && !IsExpired && !IsDebtBlocked && RemainingBorrowLimit > 0`. Độc giả chỉ bị từ chối do nợ khi `UnpaidFineAmount > DebtLockThreshold`.
+    - Trong `BorrowService.CreateBorrowAsync` và `CheckReaderEligibilityAsync`: lấy `debtThreshold` từ `FineRule` hiện hành và chỉ chặn mượn khi `unpaidFines.TotalUnpaidAmount > debtThreshold`.
+    - Bảo toàn tính độc lập tuyệt đối của các chốt chặn khác: tài khoản thẻ bị khóa (`!IsActive`) hoặc thẻ hết hạn (`IsExpired`) luôn bị chặn mượn độc lập, bất kể số tiền nợ.
+- **Cập nhật giao diện Quầy Lưu Thông ([`BorrowForm.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx)):**
+  - Cập nhật các nút thử nghiệm nhanh: `DEMO0001` (nợ 40k $\le$ 50k - Mượn OK theo US-08.1) và `DEMO0004` (nợ 55k > 50k - Từ chối theo US-08.1).
+  - Tối ưu hiển thị trạng thái và thông báo cho thủ thư khi độc giả có nợ phạt nhưng chưa vượt ngưỡng cho phép.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`BorrowEligibilityDebtTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/BorrowEligibilityDebtTests.cs)):**
+  - Viết 24 test cases xUnit bao phủ toàn diện: tính toán `CanBorrow` của DTO với các mốc nợ (0đ, 40.000đ, 49.999đ, đúng 50.000đ, 50.001đ, 55.000đ, 100.000đ); kiểm tra `CheckReaderEligibilityAsync`; kiểm tra `CreateBorrowAsync`; và bảo đảm thẻ khóa/hết hạn luôn bị chặn độc lập.
+  - Toàn bộ 45 unit tests của hệ thống đều vượt qua thành công 100%.
+
 ## [2026-10-25] - Khắc phục BUG-028: Tính nguyên tử khi Khóa/Mở thẻ bạn đọc và đồng bộ trạng thái UI
 
 - **Bảo đảm tính nguyên tử khi khóa/mở thẻ ([`ReaderRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`ReaderService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)) - [P1]:**
