@@ -5,6 +5,25 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-036: Chuẩn hóa hiển thị và xử lý lỗi chính sách chiết khấu tín nhiệm theo chuẩn US-10.4
+
+- **Chuẩn hóa hệ thống phân hạng tín nhiệm và tỷ lệ chiết khấu chuẩn US-10.4 ([`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**
+  - Khắc phục tình trạng mô tả chính sách chiết khấu trên giao diện Cài đặt (Tab "Chiết khấu AI & Miễn giảm") sai lệch so với chuẩn US-10.4 đã được phê duyệt (trước đây UI mô tả: Điểm 100 giảm 20%, Điểm $\ge 90$ giảm 10%, Điểm $< 90$ không giảm).
+  - Đồng bộ và thống nhất chuẩn US-10.4 trên cả Frontend, Backend Service và CSDL:
+    - **Hạng Xuất Sắc / Kim Cương (Diamond)**: Điểm tín nhiệm **90 – 100** (hoặc $\ge 90$): Giảm **20%** tổng tiền phạt vi phạm (`FineRule.ConductScoreDiscountPercent` / `aiDiscount_100`).
+    - **Hạng Tốt / Vàng (Gold)**: Điểm tín nhiệm **80 – 89**: Giảm **10%** tổng tiền phạt vi phạm (`FineRule.AiDiscount_90` / `aiDiscount_90`).
+    - **Hạng Tiêu Chuẩn (Standard)**: Điểm tín nhiệm **< 80**: Giảm **0%** (Áp dụng 100% biểu phí phạt gốc, không giảm trừ tự động).
+  - Cập nhật mô tả tên quy tắc trong nhật ký kiểm toán (Audit Trail) của `RulesService`: `"Chiết khấu tín nhiệm tốt (80-89 điểm)"` và `"Chiết khấu tín nhiệm xuất sắc (90-100 điểm)"`.
+  - Thêm ràng buộc kiểm tra hợp lệ giá trị phần trăm chiết khấu ($0\% - 100\%$) trong `RulesService.UpdateRulesAsync`.
+- **Minh bạch hóa cơ chế xử lý lỗi khi tải quy chế hệ thống ([`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
+  - Khắc phục lỗi bảo mật & trải nghiệm người dùng: Trước đây khi API `GET /api/rules` bị lỗi (500 hoặc mất mạng), `rulesApi.getSystemRules()` âm thầm nuốt lỗi và trả về dữ liệu mặc định cục bộ, khiến thủ thư lầm tưởng dữ liệu dự phòng là chính sách đang có hiệu lực trên server.
+  - Cập nhật `rulesApi.getSystemRules(forceRefresh, throwOnError)`: Hỗ trợ cờ `throwOnError` và gắn cờ `_isFallback`, `_loadError` khi có sự cố kết nối.
+  - Bổ sung banner cảnh báo lỗi nổi bật màu đỏ (`rules-load-error-alert`) trên đầu trang Cài đặt khi không tải được dữ liệu từ server, thông báo rõ ràng mã lỗi và cung cấp nút "Tải lại" (Retry).
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`RulesCreditScoreTierTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/RulesCreditScoreTierTests.cs)):**
+  - Viết 7 ca kiểm thử tự động xUnit bao phủ: đọc quy định chiết khấu chuẩn US-10.4, cập nhật tỷ lệ chiết khấu hợp lệ kèm ghi nhật ký kiểm toán chuẩn tên quy định, từ chối các giá trị ngoài phạm vi ($<0\%$ hoặc $>100\%$), và khôi phục về mặc định chuẩn hệ thống (10% và 20%).
+  - 100% bài kiểm thử đơn vị (62/62 tests) đều vượt qua thành công; bản build frontend Vite thành công với thời gian 783ms.
+
+---
 ## [2026-10-25] - Khắc phục BUG-007: Tự động giảm trừ tiền phạt trả sách theo điểm tín nhiệm độc giả (US Ưu tiên)
 
 - **Tự động áp dụng chiết khấu phạt theo điểm tín nhiệm ([`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnBookResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`IReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReturnRepository.cs), [`ReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs)) - [S2 | P1]:**

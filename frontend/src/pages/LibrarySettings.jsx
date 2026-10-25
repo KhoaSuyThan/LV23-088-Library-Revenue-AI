@@ -148,6 +148,8 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
   const [isRetraining, setIsRetraining] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Kiểm tra biểu mẫu có thay đổi chưa lưu (isDirty)
   const isDirty = Boolean(
@@ -155,56 +157,67 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
   );
 
   // Tải dữ liệu ban đầu
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [rulesData, waiversData, historyData] = await Promise.all([
-          rulesApi.getSystemRules(),
-          rulesApi.getWaiverReasons(),
-          rulesApi.getAuditHistory()
-        ]);
+  const loadData = async () => {
+    setIsLoadingData(true);
+    setLoadError(null);
+    try {
+      const [rulesData, waiversData, historyData] = await Promise.all([
+        rulesApi.getSystemRules(true, true),
+        rulesApi.getWaiverReasons(),
+        rulesApi.getAuditHistory()
+      ]);
 
-        if (rulesData) {
-          const damagePercent = rulesData.damagePenaltyPercent ?? 20;
-          const damageMed = rulesData.damageMediumPercent ?? 40;
-          const damageSev = rulesData.damageSeverePercent ?? 110;
-          const compPercent = rulesData.compensationBasePercent ?? 110;
+      if (rulesData) {
+        const damagePercent = rulesData.damagePenaltyPercent ?? 20;
+        const damageMed = rulesData.damageMediumPercent ?? 40;
+        const damageSev = rulesData.damageSeverePercent ?? 110;
+        const compPercent = rulesData.compensationBasePercent ?? 110;
 
-          const studentLimit = rulesData.borrowLimit_Student ?? rulesData.borrowLimit_MaxTogether ?? 5;
-          const loadedData = {
-            ...formData,
-            ...rulesData,
-            borrowLimit_Student: studentLimit,
-            borrowLimit_MaxTogether: studentLimit,
-            damagePenaltyPercent: damagePercent,
-            damageMediumPercent: damageMed,
-            damageSeverePercent: damageSev,
-            compensationBasePercent: compPercent,
-            compensationFixedFee: 0,
-            damagePenaltyText: `${damagePercent}% giá bìa`,
-            damageMediumText: `${damageMed}% giá bìa`,
-            damageSevereText: `${damageSev}% giá bìa`,
-            compensationText: `${compPercent}% giá bìa`
-          };
+        const studentLimit = rulesData.borrowLimit_Student ?? rulesData.borrowLimit_MaxTogether ?? 5;
+        const loadedData = {
+          ...formData,
+          ...rulesData,
+          borrowLimit_Student: studentLimit,
+          borrowLimit_MaxTogether: studentLimit,
+          damagePenaltyPercent: damagePercent,
+          damageMediumPercent: damageMed,
+          damageSeverePercent: damageSev,
+          compensationBasePercent: compPercent,
+          compensationFixedFee: 0,
+          damagePenaltyText: `${damagePercent}% giá bìa`,
+          damageMediumText: `${damageMed}% giá bìa`,
+          damageSevereText: `${damageSev}% giá bìa`,
+          compensationText: `${compPercent}% giá bìa`
+        };
 
-          setFormData(loadedData);
-          setInitialFormData(JSON.parse(JSON.stringify(loadedData)));
+        setFormData(loadedData);
+        setInitialFormData(JSON.parse(JSON.stringify(loadedData)));
 
-          if (rulesData.aiAccuracy) {
-            setAiModelInfo((prev) => ({
-              ...prev,
-              accuracy: rulesData.aiAccuracy,
-              lastTrained: rulesData.aiLastTrained || prev.lastTrained
-            }));
-          }
+        if (rulesData.aiAccuracy) {
+          setAiModelInfo((prev) => ({
+            ...prev,
+            accuracy: rulesData.aiAccuracy,
+            lastTrained: rulesData.aiLastTrained || prev.lastTrained
+          }));
         }
-        if (waiversData) setWaiverReasons(waiversData);
-        if (historyData) setAuditHistory(historyData);
-      } catch (err) {
-        console.error('Lỗi khi tải cấu hình:', err);
       }
-    };
+      if (waiversData) setWaiverReasons(waiversData);
+      if (historyData) setAuditHistory(historyData);
+    } catch (err) {
+      console.error('Lỗi khi tải cấu hình quy chế từ máy chủ:', err);
+      const serverMsg =
+        err.response?.data?.message ||
+        (err.response?.status
+          ? `Máy chủ trả về mã lỗi HTTP ${err.response.status}`
+          : err.message || 'Không thể kết nối đến máy chủ quy chế');
+      setLoadError(serverMsg);
+      showToast(`Không thể tải quy chế từ máy chủ: ${serverMsg}`, 'error');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -491,6 +504,59 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
 
   return (
     <div className="settings-wrapper">
+      {/* Cảnh báo lỗi tải cấu hình quy chế từ máy chủ nếu có (BUG-036 & US-10.4) */}
+      {loadError && (
+        <div
+          className="rules-load-error-alert"
+          style={{
+            backgroundColor: '#fff1f2',
+            border: '1px solid #fecdd3',
+            borderLeft: '4px solid #e11d48',
+            borderRadius: '8px',
+            padding: '12px 18px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <AlertTriangle size={20} color="#e11d48" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 700, color: '#9f1239', fontSize: '13.5px' }}>
+                Lỗi tải cấu hình quy chế từ máy chủ (GET /api/rules)
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#be123c', marginTop: '2px' }}>
+                {loadError}. Hệ thống không tự ý áp dụng dữ liệu mặc định làm chính sách hiệu lực. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-retry-load"
+            onClick={loadData}
+            style={{
+              backgroundColor: '#e11d48',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <RotateCw size={13} className={isLoadingData ? 'spinner-spin' : ''} />
+            <span>Tải lại</span>
+          </button>
+        </div>
+      )}
+
       {/* --------------------------------------------------------------------
           1. THANH 4 SUB-TABS NHỎ GỌN & NÚT THAO TÁC LƯU
           (Đã loại bỏ banner tĩnh cố định theo đề xuất Ảnh 23)
@@ -1214,22 +1280,22 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                 <div>
                   <h3 className="figma-card-title">Hệ thống Phân Hạng Tín Nhiệm Bạn Đọc</h3>
                   <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                    Chính sách thưởng điểm rèn luyện & tự động giảm trừ tiền phạt vi phạm.
+                    Chính sách tự động giảm trừ tiền phạt vi phạm theo điểm tín nhiệm (chuẩn US-10.4 đã thống nhất): 90–100 điểm giảm 20%, 80–89 điểm giảm 10%, dưới 80 điểm không giảm.
                   </p>
                 </div>
               </div>
 
               <div className="tiers-container">
-                {/* Hạng 1: Kim Cương */}
+                {/* Hạng 1: Kim Cương / Xuất sắc (90 - 100 điểm) */}
                 <div className="tier-card tier-card-diamond">
                   <div className="tier-card-top">
                     <div className="tier-card-badge">
                       <Gem size={15} className="text-cyan" />
-                      <span className="tier-name">Hạng Kim Cương (Diamond)</span>
+                      <span className="tier-name">Hạng Xuất Sắc / Kim Cương (Diamond)</span>
                     </div>
-                    <span className="tier-score-pill">Điểm tín nhiệm = 100</span>
+                    <span className="tier-score-pill">Điểm tín nhiệm: 90 – 100</span>
                   </div>
-                  <p className="tier-desc">Dành cho độc giả có lịch sử mượn trả hoàn hảo, luôn đúng hạn 100%.</p>
+                  <p className="tier-desc">Dành cho độc giả có điểm tín nhiệm xuất sắc (từ 90 đến 100 điểm), mượn trả gương mẫu.</p>
                   <div className="figma-form-item" style={{ marginTop: '10px' }}>
                     <label className="figma-field-label">Tỷ lệ giảm trừ tiền phạt vi phạm:</label>
                     <div className="figma-input-wrapper">
@@ -1252,16 +1318,16 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   </div>
                 </div>
 
-                {/* Hạng 2: Vàng */}
+                {/* Hạng 2: Vàng / Tốt (80 - 89 điểm) */}
                 <div className="tier-card tier-card-gold">
                   <div className="tier-card-top">
                     <div className="tier-card-badge">
                       <Award size={15} className="text-gold" />
-                      <span className="tier-name">Hạng Vàng (Gold)</span>
+                      <span className="tier-name">Hạng Tốt / Vàng (Gold)</span>
                     </div>
-                    <span className="tier-score-pill pill-gold">Điểm tín nhiệm ≥ 90</span>
+                    <span className="tier-score-pill pill-gold">Điểm tín nhiệm: 80 – 89</span>
                   </div>
-                  <p className="tier-desc">Dành cho sinh viên và giảng viên gương mẫu, hiếm khi quá hạn.</p>
+                  <p className="tier-desc">Dành cho sinh viên và giảng viên có điểm tín nhiệm tốt (từ 80 đến 89 điểm), hiếm khi quá hạn.</p>
                   <div className="figma-form-item" style={{ marginTop: '10px' }}>
                     <label className="figma-field-label">Tỷ lệ giảm trừ tiền phạt vi phạm:</label>
                     <div className="figma-input-wrapper">
@@ -1284,16 +1350,16 @@ export default function LibrarySettings({ user, subTab: propSubTab }) {
                   </div>
                 </div>
 
-                {/* Hạng 3: Tiêu chuẩn */}
+                {/* Hạng 3: Tiêu chuẩn (< 80 điểm) */}
                 <div className="tier-card tier-card-standard">
                   <div className="tier-card-top">
                     <div className="tier-card-badge">
                       <User size={15} className="text-slate" />
                       <span className="tier-name">Hạng Tiêu Chuẩn (Standard)</span>
                     </div>
-                    <span className="tier-score-pill pill-standard">Điểm tín nhiệm &lt; 90</span>
+                    <span className="tier-score-pill pill-standard">Điểm tín nhiệm &lt; 80</span>
                   </div>
-                  <p className="tier-desc">Áp dụng biểu phí phạt gốc 100%, không áp dụng chiết khấu tự động.</p>
+                  <p className="tier-desc">Điểm tín nhiệm dưới 80 không giảm trừ. Áp dụng biểu phí phạt gốc 100%, không áp dụng chiết khấu tự động.</p>
                 </div>
               </div>
             </div>

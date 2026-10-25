@@ -365,7 +365,7 @@ using (var scope = app.Services.CreateScope())
                 INSERT INTO RuleAuditLogs (RuleKey, RuleName, OldValue, NewValue, ChangedBy, ChangedAt, IpAddress) VALUES
                 ('aiRiskThreshold', N'Ngưỡng kích hoạt rủi ro AI Early Warning', '75%', '80%', N'Thủ thư (Admin)', '2026-09-18 15:10:00', '192.168.1.10'),
                 ('finePerDay', N'Phí phạt trễ hạn theo ngày', N'3.000 VNĐ', N'2.000 VNĐ', N'Thủ thư (Admin)', '2026-09-18 14:32:10', '192.168.1.45'),
-                ('aiDiscount_100', N'Chiết khấu AI điểm tuyệt đối (100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
+                ('aiDiscount_100', N'Chiết khấu tín nhiệm xuất sắc (90-100 điểm)', '15%', '20%', N'Thủ thư (Admin)', '2026-09-15 09:20:00', '192.168.1.45'),
                 ('borrowLimit_MaxTogether', N'Số sách tối đa được mượn cùng lúc', N'4 cuốn', N'5 cuốn', N'Thủ thư (Admin)', '2026-09-10 09:15:00', '192.168.1.12');
             END
         ");
