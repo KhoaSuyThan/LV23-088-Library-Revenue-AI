@@ -236,10 +236,19 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     }
   });
 
-  // 3. Tổng nghĩa vụ tài chính
+  // 3. Tổng nghĩa vụ tài chính & Tự động giảm phạt theo điểm tín nhiệm độc giả (BUG 007 & US ưu tiên)
+  const creditScore = lookupData?.creditScore ?? 100;
+  let creditDiscountPct = Number(lookupData?.creditDiscountPercent ?? 0);
+  if (lookupData && creditDiscountPct === 0 && creditScore >= 80) {
+    if (creditScore >= 90) creditDiscountPct = Number(systemRules?.aiDiscount_100 ?? 20);
+    else if (creditScore >= 80) creditDiscountPct = Number(systemRules?.aiDiscount_90 ?? 10);
+  }
+
   const rawTotalFine = totalOverdueFine + totalDamageFee + totalLostFee;
-  const discountAmount = Math.round(((rawTotalFine * waiverDiscountPercent) / 100) / 1000) * 1000;
-  const finalFine = Math.max(0, Math.round((rawTotalFine - discountAmount) / 1000) * 1000);
+  const creditDiscountAmount = Math.round(((rawTotalFine * creditDiscountPct) / 100) / 1000) * 1000;
+  const manualWaiverAmount = Math.round(((rawTotalFine * waiverDiscountPercent) / 100) / 1000) * 1000;
+  const discountAmount = Math.min(rawTotalFine, creditDiscountAmount + manualWaiverAmount);
+  const finalFine = Math.max(0, rawTotalFine - discountAmount);
 
   // Tra cứu thông tin sách đang mượn qua API Backend
   const handleLookup = async (codeToSearch) => {
@@ -629,6 +638,11 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
               <span className="meta-label">ĐỘC GIẢ</span>
               <span className="meta-value">
                 {lookupData.readerName} ({lookupData.readerCode})
+                {lookupData.creditScore !== undefined && (
+                  <span style={{ marginLeft: '6px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#ecfdf5', color: '#047857', fontWeight: 700, border: '1px solid #a7f3d0' }}>
+                    ⭐ Tín nhiệm: {lookupData.creditScore}/100 {creditDiscountPct > 0 ? `(Giảm ${creditDiscountPct}%)` : ''}
+                  </span>
+                )}
               </span>
             </div>
 
@@ -1006,9 +1020,14 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             <div className="fine-info-left">
               <div className="fine-total-title">
                 Tổng nghĩa vụ tài chính: {finalFine.toLocaleString('vi-VN')} VNĐ
+                {creditDiscountPct > 0 && (
+                  <span className="waiver-badge-applied" style={{ backgroundColor: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>
+                    (Tự giảm {creditDiscountPct}% tín nhiệm)
+                  </span>
+                )}
                 {waiverDiscountPercent > 0 && (
                   <span className="waiver-badge-applied">
-                    (Đã giảm {waiverDiscountPercent}%)
+                    (Miễn giảm thủ công {waiverDiscountPercent}%)
                   </span>
                 )}
               </div>
@@ -1035,8 +1054,11 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
                         Bồi hoàn mất sách = <strong>{totalLostFee.toLocaleString('vi-VN')}đ</strong> ({lostPct}%)
                       </span>
                     ) : ''}
+                    {creditDiscountPct > 0 ? (
+                      <span> - Tự giảm tín nhiệm ({creditDiscountPct}%) = <strong>{creditDiscountAmount.toLocaleString('vi-VN')}đ</strong></span>
+                    ) : ''}
                     {waiverDiscountPercent > 0 ? (
-                      <span> - Miễn giảm = <strong>{discountAmount.toLocaleString('vi-VN')}đ</strong></span>
+                      <span> - Miễn giảm thủ công ({waiverDiscountPercent}%) = <strong>{manualWaiverAmount.toLocaleString('vi-VN')}đ</strong></span>
                     ) : ''}
                     )
                   </span>

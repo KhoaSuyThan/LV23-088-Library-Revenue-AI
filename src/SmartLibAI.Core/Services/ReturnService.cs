@@ -77,6 +77,25 @@ public class ReturnService : IReturnService
         // Làm tròn chẵn đến hàng nghìn đồng theo đúng quy tắc tài chính kế toán hiện hành của Việt Nam
         decimal roundedOverdueFine = Math.Round(overdueFine / 1000m, MidpointRounding.AwayFromZero) * 1000m;
 
+        // Tỷ lệ giảm trừ theo điểm tín nhiệm độc giả (US ưu tiên & BUG 007):
+        // 90-100: tự động giảm 20% (rule?.ConductScoreDiscountPercent ?? 20m)
+        // 80-89: tự động giảm 10% (rule?.AiDiscount_90 ?? 10m)
+        // < 80: tự động giảm 0%
+        int creditScore = reader?.CreditScore ?? 100;
+        decimal creditDiscountPercent = 0m;
+        if (creditScore >= 90)
+        {
+            creditDiscountPercent = rule?.ConductScoreDiscountPercent ?? 20.0m;
+        }
+        else if (creditScore >= 80)
+        {
+            creditDiscountPercent = rule?.AiDiscount_90 ?? 10.0m;
+        }
+
+        decimal rawCreditDiscountAmt = (roundedOverdueFine * creditDiscountPercent) / 100m;
+        decimal creditDiscountAmt = Math.Round(rawCreditDiscountAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal estimatedFinalFine = Math.Max(0m, roundedOverdueFine - creditDiscountAmt);
+
         var allDetails = borrowing.BorrowingDetails ?? new List<Entities.BorrowingDetail>();
         var totalItems = allDetails.Count;
         var returnedItems = allDetails.Count(d => d.ReturnDate != null && d.ItemStatus != "Borrowed");
@@ -97,6 +116,10 @@ public class ReturnService : IReturnService
             ReaderCode = reader?.ReaderCode ?? string.Empty,
             MemberType = reader?.MemberType ?? "Student",
             Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
+            CreditScore = creditScore,
+            CreditDiscountPercent = creditDiscountPercent,
+            CreditDiscountAmount = creditDiscountAmt,
+            EstimatedFinalFine = estimatedFinalFine,
             BorrowDate = borrowing.BorrowDate,
             DueDate = borrowing.DueDate,
             OverdueDays = overdueDays,
@@ -231,22 +254,43 @@ public class ReturnService : IReturnService
         // Quy tắc: Nếu sách vừa trễ hạn vừa bị mất/hỏng:
         // Tổng nghĩa vụ = Tiền phạt trễ hạn tính đến ngày trả/báo mất (có áp trần) + Tổng phí bồi thường
         decimal rawTotal = overdueFine + damageFee + lostFee;
-        decimal discountAmt = (rawTotal * request.WaiverDiscountPercent) / 100m;
-        decimal finalTotalBeforeRound = Math.Max(0m, rawTotal - discountAmt);
+
+        // 4. Áp dụng giảm trừ tự động theo điểm tín nhiệm độc giả (BUG 007 & US ưu tiên)
+        int creditScore = reader?.CreditScore ?? 100;
+        decimal creditDiscountPercent = 0m;
+        if (creditScore >= 90)
+        {
+            creditDiscountPercent = rule?.ConductScoreDiscountPercent ?? 20.0m;
+        }
+        else if (creditScore >= 80)
+        {
+            creditDiscountPercent = rule?.AiDiscount_90 ?? 10.0m;
+        }
+
+        // Tách miễn giảm thủ công do thủ thư chỉ định (request.WaiverDiscountPercent)
+        decimal manualWaiverPercent = Math.Clamp(request.WaiverDiscountPercent, 0m, 100m);
+        decimal totalDiscountPercent = Math.Clamp(creditDiscountPercent + manualWaiverPercent, 0m, 100m);
+
+        decimal rawCreditDiscountAmt = (rawTotal * creditDiscountPercent) / 100m;
+        decimal rawManualWaiverAmt = (rawTotal * manualWaiverPercent) / 100m;
+        decimal rawTotalDiscountAmt = (rawTotal * totalDiscountPercent) / 100m;
 
         // Làm tròn chẵn đến hàng nghìn đồng theo đúng quy tắc tài chính kế toán hiện hành của Việt Nam
         decimal roundedOverdueFine = Math.Round(overdueFine / 1000m, MidpointRounding.AwayFromZero) * 1000m;
         decimal roundedDamageFee = Math.Round(damageFee / 1000m, MidpointRounding.AwayFromZero) * 1000m;
         decimal roundedLostFee = Math.Round(lostFee / 1000m, MidpointRounding.AwayFromZero) * 1000m;
-        decimal roundedDiscountAmt = Math.Round(discountAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m;
-        decimal finalTotal = Math.Max(0m, Math.Round(finalTotalBeforeRound / 1000m, MidpointRounding.AwayFromZero) * 1000m);
 
-        // 4. Thực thi Transaction SQL an toàn
+        decimal roundedCreditDiscountAmt = Math.Round(rawCreditDiscountAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal roundedManualWaiverAmt = Math.Round(rawManualWaiverAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m;
+        decimal roundedDiscountAmt = Math.Min(rawTotal, Math.Round(rawTotalDiscountAmt / 1000m, MidpointRounding.AwayFromZero) * 1000m);
+        decimal finalTotal = Math.Max(0m, rawTotal - roundedDiscountAmt);
+
+        // 5. Thực thi Transaction SQL an toàn
         var result = await _returnRepository.ProcessReturnWithTransactionAsync(
             detail.DetailID,
             condition,
             request.Note,
-            request.WaiverDiscountPercent,
+            totalDiscountPercent,
             roundedOverdueFine,
             roundedDamageFee,
             roundedLostFee,
@@ -286,6 +330,12 @@ public class ReturnService : IReturnService
             IsFineCapped = isFineCapped,
             DamageFee = roundedDamageFee,
             LostFee = roundedLostFee,
+            CreditScore = creditScore,
+            CreditDiscountPercent = creditDiscountPercent,
+            CreditDiscountAmount = roundedCreditDiscountAmt,
+            WaiverDiscountPercent = manualWaiverPercent,
+            WaiverDiscountAmount = roundedManualWaiverAmt,
+            TotalDiscountPercent = totalDiscountPercent,
             DiscountAmount = roundedDiscountAmt,
             TotalFine = finalTotal,
             IsOverdue = overdueDays > 0,

@@ -36,6 +36,26 @@ public class ReturnLookupResponseDto
     /// </summary>
     public string Department { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Điểm tín nhiệm của độc giả (0 - 100).
+    /// </summary>
+    public int CreditScore { get; set; } = 100;
+
+    /// <summary>
+    /// Tỷ lệ chiết khấu tự động theo điểm tín nhiệm độc giả (80-89: 10%; 90-100: 20%).
+    /// </summary>
+    public decimal CreditDiscountPercent { get; set; } = 0m;
+
+    /// <summary>
+    /// Số tiền được giảm trừ tự động theo điểm tín nhiệm.
+    /// </summary>
+    public decimal CreditDiscountAmount { get; set; } = 0m;
+
+    /// <summary>
+    /// Tiền phạt ước tính sau khi trừ chiết khấu tín nhiệm tự động.
+    /// </summary>
+    public decimal EstimatedFinalFine { get; set; } = 0m;
+
     public DateTime BorrowDate { get; set; }
 
     public DateTime DueDate { get; set; }

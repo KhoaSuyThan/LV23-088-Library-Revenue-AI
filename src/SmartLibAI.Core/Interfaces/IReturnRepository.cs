@@ -33,7 +33,7 @@ public interface IReturnRepository : IGenericRepository<BorrowingDetail>
         int detailId,
         string condition,
         string? note,
-        decimal waiverDiscountPercent,
+        decimal totalDiscountPercent,
         decimal overdueFine,
         decimal damageFee,
         decimal lostFee,

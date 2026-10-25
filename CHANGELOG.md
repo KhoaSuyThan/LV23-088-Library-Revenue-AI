@@ -5,6 +5,33 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-007: Tự động giảm trừ tiền phạt trả sách theo điểm tín nhiệm độc giả (US Ưu tiên)
+
+- **Tự động áp dụng chiết khấu phạt theo điểm tín nhiệm ([`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnBookResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`IReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReturnRepository.cs), [`ReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi `ReturnService.ProcessReturnItemAsync` và `LookupReturnItemAsync` không tự động giảm trừ tiền phạt theo điểm tín nhiệm của độc giả khi không khai báo miễn giảm thủ công (`WaiverDiscountPercent = 0`). Ví dụ: Độc giả có điểm tín nhiệm 95, trễ 10 ngày phạt gốc 50.000đ nhưng service trả về 50.000đ thay vì 40.000đ (giảm 20%); độc giả PM0114 điểm tín nhiệm 86, phạt gốc 55.000đ không được tự giảm 10%.
+  - Nguyên nhân: Trước đây service chỉ đọc `request.WaiverDiscountPercent` (do thủ thư nhập tay), hoàn toàn bỏ qua `reader.CreditScore` và cấu hình tỷ lệ giảm phạt trong `FineRule`.
+  - Giải pháp:
+    - Đọc `CreditScore` từ hồ sơ độc giả (`reader.CreditScore`).
+    - Phân bổ tỷ lệ giảm tự động theo cấu hình quy định hiện hành trong `FineRule`:
+      - Điểm tín nhiệm $\ge 90$ (90–100): tự động giảm 20% (`FineRule.ConductScoreDiscountPercent`, mặc định 20.0%).
+      - Điểm tín nhiệm 80–89: tự động giảm 10% (`FineRule.AiDiscount_90`, mặc định 10.0%).
+      - Điểm tín nhiệm $< 80$: tự động giảm 0%.
+    - Tách bạch và kết hợp an toàn giữa chiết khấu điểm tín nhiệm tự động và miễn giảm thủ công (`request.WaiverDiscountPercent`): `totalDiscountPercent = Math.Clamp(creditDiscountPercent + manualWaiverPercent, 0m, 100m)`.
+    - Bổ sung các trường chi tiết vào DTO phản hồi: `CreditScore`, `CreditDiscountPercent`, `CreditDiscountAmount`, `WaiverDiscountPercent`, `WaiverDiscountAmount`, `TotalDiscountPercent`, `EstimatedFinalFine`.
+    - Cập nhật repository transaction `ProcessReturnWithTransactionAsync` nhận `totalDiscountPercent` tổng hợp, ghi nhận chính xác `TotalAmount`, `DiscountAmount` và `FinalAmount` vào bảng `FineReceipts`.
+- **Cập nhật giao diện Quầy Tiếp Nhận Trả Sách ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx)):**
+  - Hiển thị huy hiệu điểm tín nhiệm của độc giả trong khung thông tin thẻ (`⭐ Tín nhiệm: {creditScore}/100 (Giảm {creditDiscountPct}%)`).
+  - Tách bạch chi tiết thành phần chiết khấu trong hóa đơn xem trước và kết quả trả sách: hiển thị rõ số tiền được tự động giảm do điểm tín nhiệm cao và số tiền được miễn giảm bổ sung do thủ thư chỉ định.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReturnFineCreditScoreDiscountTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReturnFineCreditScoreDiscountTests.cs)):**
+  - Viết 10 ca kiểm thử tự động xUnit bao phủ:
+    - Ca độc giả điểm 95 (trễ 10 ngày phạt 50.000đ $\rightarrow$ giảm 20% còn 40.000đ).
+    - Ca độc giả điểm 86 PM0114 (phạt gốc 55.000đ $\rightarrow$ giảm 10% còn 49.000đ).
+    - Kiểm thử các mốc biên tín nhiệm: 100 (20%), 90 (20%), 89 (10%), 80 (10%), 79 (0%), 50 (0%).
+    - Kết hợp chiết khấu tín nhiệm tự động với miễn giảm thủ công (20% + 30% = 50%).
+    - Màn hình xem trước tra cứu `LookupReturnItemAsync`.
+  - 100% các bài kiểm thử xUnit (55/55 tests) và build frontend Vite đều thành công.
+
+---
 ## [2026-10-25] - Khắc phục BUG-006: Cho phép mượn sách khi nợ chưa vượt ngưỡng 50.000 đồng (US-08.1)
 
 - **Chuẩn hóa điều kiện chặn mượn theo ngưỡng nợ ([`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowReaderEligibilityDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/BorrowReaderEligibilityDto.cs)) - [S2 | P1]:**
