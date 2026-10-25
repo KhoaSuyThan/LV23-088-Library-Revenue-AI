@@ -5,6 +5,22 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-043: Thống kê vi phạm động từ CSDL và nối đúng tên sách theo mã vạch chuẩn US-11.3
+
+- **Nối danh mục sách thực tế và tính số vụ vi phạm động ([`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), [`InvoicesController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs)) - [S2 | P1]:**
+  - **Sửa lỗi gắn sai tên đầu sách với mã vạch**: Mã vạch `BC000002-A` trong bảng Top đầu sách trước đây bị gán nhãn tĩnh là *"Giáo trình Cấu trúc dữ liệu và Giải thuật"*, trong khi CSDL thư viện thực tế xác nhận thuộc cuốn *"Harry Potter and the Order of the Phoenix (Harry Potter #5)"* (BookID 2, Category: Ngoại ngữ & Từ điển).
+  - Xây dựng endpoint mới `GET /api/invoices/top-violated-books` thực hiện truy vấn nối bảng trực tiếp giữa `BookCopies`, `Books`, `Categories`, `BorrowingDetails`, `Borrowings` và `FineReceipts`. Đảm bảo 100% đầu sách và bản sao hiển thị đúng mã vạch, tên sách, phân loại, số lượt quá hạn, số lượt hư hỏng, tổng tiền phạt và mức độ rủi ro từ CSDL.
+  - **Loại bỏ dữ liệu mẫu 38/9/4/12 trên 4 thẻ vi phạm**: Thêm trường `CasesCount` vào `RevenueSourceBreakdownDto`. Backend tổng hợp động số vụ vi phạm thực tế từ toàn bộ hóa đơn đã thu tiền thay vì gắn số cố định. Khi chưa có giao dịch, hiển thị đúng 0 vụ; khi phát sinh hoặc duyệt giao dịch mới, số vụ được cập nhật chính xác tương ứng.
+  - **Hỗ trợ bộ lọc thời gian thực linh hoạt**: Hỗ trợ lọc theo các mốc `7d`, `30d`, `quarter`, `year` hoặc khoảng ngày `fromDate`/`toDate`. Kiểm thử đối soát trả về chính xác 0 vụ (7 ngày), 1 vụ (30 ngày), và 39 vụ (năm), loại bỏ triệt để fallback dữ liệu giả.
+- **Cập nhật giao diện người dùng ([`RevenueBreakdownTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx), [`invoiceApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/invoiceApi.js)):**
+  - Loại bỏ hoàn toàn mảng tĩnh 10 đầu sách mẫu và số vụ cứng 38, 9, 4, 12 khỏi frontend.
+  - Tự động gọi API `invoiceApi.getTopViolatedBooks({ timeRange })` mỗi khi người dùng thay đổi bộ lọc thời gian.
+  - Bổ sung hiệu ứng tải dữ liệu (`Loader2` spinner) và trạng thái trống thân thiện (`empty state`) khi không có vi phạm trong khoảng thời gian đã chọn.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`TopViolatedBooksTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/TopViolatedBooksTests.cs)):**
+  - Bổ sung 3 ca kiểm thử: Xác thực barcode `BC000002-A` gắn đúng tên Harry Potter thực tế, kiểm tra phân lập 0/1/n bản ghi theo bộ lọc ngày, và kiểm tra trường `CasesCount` đếm động.
+  - Toàn bộ 72/72 bài kiểm thử đơn vị xUnit đều vượt qua thành công 100%. Frontend build đạt 827ms (< 2s) và bundle 418.89 kB (< 500 kB).
+
+---
 ## [2026-10-25] - Khắc phục BUG-042: Phân loại cơ cấu nguồn thu hóa đơn theo loại vi phạm thực tế chuẩn US-11.3
 
 - **Xây dựng bộ phân loại doanh thu thu phạt đa chiều ([`InvoiceRevenueClassifier.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Common/InvoiceRevenueClassifier.cs), [`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs)) - [S2 | P1]:**

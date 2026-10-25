@@ -262,5 +262,26 @@ public class InvoiceService : IInvoiceService
             return ApiResponse<List<AiForecastReaderDto>>.ErrorResult($"Lỗi truy vấn dự báo AI: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Thống kê danh sách Top đầu sách có tỷ lệ vi phạm/quá hạn cao nhất (BUG-043 & US-11.3).
+    /// </summary>
+    public async Task<ApiResponse<List<TopViolatedBookDto>>> GetTopViolatedBooksAsync(
+        string? timeRange = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null)
+    {
+        try
+        {
+            var list = await _invoiceRepository.GetTopViolatedBooksAsync(timeRange, fromDate, toDate);
+            return ApiResponse<List<TopViolatedBookDto>>.SuccessResult(
+                list,
+                $"Lấy danh sách Top đầu sách vi phạm thành công ({list.Count} đầu sách).");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<TopViolatedBookDto>>.ErrorResult($"Lỗi truy vấn Top đầu sách vi phạm: {ex.Message}");
+        }
+    }
 }
 

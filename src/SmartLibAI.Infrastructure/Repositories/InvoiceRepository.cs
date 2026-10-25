@@ -256,6 +256,10 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
         decimal damageRevenue = 0m;
         decimal lostRevenue = 0m;
         decimal otherRevenue = 0m;
+        int overdueCases = 0;
+        int damageCases = 0;
+        int lostCases = 0;
+        int otherCases = 0;
 
         foreach (var inv in allInvoices)
         {
@@ -264,6 +268,11 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
             damageRevenue += itemBreakdown.DamageAmount;
             lostRevenue += itemBreakdown.LostAmount;
             otherRevenue += itemBreakdown.OtherAmount;
+
+            if (itemBreakdown.OverdueAmount > 0) overdueCases++;
+            if (itemBreakdown.DamageAmount > 0) damageCases++;
+            if (itemBreakdown.LostAmount > 0) lostCases++;
+            if (itemBreakdown.OtherAmount > 0) otherCases++;
         }
 
         // 6. Tổng giá trị sách bị mất hoặc hư hỏng (không phải do trễ hạn thông thường)
@@ -291,9 +300,10 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
 
         if (totalCollected == 0)
         {
-            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Phạt trễ hạn theo ngày", Amount = 10042500m, Percentage = 65.0 });
-            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Bồi hoàn sách hỏng/mất", Amount = 3862500m, Percentage = 25.0 });
-            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Phí xử lý & cấp lại thẻ", Amount = 1545000m, Percentage = 10.0 });
+            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Phạt trễ hạn theo ngày", Amount = 0m, Percentage = 0, CasesCount = 0 });
+            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Bồi hoàn sách rách/hỏng", Amount = 0m, Percentage = 0, CasesCount = 0 });
+            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Đền bù sách mất", Amount = 0m, Percentage = 0, CasesCount = 0 });
+            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Khoản thu khác", Amount = 0m, Percentage = 0, CasesCount = 0 });
         }
         else
         {
@@ -301,25 +311,29 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
             {
                 SourceName = "Phạt trễ hạn theo ngày",
                 Amount = overdueRevenue,
-                Percentage = Math.Round((double)(overdueRevenue / totalBaseForBreakdown * 100), 1)
+                Percentage = Math.Round((double)(overdueRevenue / totalBaseForBreakdown * 100), 1),
+                CasesCount = overdueCases
             });
             breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto
             {
                 SourceName = "Bồi hoàn sách rách/hỏng",
                 Amount = damageRevenue,
-                Percentage = Math.Round((double)(damageRevenue / totalBaseForBreakdown * 100), 1)
+                Percentage = Math.Round((double)(damageRevenue / totalBaseForBreakdown * 100), 1),
+                CasesCount = damageCases
             });
             breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto
             {
                 SourceName = "Đền bù sách mất",
                 Amount = lostRevenue,
-                Percentage = Math.Round((double)(lostRevenue / totalBaseForBreakdown * 100), 1)
+                Percentage = Math.Round((double)(lostRevenue / totalBaseForBreakdown * 100), 1),
+                CasesCount = lostCases
             });
             breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto
             {
                 SourceName = "Khoản thu khác",
                 Amount = otherRevenue,
-                Percentage = Math.Round((double)(otherRevenue / totalBaseForBreakdown * 100), 1)
+                Percentage = Math.Round((double)(otherRevenue / totalBaseForBreakdown * 100), 1),
+                CasesCount = otherCases
             });
         }
 
@@ -532,6 +546,165 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
         }).ToList();
 
         return result;
+    }
+
+    /// <summary>
+    /// Thống kê danh sách Top đầu sách có số vụ vi phạm (quá hạn, hư hỏng, mất) và tiền phạt cao nhất theo khoảng thời gian (BUG-043 & US-11.3).
+    /// </summary>
+    public async Task<List<SmartLibAI.Core.DTOs.Invoices.TopViolatedBookDto>> GetTopViolatedBooksAsync(
+        string? timeRange = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null)
+    {
+        var now = DateTime.UtcNow;
+        DateTime? startDate = fromDate;
+        DateTime? endDate = toDate;
+
+        if (!startDate.HasValue && !string.IsNullOrWhiteSpace(timeRange))
+        {
+            switch (timeRange.Trim().ToLowerInvariant())
+            {
+                case "7d":
+                    startDate = now.AddDays(-7);
+                    break;
+                case "30d":
+                    startDate = now.AddDays(-30);
+                    break;
+                case "quarter":
+                    startDate = now.AddDays(-90);
+                    break;
+                case "year":
+                    startDate = now.AddDays(-365);
+                    break;
+            }
+        }
+
+        // Tải toàn bộ BorrowingDetails kèm BookCopy, Book, Category, Borrowing và FineReceipts
+        var details = await _context.BorrowingDetails
+            .Include(bd => bd.BookCopy)
+                .ThenInclude(bc => bc.Book)
+                    .ThenInclude(b => b.Category)
+            .Include(bd => bd.Borrowing)
+                .ThenInclude(bw => bw.FineReceipts)
+            .AsNoTracking()
+            .ToListAsync();
+
+        // Lọc theo mốc thời gian nếu có
+        if (startDate.HasValue || endDate.HasValue)
+        {
+            details = details.Where(bd =>
+            {
+                var eventDate = bd.ReturnDate ?? bd.Borrowing.DueDate;
+                if (startDate.HasValue && eventDate < startDate.Value) return false;
+                if (endDate.HasValue && eventDate > endDate.Value) return false;
+                return true;
+            }).ToList();
+        }
+
+        // Gom nhóm theo BookCopy (CopyID)
+        var grouped = details
+            .Where(bd => bd.BookCopy != null && bd.BookCopy.Book != null)
+            .GroupBy(bd => bd.BookCopy.CopyID)
+            .Select(g =>
+            {
+                var first = g.First();
+                var copy = first.BookCopy;
+                var book = copy.Book;
+                var category = book.Category?.CategoryName ?? "Chung";
+
+                int overdueCount = 0;
+                int damageCount = 0;
+                decimal totalFines = 0m;
+
+                foreach (var bd in g)
+                {
+                    bool isDamaged = !string.IsNullOrWhiteSpace(bd.ItemStatus) &&
+                        (bd.ItemStatus.StartsWith("Damag", StringComparison.OrdinalIgnoreCase) ||
+                         bd.ItemStatus.Equals("Lost", StringComparison.OrdinalIgnoreCase));
+
+                    bool isOverdue = (bd.ReturnDate.HasValue && bd.ReturnDate.Value.Date > bd.Borrowing.DueDate.Date) ||
+                                     (!bd.ReturnDate.HasValue && bd.Borrowing.DueDate.Date < now.Date) ||
+                                     bd.Borrowing.Status == "Overdue";
+
+                    // Tiền phạt của phiếu mượn tương ứng
+                    var borrowingFines = bd.Borrowing.FineReceipts?
+                        .Where(fr => fr.FinalAmount > 0)
+                        .Sum(fr => fr.FinalAmount) ?? 0m;
+
+                    if (borrowingFines > 0 && !isDamaged && !isOverdue)
+                    {
+                        isOverdue = true;
+                    }
+
+                    if (isOverdue) overdueCount++;
+                    if (isDamaged) damageCount++;
+                    totalFines += borrowingFines;
+                }
+
+                int totalViolations = overdueCount + damageCount;
+
+                string risk;
+                string riskClass;
+                if (totalViolations >= 5)
+                {
+                    risk = "Rất cao";
+                    riskClass = "risk-pill-high";
+                }
+                else if (totalViolations >= 3)
+                {
+                    risk = "Cao";
+                    riskClass = "risk-pill-medium";
+                }
+                else if (totalViolations >= 2)
+                {
+                    risk = "Trung bình";
+                    riskClass = "risk-pill-medium";
+                }
+                else
+                {
+                    risk = "Thấp";
+                    riskClass = "risk-pill-low";
+                }
+
+                string solution;
+                if (overdueCount >= damageCount)
+                {
+                    solution = "Tăng bản sao dự phòng & gửi nhắc nhở tự động trước 3 ngày";
+                }
+                else
+                {
+                    solution = "Kiểm tra kỹ hiện trạng sách khi giao nhận & cập nhật biên bản hư hỏng";
+                }
+
+                return new SmartLibAI.Core.DTOs.Invoices.TopViolatedBookDto
+                {
+                    BookId = book.BookID,
+                    CopyId = copy.CopyID,
+                    Title = book.Title,
+                    Barcode = copy.Barcode,
+                    Category = category,
+                    OverdueCount = overdueCount,
+                    DamageCount = damageCount,
+                    TotalFineAmount = totalFines,
+                    TotalFine = $"{totalFines:N0} đ",
+                    Risk = risk,
+                    RiskClass = riskClass,
+                    Solution = solution
+                };
+            })
+            .Where(b => (b.OverdueCount + b.DamageCount) > 0 || b.TotalFineAmount > 0)
+            .OrderByDescending(b => b.OverdueCount + b.DamageCount)
+            .ThenByDescending(b => b.TotalFineAmount)
+            .ThenBy(b => b.Barcode)
+            .ToList();
+
+        // Đánh số thứ tự xếp hạng (Id: 1, 2, 3...)
+        for (int i = 0; i < grouped.Count; i++)
+        {
+            grouped[i].Id = i + 1;
+        }
+
+        return grouped;
     }
 }
 

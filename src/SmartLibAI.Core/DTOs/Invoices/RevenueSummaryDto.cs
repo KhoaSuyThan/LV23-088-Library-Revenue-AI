@@ -59,6 +59,7 @@ public class RevenueSourceBreakdownDto
     public string SourceName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public double Percentage { get; set; }
+    public int CasesCount { get; set; }
 }
 
 /// <summary>
@@ -69,4 +70,24 @@ public class RevenueTrendPointDto
     public string DateLabel { get; set; } = string.Empty;
     public decimal ActualRevenue { get; set; }
     public decimal ExpectedRevenue { get; set; }
+}
+
+/// <summary>
+/// DTO thống kê đầu sách có tỷ lệ vi phạm (trễ hạn / hư hỏng / mất) cao nhất (BUG-043 & US-11.3).
+/// </summary>
+public class TopViolatedBookDto
+{
+    public int Id { get; set; }
+    public int BookId { get; set; }
+    public int CopyId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Barcode { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public int OverdueCount { get; set; }
+    public int DamageCount { get; set; }
+    public decimal TotalFineAmount { get; set; }
+    public string TotalFine { get; set; } = string.Empty;
+    public string Risk { get; set; } = string.Empty;
+    public string RiskClass { get; set; } = string.Empty;
+    public string Solution { get; set; } = string.Empty;
 }
