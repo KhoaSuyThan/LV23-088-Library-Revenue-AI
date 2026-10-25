@@ -66,7 +66,9 @@ CREATE TABLE Readers (
 CREATE TABLE Notifications (
     NotificationID INT IDENTITY(1,1) PRIMARY KEY,
     UserID INT NOT NULL,
+    Title NVARCHAR(200) NOT NULL DEFAULT N'Thông báo hệ thống',
     Message NVARCHAR(MAX) NOT NULL,
+    Type NVARCHAR(50) NOT NULL DEFAULT 'System',
     IsRead BIT DEFAULT 0,
     CreatedAt DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserID) REFERENCES Users(UserID)

@@ -324,6 +324,49 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
     }
 
     /// <summary>
+    /// Cập nhật trạng thái IsActive của User và ghi nhận thông báo trong một Transaction an toàn nguyên tử.
+    /// Nếu có bất kỳ lỗi nào phát sinh, toàn bộ thay đổi sẽ được Rollback, bảo toàn tính nguyên tử dữ liệu (BUG-028).
+    /// </summary>
+    public async Task<bool> UpdateUserLockStatusWithNotificationAsync(int userId, bool isActive, string message)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                user.IsActive = isActive;
+
+                var notif = new Notification
+                {
+                    UserID = userId,
+                    Title = isActive ? "Mở khóa thẻ thư viện" : "Khóa thẻ thư viện",
+                    Type = "System",
+                    Message = message,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _context.Notifications.AddAsync(notif);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
+
+    /// <summary>
     /// Thêm thông báo vào bảng Notifications cho người dùng.
     /// </summary>
     public async Task AddNotificationAsync(int userId, string message)
@@ -331,6 +374,8 @@ public class ReaderRepository : GenericRepository<Reader>, IReaderRepository
         var notif = new Notification
         {
             UserID = userId,
+            Title = "Thông báo hệ thống",
+            Type = "System",
             Message = message,
             IsRead = false,
             CreatedAt = DateTime.UtcNow

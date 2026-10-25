@@ -5,6 +5,19 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-028: Tính nguyên tử khi Khóa/Mở thẻ bạn đọc và đồng bộ trạng thái UI
+
+- **Bảo đảm tính nguyên tử khi khóa/mở thẻ ([`ReaderRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`ReaderService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)) - [P1]:**
+  - Khắc phục triệt để lỗi HTTP 500 khi gọi `PUT /api/readers/{id}/status` và `PUT /api/readers/{id}/toggle-lock`: Nguyên nhân do việc cập nhật `User.IsActive` được commit trước khi ghi thông báo `Notification`. Trên môi trường deploy, bảng `Notifications` có cột `Title NVARCHAR(200) NOT NULL` chưa có giá trị mặc định và thiếu thuộc tính tương ứng trong Entity `Notification`, khiến lệnh INSERT thông báo ném ngoại lệ dẫn đến lỗi HTTP 500 dù trạng thái thẻ đã bị lưu vào CSDL.
+  - Bổ sung phương thức `UpdateUserLockStatusWithNotificationAsync` sử dụng ExecutionStrategy và Transaction an toàn nguyên tử; nếu xảy ra lỗi ở bất kỳ bước nào, toàn bộ giao dịch được Rollback, giữ nguyên trạng thái cũ.
+  - Bổ sung trường `Title` và `Type` trong `Notification` entity, cấu hình `SmartLibDbContext` với giá trị mặc định, cập nhật đồng bộ các file schema `01_schema_smartlib_ai.sql` và `monsterasp_init_database.sql`.
+- **Cập nhật giao diện theo trạng thái đích và đồng bộ dữ liệu sau lỗi ([`ReaderProfiles.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/ReaderProfiles.jsx)):**
+  - Chuyển thao tác khóa/mở thẻ từ đảo mù (`toggleLock`) sang cập nhật trạng thái đích (`readerApi.setStatus(id, targetIsActive)`), ngăn ngừa hiện tượng đảo ngược trạng thái ngoài ý muốn.
+  - Loại bỏ hiển thị thông báo thành công lạc quan trước khi API phản hồi; thông báo thành công chỉ hiển thị sau khi luồng hoàn tất thành công.
+  - Bổ sung cơ chế tự động đọc lại trạng thái thực từ SQL Server khi gặp sự cố, đảm bảo danh sách và khung tóm tắt luôn đồng bộ chính xác với cơ sở dữ liệu.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReaderLockTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReaderLockTests.cs)):**
+  - Viết 8 bài kiểm thử xUnit bao phủ các ca: khóa thẻ thành công, mở khóa thẻ thành công, đảo trạng thái 2 chiều, xử lý khi độc giả không tồn tại, tính toàn vẹn khi transaction thất bại, và tính đúng đắn của DTO.
+
 ## [2026-10-23] - Khắc Phục Lỗi Máy Chủ 500 (InvalidCastException) Trong SmartLibDbContext
 
 - **Loại Bỏ HasConversion<int>() Cho Cột BIT Trong FineRules ([`SmartLibDbContext.cs`](src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)) - [P0]:**

@@ -186,7 +186,7 @@ CREATE TABLE AIPredictionLogs (
 CREATE TABLE Notifications (
     NotificationID INT IDENTITY(1,1) PRIMARY KEY,
     UserID INT NOT NULL,
-    Title NVARCHAR(200) NOT NULL,
+    Title NVARCHAR(200) NOT NULL DEFAULT N'Thông báo hệ thống',
     Message NVARCHAR(1000) NOT NULL,
     Type NVARCHAR(50) NOT NULL DEFAULT 'System',
     IsRead BIT NOT NULL DEFAULT 0,
