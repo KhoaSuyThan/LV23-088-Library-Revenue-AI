@@ -230,53 +230,65 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
             .Where(f => f.Status == "Pending")
             .SumAsync(f => (decimal?)f.FinalAmount) ?? 0m;
 
-        // 3. Tổng giá trị sách bị mất hoặc hư hỏng (không phải do trễ hạn thông thường)
-        var totalDamage = await _context.FineReceipts
-            .Where(f => f.FineRule != null &&
-                        !f.FineRule.RuleName.ToLower().Contains("trễ") &&
-                        !f.FineRule.RuleName.ToLower().Contains("overdue") &&
-                        !f.FineRule.RuleName.ToLower().Contains("quá hạn"))
-            .SumAsync(f => (decimal?)f.FinalAmount) ?? 0m;
-
-        // 4. Doanh thu hôm nay
+        // 3. Doanh thu hôm nay
         var todayCollected = await _context.PenaltyInvoices
             .Where(i => i.PaymentDate >= today)
             .SumAsync(i => (decimal?)i.AmountPaid) ?? 0m;
 
-        // 5. Đếm số lượng hóa đơn, số lượt phạt pending và số sách đang mượn quá hạn
+        // 4. Đếm số lượng hóa đơn, số lượt phạt pending và số sách đang mượn quá hạn
         var totalInvoicesCount = await _context.PenaltyInvoices.CountAsync();
         var totalPendingCount = await _context.FineReceipts.CountAsync(f => f.Status == "Pending");
         var overdueBorrowsCount = await _context.Borrowings
             .CountAsync(b => b.Status == "Active" && b.DueDate < now);
 
-        // 6. Tính toán cơ cấu nguồn thu (Overdue vs Damage vs Lost)
+        // 5. Tính toán cơ cấu nguồn thu từ toàn bộ hóa đơn kế toán thực tế (BUG-042 & US-11.3)
+        var allInvoices = await _context.PenaltyInvoices
+            .Include(i => i.FineReceipt)
+                .ThenInclude(fr => fr.FineRule)
+            .Include(i => i.FineReceipt)
+                .ThenInclude(fr => fr.Borrowing)
+                    .ThenInclude(b => b.BorrowingDetails)
+                        .ThenInclude(bd => bd.BookCopy)
+                            .ThenInclude(bc => bc.Book)
+            .ToListAsync();
+
+        decimal overdueRevenue = 0m;
+        decimal damageRevenue = 0m;
+        decimal lostRevenue = 0m;
+        decimal otherRevenue = 0m;
+
+        foreach (var inv in allInvoices)
+        {
+            var itemBreakdown = InvoiceRevenueClassifier.Classify(inv);
+            overdueRevenue += itemBreakdown.OverdueAmount;
+            damageRevenue += itemBreakdown.DamageAmount;
+            lostRevenue += itemBreakdown.LostAmount;
+            otherRevenue += itemBreakdown.OtherAmount;
+        }
+
+        // 6. Tổng giá trị sách bị mất hoặc hư hỏng (không phải do trễ hạn thông thường)
+        var allReceipts = await _context.FineReceipts
+            .Include(fr => fr.Borrowing)
+                .ThenInclude(b => b.BorrowingDetails)
+            .ToListAsync();
+
+        decimal totalDamage = 0m;
+        foreach (var fr in allReceipts)
+        {
+            var details = fr.Borrowing?.BorrowingDetails;
+            if (details != null && details.Any(d =>
+                !string.IsNullOrWhiteSpace(d.ItemStatus) &&
+                (d.ItemStatus.StartsWith("Damage", StringComparison.OrdinalIgnoreCase) ||
+                 d.ItemStatus.Equals("Lost", StringComparison.OrdinalIgnoreCase))))
+            {
+                totalDamage += fr.FinalAmount;
+            }
+        }
+
+        // 7. Tạo danh sách các nhóm cơ cấu nguồn thu (Segmented Breakdown)
         var breakdownList = new List<SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto>();
         var totalBaseForBreakdown = totalCollected > 0 ? totalCollected : 1m;
 
-        var overdueRevenue = await _context.PenaltyInvoices
-            .Where(i => i.FineReceipt.FineRule != null &&
-                        (i.FineReceipt.FineRule.RuleName.ToLower().Contains("trễ") ||
-                         i.FineReceipt.FineRule.RuleName.ToLower().Contains("overdue") ||
-                         i.FineReceipt.FineRule.RuleName.ToLower().Contains("quá hạn")))
-            .SumAsync(i => (decimal?)i.AmountPaid) ?? 0m;
-
-        var damageRevenue = await _context.PenaltyInvoices
-            .Where(i => i.FineReceipt.FineRule != null &&
-                        (i.FineReceipt.FineRule.RuleName.ToLower().Contains("hỏng") ||
-                         i.FineReceipt.FineRule.RuleName.ToLower().Contains("rách") ||
-                         i.FineReceipt.FineRule.RuleName.ToLower().Contains("damage")))
-            .SumAsync(i => (decimal?)i.AmountPaid) ?? 0m;
-
-        var lostRevenue = await _context.PenaltyInvoices
-            .Where(i => i.FineReceipt.FineRule != null &&
-                        (i.FineReceipt.FineRule.RuleName.ToLower().Contains("mất") ||
-                         i.FineReceipt.FineRule.RuleName.ToLower().Contains("lost")))
-            .SumAsync(i => (decimal?)i.AmountPaid) ?? 0m;
-
-        var otherRevenue = totalCollected - (overdueRevenue + damageRevenue + lostRevenue);
-        if (otherRevenue < 0) otherRevenue = 0;
-
-        // Nếu mới khởi tạo chưa có nhiều giao dịch, cung cấp tỷ lệ phân bổ mặc định dựa trên dữ liệu mẫu
         if (totalCollected == 0)
         {
             breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto { SourceName = "Phạt trễ hạn theo ngày", Amount = 10042500m, Percentage = 65.0 });
@@ -303,18 +315,15 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
                 Amount = lostRevenue,
                 Percentage = Math.Round((double)(lostRevenue / totalBaseForBreakdown * 100), 1)
             });
-            if (otherRevenue > 0)
+            breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto
             {
-                breakdownList.Add(new SmartLibAI.Core.DTOs.Invoices.RevenueSourceBreakdownDto
-                {
-                    SourceName = "Khoản thu khác",
-                    Amount = otherRevenue,
-                    Percentage = Math.Round((double)(otherRevenue / totalBaseForBreakdown * 100), 1)
-                });
-            }
+                SourceName = "Khoản thu khác",
+                Amount = otherRevenue,
+                Percentage = Math.Round((double)(otherRevenue / totalBaseForBreakdown * 100), 1)
+            });
         }
 
-        // 7. Tạo danh sách các điểm dữ liệu biểu đồ xu hướng (TrendPoints)
+        // 8. Tạo danh sách các điểm dữ liệu biểu đồ xu hướng (TrendPoints)
         var trendPoints = new List<SmartLibAI.Core.DTOs.Invoices.RevenueTrendPointDto>();
         // Lấy 6 mốc đại diện theo chu kỳ 5 ngày trong tháng
         var dates = new[] { 1, 5, 10, 15, 20, 25, 30 };
@@ -420,9 +429,7 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
             var user = reader?.User;
             var firstDetail = i.FineReceipt?.Borrowing?.BorrowingDetails?.FirstOrDefault();
             var book = firstDetail?.BookCopy?.Book;
-            var rule = i.FineReceipt?.FineRule;
-
-            var fineReasonLabel = rule?.RuleName ?? "Phạt vi phạm quy chế";
+            var itemBreakdown = InvoiceRevenueClassifier.Classify(i);
 
             return new SmartLibAI.Core.DTOs.Invoices.InvoiceHistoryDto
             {
@@ -437,8 +444,8 @@ public class InvoiceRepository : GenericRepository<PenaltyInvoice>, IInvoiceRepo
                 Department = DepartmentHelper.FormatDepartment(reader?.Faculty, reader?.MemberType),
                 BookTitle = book?.Title ?? "Tài liệu thư viện",
                 BookCode = firstDetail?.BookCopy?.Barcode ?? string.Empty,
-                FineReason = rule?.RuleName ?? "Overdue",
-                FineReasonLabel = fineReasonLabel,
+                FineReason = itemBreakdown.FineReasonCode,
+                FineReasonLabel = itemBreakdown.FineReasonLabel,
                 AmountPaid = i.AmountPaid,
                 PaymentMethod = i.PaymentMethod,
                 PaymentDate = i.PaymentDate,

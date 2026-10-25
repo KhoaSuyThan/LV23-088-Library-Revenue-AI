@@ -5,6 +5,26 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-042: Phân loại cơ cấu nguồn thu hóa đơn theo loại vi phạm thực tế chuẩn US-11.3
+
+- **Xây dựng bộ phân loại doanh thu thu phạt đa chiều ([`InvoiceRevenueClassifier.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Common/InvoiceRevenueClassifier.cs), [`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi biểu đồ cơ cấu nguồn thu tại `GET /api/invoices/summary`: Toàn bộ các khoản thu phạt trễ hạn hoàn trả sách bị dồn 100% vào nhóm "Khoản thu khác" / "Phí cấp lại thẻ & Vi phạm khác" (nhóm trễ hạn, hỏng, mất đều hiển thị 0đ). Nguyên nhân do logic cũ truy vấn từ khóa chuỗi trong bảng cấu hình quy định hệ thống `FineRule.RuleName` ("Quy định Thư viện Tiêu chuẩn"), vốn không chứa các từ khóa vi phạm cụ thể.
+  - Phân tích và bóc tách nguồn thu trực tiếp từ chi tiết phiếu mượn thực tế (`BorrowingDetails`), đối chiếu ngày hẹn trả `DueDate` với `ReturnDate`/`PaymentDate`, trạng thái bản sao (`Damaged`/`Lost`), và ghi chú nghiệp vụ hóa đơn:
+    - **Nhóm 1 - Phạt trễ hạn theo ngày**: Tự động bóc tách các khoản phạt do trả sách muộn quá hạn quy định (VD: ca DEMO0006 trễ 16 ngày thu 65.000đ tăng chính xác vào nhóm Trễ hạn; các ca nợ đọng PM-0199 255.000đ và PM-0200 235.000đ được ghi nhận đúng nhóm Trễ hạn thay vì nhóm Khác).
+    - **Nhóm 2 - Bồi hoàn sách rách/hỏng**: Ghi nhận từ các bản sao sách có tình trạng `Damaged` theo tỷ lệ quy định US-10.3.
+    - **Nhóm 3 - Đền bù sách mất**: Ghi nhận từ các bản sao sách có tình trạng `Lost`.
+    - **Nhóm 4 - Phí cấp lại thẻ & Vi phạm khác**: Ghi nhận các khoản lệ phí làm lại thẻ từ, vi phạm nội quy hành chính không thuộc lưu thông sách.
+  - **Hỗ trợ phân bổ tỷ lệ đối với trường hợp vi phạm kép (vừa trễ hạn vừa làm hỏng/mất sách):**
+    - Tự động phân bổ số tiền thực thu `AmountPaid` theo tỷ lệ nghĩa vụ gốc tương ứng của từng hành vi vi phạm sau khi đã trừ chiết khấu tín nhiệm/miễn giảm thủ công, đồng thời làm tròn chẵn hàng nghìn đồng theo đúng quy định tài chính kế toán Việt Nam.
+  - **Chuẩn hóa nhãn và mã lý do vi phạm trong lịch sử hóa đơn:**
+    - Cập nhật `FineReason` và `FineReasonLabel` trong `InvoiceHistoryDto` và `InvoiceResponseDto` phản ánh chính xác nội dung vi phạm (VD: `"Phạt trễ hạn hoàn trả sách (16 ngày)"`, `"Bồi hoàn làm hỏng/rách sách"`) thay vì hiển thị tên chung `"Quy định Thư viện Tiêu chuẩn"`.
+  - **Sửa chỉ số tổng giá trị sách tổn thất (`totalDamage`):**
+    - Truy vấn chính xác từ các biên lai có bản sao sách mang trạng thái `Damaged` hoặc `Lost`, loại trừ hoàn toàn các biên lai thuần trễ hạn.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`InvoiceRevenueBreakdownTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/InvoiceRevenueBreakdownTests.cs)):**
+  - Viết 6 ca kiểm thử tự động xUnit bao phủ: phân loại khoản thu thuần trễ hạn, thuần hư hỏng, thuần mất sách, vi phạm kép kèm phân bổ tỷ lệ sau giảm và làm tròn, phí dịch vụ thẻ, và cơ chế fallback.
+  - Toàn bộ 69 bài kiểm thử đơn vị xUnit và build frontend đều vượt qua thành công 100%.
+
+---
 ## [2026-10-25] - Khắc phục BUG-039: Chuẩn hóa mức phí phạt hư hỏng nhẹ 30% giá bìa theo chuẩn US-10.3
 
 - **Điều chỉnh mức phí phạt hư hỏng nhẹ từ 20% lên 30% theo chuẩn US-10.3 ([`FineRule.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`SystemRulesDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/SystemRulesDto.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**

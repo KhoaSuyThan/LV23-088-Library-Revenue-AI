@@ -70,9 +70,23 @@ public class InvoiceService : IInvoiceService
                 ? (int)(now - borrowing.DueDate).TotalDays
                 : 0;
 
-            var reason = daysOverdue > 0
-                ? $"Quá hạn {daysOverdue} ngày"
-                : r.FineRule?.RuleName ?? "Vi phạm quy định mượn trả";
+            var details = borrowing?.BorrowingDetails;
+            bool hasDamage = details != null && details.Any(d => !string.IsNullOrWhiteSpace(d.ItemStatus) && (d.ItemStatus.StartsWith("Damaged", StringComparison.OrdinalIgnoreCase) || d.ItemStatus.Equals("Damage", StringComparison.OrdinalIgnoreCase)));
+            bool hasLost = details != null && details.Any(d => !string.IsNullOrWhiteSpace(d.ItemStatus) && d.ItemStatus.Equals("Lost", StringComparison.OrdinalIgnoreCase));
+
+            string reason;
+            if (daysOverdue > 0 && hasDamage)
+                reason = $"Quá hạn {daysOverdue} ngày & hư hỏng sách";
+            else if (daysOverdue > 0 && hasLost)
+                reason = $"Quá hạn {daysOverdue} ngày & mất sách";
+            else if (daysOverdue > 0)
+                reason = $"Quá hạn {daysOverdue} ngày";
+            else if (hasLost)
+                reason = "Bồi thường làm mất tài liệu";
+            else if (hasDamage)
+                reason = "Bồi hoàn làm hỏng/rách sách";
+            else
+                reason = "Vi phạm quy định mượn trả";
 
             return new PendingFineDto
             {
@@ -156,15 +170,8 @@ public class InvoiceService : IInvoiceService
         var bookTitle = bookTitles.Any() ? string.Join(", ", bookTitles) : "Tài liệu thư viện";
         var borrowCode = borrowing != null ? $"PM-{borrowing.BorrowingID:D4}" : "PM-0000";
 
-        var daysOverdue = 0;
-        if (borrowing != null && invoice.PaymentDate > borrowing.DueDate)
-        {
-            daysOverdue = (int)(invoice.PaymentDate - borrowing.DueDate).TotalDays;
-        }
-
-        var reason = daysOverdue > 0
-            ? $"Phạt trễ hạn hoàn trả sách ({daysOverdue} ngày)"
-            : receipt?.FineRule?.RuleName ?? "Xử phạt vi phạm quy định thư viện";
+        var itemBreakdown = InvoiceRevenueClassifier.Classify(invoice);
+        var reason = itemBreakdown.FineReasonLabel;
 
         return new InvoiceResponseDto
         {
