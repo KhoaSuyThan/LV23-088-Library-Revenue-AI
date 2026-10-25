@@ -322,6 +322,12 @@ using (var scope = app.Services.CreateScope())
                     AiDiscount_90 DECIMAL(5,2) NOT NULL DEFAULT 10.0;
             END
 
+            -- Tự động kiểm tra và thêm cột RenewalCount cho bảng Borrowings (BUG-045 & US-08.2)
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Borrowings') AND name = 'RenewalCount')
+            BEGIN
+                ALTER TABLE Borrowings ADD RenewalCount INT NOT NULL DEFAULT 0;
+            END
+
             -- Chuẩn hóa mức phạt hư hỏng nhẹ theo US-10.3 (30% thay vì 20%)
             UPDATE FineRules SET DamageFeePercent = 30.0 WHERE DamageFeePercent = 20.0;
 

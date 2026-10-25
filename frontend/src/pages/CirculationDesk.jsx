@@ -155,7 +155,11 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
             damageFee: 0,
             overdueFee: feeAmount,
             bookId: firstItem?.bookID,
-            items: cleanItems // BUG-06: Đầy đủ 100% các cuốn sách mượn
+            items: cleanItems, // BUG-06: Đầy đủ 100% các cuốn sách mượn
+            renewalCount: item.renewalCount || 0,
+            maxRenewalTimes: item.maxRenewalTimes || (rules?.maxRenewalTimes ? Number(rules.maxRenewalTimes) : 1),
+            renewalExtraDays: item.renewalExtraDays || (rules?.renewalExtraDays ? Number(rules.renewalExtraDays) : 7),
+            canRenew: item.canRenew
           };
         });
         setTransactions(mapped);
@@ -271,6 +275,12 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
   // Xử lý khi hoàn tất tiếp nhận trả sách rải rác / theo đợt từ component ReturnProcessing (Story LOLRA-17)
   const handleReturnSuccessFromProcessing = (result) => {
     if (!result) return;
+
+    // Nếu chỉ là sự kiện gia hạn mượn sách thành công (BUG-045 & US-08.2)
+    if (result.isRenewOnly) {
+      loadRecentTransactions();
+      return;
+    }
 
     // Nếu người dùng chỉ bấm nút xem trước biểu mẫu phiếu trả sách A4 PDF
     if (result.isPreviewOnly) {
@@ -516,7 +526,18 @@ export default function CirculationDesk({ user, externalSearch = '' }) {
                         <span className="status-badge badge-success">Đã trả (Đã thu phạt)</span>
                       )}
                       {tx.status === 'borrowing' && (
-                        <span className="status-badge badge-borrowing">Đang mượn</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span className="status-badge badge-borrowing">Đang mượn</span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: tx.renewalCount > 0 ? '#1d4ed8' : '#64748b',
+                              fontWeight: tx.renewalCount > 0 ? 600 : 400
+                            }}
+                          >
+                            🔄 Gia hạn: {tx.renewalCount || 0}/{tx.maxRenewalTimes || 1}
+                          </span>
+                        </div>
                       )}
                     </td>
                     <td style={{ textAlign: 'right' }}>

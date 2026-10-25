@@ -69,6 +69,8 @@ public class BorrowEligibilityDebtTests
         public Task<List<Borrowing>> GetRecentBorrowingsAsync(int count = 20) => Task.FromResult(new List<Borrowing>());
         public Task<int> GetOverdueHistoryCountAsync(int readerId) => Task.FromResult(0);
         public Task AddAIPredictionLogAsync(AIPredictionLog log) => Task.CompletedTask;
+        public Task<Borrowing?> GetActiveBorrowingByBarcodeAsync(string barcode) => Task.FromResult<Borrowing?>(null);
+        public Task UpdateBorrowingAsync(Borrowing borrowing) => Task.CompletedTask;
 
         // Generic repo members
         public Task<Borrowing?> GetByIdAsync(int id) => Task.FromResult<Borrowing?>(null);

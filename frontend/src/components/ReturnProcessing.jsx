@@ -19,9 +19,11 @@ import {
   Scale,
   ShieldCheck,
   HelpCircle,
-  Bookmark
+  Bookmark,
+  RotateCcw
 } from 'lucide-react';
 import { returnApi } from '../api/returnApi';
+import { borrowApi } from '../api/borrowApi';
 import { invoiceApi } from '../api/invoiceApi';
 import { rulesApi } from '../api/rulesApi';
 import { playScannerBeep, generateBarcodeSvg } from '../utils/barcodeGenerator';
@@ -86,6 +88,11 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   // Modal hiển thị & in ấn hóa đơn thu tiền chuẩn K80 / A5 (Story LOLRA-19)
   const [paidInvoiceData, setPaidInvoiceData] = useState(null);
   const [showPaidReceiptModal, setShowPaidReceiptModal] = useState(false);
+
+  // Modal gia hạn mượn sách (BUG-045 & US-08.2)
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [renewalNote, setRenewalNote] = useState('');
 
   // Danh sách toàn bộ các cuốn sách trong phiếu mượn
   const bookList = React.useMemo(() => {
@@ -249,6 +256,56 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   const manualWaiverAmount = Math.round(((rawTotalFine * waiverDiscountPercent) / 100) / 1000) * 1000;
   const discountAmount = Math.min(rawTotalFine, creditDiscountAmount + manualWaiverAmount);
   const finalFine = Math.max(0, rawTotalFine - discountAmount);
+
+  // 4. Chính sách gia hạn mượn sách (BUG-045 & US-08.2)
+  const maxRenewalTimes = lookupData?.maxRenewalTimes ?? Number(systemRules?.maxRenewalTimes) ?? 1;
+  const renewalExtraDays = lookupData?.renewalExtraDays ?? Number(systemRules?.renewalExtraDays) ?? 7;
+  const renewalCount = lookupData?.renewalCount || 0;
+  const canRenew = lookupData?.canRenew ?? (overdueDays === 0 && renewalCount < maxRenewalTimes);
+  const renewalBlockReason = lookupData?.renewalBlockReason || (
+    overdueDays > 0
+      ? `Sách đã quá hạn ${overdueDays} ngày, quy định thư viện không cho phép gia hạn khi đã trễ hạn.`
+      : (renewalCount >= maxRenewalTimes
+          ? `Phiếu mượn đã hết lượt gia hạn tối đa (${maxRenewalTimes} lần).`
+          : null)
+  );
+
+  const handleExecuteRenewal = async () => {
+    if (!lookupData) return;
+    setIsRenewing(true);
+    try {
+      const res = await borrowApi.renewBorrow({
+        borrowingId: lookupData.borrowingId,
+        barcode: lookupData.barcode,
+        note: renewalNote
+      });
+      if (res && res.success) {
+        showToast?.(`✅ ${res.message || 'Gia hạn mượn sách thành công!'}`);
+        const addedDays = res.data?.extraDays || renewalExtraDays;
+        const currentDue = new Date(lookupData.dueDate);
+        const newDue = res.data?.newDueDate ? new Date(res.data.newDueDate) : new Date(currentDue.getTime() + addedDays * 86400000);
+        const newCount = res.data?.renewalCount ?? (renewalCount + 1);
+
+        setLookupData((prev) => ({
+          ...prev,
+          dueDate: newDue.toISOString(),
+          renewalCount: newCount,
+          canRenew: newCount < maxRenewalTimes && overdueDays === 0,
+          renewalBlockReason: newCount >= maxRenewalTimes ? `Đã hết lượt gia hạn tối đa (${maxRenewalTimes} lần).` : null
+        }));
+        setShowRenewalModal(false);
+        setRenewalNote('');
+        onReturnSuccess?.({ isRenewOnly: true });
+      } else {
+        showToast?.(`❌ ${res?.message || 'Không thể gia hạn mượn sách.'}`);
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Lỗi khi thực hiện gia hạn.';
+      showToast?.(`❌ ${errMsg}`);
+    } finally {
+      setIsRenewing(false);
+    }
+  };
 
   // Tra cứu thông tin sách đang mượn qua API Backend
   const handleLookup = async (codeToSearch) => {
@@ -672,6 +729,21 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
               <span className="meta-label">HẠN TRẢ DỰ KIẾN</span>
               <span className="meta-value">
                 {new Date(lookupData.dueDate).toLocaleDateString('vi-VN')}
+                <span
+                  style={{
+                    marginLeft: '8px',
+                    fontSize: '11px',
+                    padding: '2px 7px',
+                    borderRadius: '4px',
+                    backgroundColor: renewalCount > 0 ? '#eff6ff' : '#f8fafc',
+                    color: renewalCount > 0 ? '#1d4ed8' : '#475569',
+                    fontWeight: 700,
+                    border: `1px solid ${renewalCount > 0 ? '#bfdbfe' : '#e2e8f0'}`
+                  }}
+                  title={`Đã gia hạn ${renewalCount}/${maxRenewalTimes} lần (+${renewalExtraDays} ngày/lần)`}
+                >
+                  🔄 Gia hạn: {renewalCount}/{maxRenewalTimes}
+                </span>
               </span>
             </div>
           </div>
@@ -1064,6 +1136,19 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             </div>
 
             <div className="fine-actions-right">
+              {/* Nút Gia hạn mượn sách (BUG-045 & US-08.2) */}
+              <button
+                type="button"
+                className="btn-renew-borrow"
+                onClick={() => setShowRenewalModal(true)}
+                disabled={isSubmitting || isRenewing || !canRenew}
+                title={!canRenew ? (renewalBlockReason || 'Không đủ điều kiện gia hạn') : `Gia hạn mượn thêm ${renewalExtraDays} ngày theo quy chế`}
+              >
+                <RotateCcw size={15} />
+                <span>Gia hạn mượn</span>
+                <span className="renew-count-tag">{renewalCount}/{maxRenewalTimes}</span>
+              </button>
+
               {/* Nút Xem trước phiếu trả */}
               <button
                 type="button"
@@ -1133,6 +1218,112 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
             </div>
           </div>
         </section>
+      )}
+
+      {/* MODAL GIA HẠN MƯỢN SÁCH (BUG-045 & US-08.2) */}
+      {showRenewalModal && lookupData && (
+        <div className="modal-overlay" onClick={() => !isRenewing && setShowRenewalModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <div className="modal-title-wrap">
+                <RotateCcw size={20} style={{ color: '#2563eb' }} />
+                <h3>Gia hạn thời gian mượn sách</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => !isRenewing && setShowRenewalModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="modal-summary-box" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div className="modal-sum-row">
+                  <span>Mã phiếu mượn:</span>
+                  <strong>{lookupData.borrowCode}</strong>
+                </div>
+                <div className="modal-sum-row">
+                  <span>Bạn đọc:</span>
+                  <span>{lookupData.readerName} ({lookupData.readerCode})</span>
+                </div>
+                <div className="modal-sum-row">
+                  <span>Tài liệu:</span>
+                  <span style={{ fontWeight: 600, color: '#1e293b' }}>
+                    {booksToActuallyReturn[0]?.bookTitle || lookupData.bookTitle}
+                  </span>
+                </div>
+              </div>
+
+              {/* Bảng so sánh hạn trả trước và sau gia hạn */}
+              <div style={{ marginTop: '16px', padding: '14px', borderRadius: '8px', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>HẠN TRẢ HIỆN TẠI</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
+                      {new Date(lookupData.dueDate).toLocaleDateString('vi-VN')}
+                    </div>
+                  </div>
+                  <div style={{ color: '#2563eb', fontWeight: 800, fontSize: '16px' }}>
+                    ➔
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#1d4ed8', fontWeight: 600, marginBottom: '4px' }}>HẠN TRẢ MỚI (+{renewalExtraDays} NGÀY)</div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#1d4ed8' }}>
+                      {new Date(new Date(lookupData.dueDate).getTime() + renewalExtraDays * 86400000).toLocaleDateString('vi-VN')}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '10px', fontSize: '12px', color: '#1e40af', textAlign: 'center', fontWeight: 500 }}>
+                  Chính sách: Được gia hạn tối đa <strong>{maxRenewalTimes} lần</strong> (+{renewalExtraDays} ngày/lần). Lượt này: <strong>Lần {renewalCount + 1}/{maxRenewalTimes}</strong>.
+                </div>
+              </div>
+
+              {!canRenew && (
+                <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', gap: '8px', alignItems: 'center', color: '#991b1b', fontSize: '12.5px' }}>
+                  <AlertTriangle size={16} />
+                  <span>{renewalBlockReason || 'Không thể gia hạn phiếu mượn này.'}</span>
+                </div>
+              )}
+
+              <div style={{ marginTop: '14px' }}>
+                <label className="modal-field-label" style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  Ghi chú gia hạn (tùy chọn):
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nhập lý do gia hạn hoặc ghi chú của thủ thư..."
+                  value={renewalNote}
+                  onChange={(e) => setRenewalNote(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => setShowRenewalModal(false)}
+                disabled={isRenewing}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="btn-renew-borrow"
+                onClick={handleExecuteRenewal}
+                disabled={isRenewing || !canRenew}
+                style={{ padding: '8px 18px' }}
+              >
+                {isRenewing ? <Loader2 size={15} className="spin-icon" /> : <CheckCircle2 size={15} />}
+                <span>{isRenewing ? 'Đang gia hạn...' : 'Xác nhận gia hạn'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL MIỄN GIẢM TIỀN PHẠT */}

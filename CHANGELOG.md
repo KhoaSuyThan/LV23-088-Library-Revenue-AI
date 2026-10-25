@@ -5,6 +5,31 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-25] - Khắc phục BUG-045: Bổ sung chức năng Gia hạn mượn sách chuẩn quy chế thư viện US-08.2
+
+- **Hiện thực hóa quy trình gia hạn mượn sách tại quầy và API lưu thông ([`IBorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IBorrowService.cs), [`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowsController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`Borrowing.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/Borrowing.cs), [`RenewBorrowDtos.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/RenewBorrowDtos.cs)) - [S3 | P2]:**
+  - **Khắc phục thiếu sót chức năng**: Tại `/settings` (Tab *Hạn mượn & Gia hạn*), quản trị viên có đầy đủ thông số cấu hình "Số lần gia hạn tối đa" (`MaxRenewalTimes`, mặc định 1 lần) và "Số ngày thêm mỗi lần" (`RenewalExtraDays`, mặc định 7 ngày), nhưng trên hệ thống mượn/trả sách lại chưa có chức năng gia hạn tương ứng.
+  - Bổ sung trường `RenewalCount` (kiểu `INT NOT NULL DEFAULT 0`) vào bảng `Borrowings` và cấu hình DbContext, kèm script tự động kiểm tra/bổ sung cột khi khởi động API.
+  - Xây dựng hai endpoint gia hạn: `POST /api/borrows/renew` và `POST /api/borrows/{id}/renew` hỗ trợ cả mã phiếu mượn `BorrowingId` hoặc quét mã vạch bản sao `Barcode`.
+  - **Xây dựng chặt chẽ bộ quy tắc kiểm soát điều kiện gia hạn (US-08.2):**
+    - Chỉ cho phép gia hạn đối với các phiếu mượn đang hoạt động (`Status == "Active"`).
+    - **Chặn khi quá hạn**: Nếu sách đã quá hạn hẹn trả (`overdueDays > 0`), hệ thống từ chối gia hạn theo đúng quy chế thư viện, yêu cầu bạn đọc làm thủ tục trả sách và nộp phạt nếu có.
+    - **Chặn khi hết lượt**: Giới hạn số lần gia hạn không vượt quá `FineRule.MaxRenewalTimes` (mặc định 1 lần). Thử gia hạn lần thứ 2 sẽ bị từ chối với HTTP 400.
+    - **Kiểm soát bạn đọc**: Chặn gia hạn khi tài khoản thẻ thư viện bị khóa (`IsActive == false`) hoặc nợ phạt vượt quá ngưỡng cho phép (`DebtLockAmount > 50.000đ`).
+    - **Cộng hạn trả chuẩn xác**: Khi gia hạn thành công, hạn trả mới `DueDate` được cộng thêm chính xác `FineRule.RenewalExtraDays` ngày (+7 ngày) và tăng `RenewalCount` thêm 1.
+- **Tích hợp giao diện Quầy Lưu Thông & Tiếp Nhận Trả Sách ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`CirculationDesk.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), [`CirculationDesk.css`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.css), [`borrowApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/borrowApi.js)):**
+  - Trong màn tiếp nhận trả sách (`ReturnProcessing.jsx`):
+    - Hiển thị thông số gia hạn tại thẻ siêu dữ liệu hạn trả: `🔄 Gia hạn: X/Y lần`.
+    - Bổ sung nút **"Gia hạn mượn"** (`btn-renew-borrow`) trong cụm thao tác nhanh, có huy hiệu lượt gia hạn và tooltip trạng thái. Nút tự động vô hiệu hóa nếu sách quá hạn hoặc hết lượt.
+    - Xây dựng **Modal Xác nhận Gia hạn mượn sách**: Hiển thị bảng so sánh trực quan Hạn trả hiện tại ➔ Hạn trả mới (+7 ngày), thông tin bạn đọc, đầu sách, số lượt còn lại và ô nhập ghi chú của thủ thư.
+  - Trong bảng giao dịch trong ngày (`CirculationDesk.jsx`):
+    - Bổ sung trạng thái lượt gia hạn `🔄 Gia hạn: X/Y` cho các dòng phiếu mượn đang lưu thông. Tự động làm mới danh sách giao dịch ngay sau khi gia hạn thành công.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`BorrowRenewalTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/BorrowRenewalTests.cs)):**
+  - Viết 6 ca kiểm thử xUnit bao phủ 100% các kịch bản: gia hạn thành công theo ID và theo mã vạch, từ chối khi sách quá hạn, từ chối khi vượt quá số lần gia hạn tối đa, từ chối khi thẻ bị khóa, từ chối khi nợ phạt vượt ngưỡng 50.000đ.
+  - Chạy kịch bản kiểm thử tích hợp End-to-End thành công trên API Backend thực tế (PM-0202: Hạn trả 08/11 ➔ gia hạn thành 15/11 (+7 ngày), lượt 1/1; lần 2 bị chặn với mã 400).
+  - Toàn bộ 78/78 bài kiểm thử đơn vị xUnit vượt qua thành công 100%. Build frontend Vite hoàn tất trong 834ms.
+
+---
 ## [2026-10-25] - Khắc phục BUG-043: Thống kê vi phạm động từ CSDL và nối đúng tên sách theo mã vạch chuẩn US-11.3
 
 - **Nối danh mục sách thực tế và tính số vụ vi phạm động ([`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), [`InvoicesController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs)) - [S2 | P1]:**

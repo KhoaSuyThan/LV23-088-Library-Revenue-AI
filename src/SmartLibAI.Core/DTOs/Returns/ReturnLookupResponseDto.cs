@@ -120,6 +120,31 @@ public class ReturnLookupResponseDto
     public int ReturnedItemsCount { get; set; }
 
     /// <summary>
+    /// Số lần phiếu mượn này đã được gia hạn (BUG-045 & US-08.2).
+    /// </summary>
+    public int RenewalCount { get; set; } = 0;
+
+    /// <summary>
+    /// Số lần gia hạn tối đa được cấu hình theo FineRules (mặc định 1).
+    /// </summary>
+    public int MaxRenewalTimes { get; set; } = 1;
+
+    /// <summary>
+    /// Số ngày gia hạn thêm mỗi lần theo cấu hình FineRules (mặc định 7).
+    /// </summary>
+    public int RenewalExtraDays { get; set; } = 7;
+
+    /// <summary>
+    /// Cho biết phiếu mượn này có đủ điều kiện gia hạn hay không.
+    /// </summary>
+    public bool CanRenew { get; set; } = true;
+
+    /// <summary>
+    /// Lý do không thể gia hạn nếu CanRenew = false.
+    /// </summary>
+    public string? RenewalBlockReason { get; set; }
+
+    /// <summary>
     /// Danh sách chi tiết toàn bộ các cuốn sách thuộc phiếu mượn này (phục vụ trả sách nhiều cuốn).
     /// </summary>
     public List<ReturnLookupItemDto> Items { get; set; } = new();

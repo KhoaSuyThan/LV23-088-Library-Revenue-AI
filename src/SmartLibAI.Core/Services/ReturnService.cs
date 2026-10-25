@@ -138,6 +138,20 @@ public class ReturnService : IReturnService
             CurrentItemStatus = detail.ItemStatus,
             TotalItemsInBorrowing = totalItems,
             ReturnedItemsCount = returnedItems,
+            RenewalCount = borrowing.RenewalCount,
+            MaxRenewalTimes = rule?.MaxRenewalTimes ?? 1,
+            RenewalExtraDays = rule?.RenewalExtraDays ?? 7,
+            CanRenew = overdueDays == 0
+                       && borrowing.RenewalCount < (rule?.MaxRenewalTimes ?? 1)
+                       && (reader?.User?.IsActive ?? true)
+                       && string.Equals(borrowing.Status, "Active", StringComparison.OrdinalIgnoreCase),
+            RenewalBlockReason = overdueDays > 0
+                ? "Sách đã quá hạn, quy chế thư viện không cho phép gia hạn khi đã trễ hạn."
+                : (borrowing.RenewalCount >= (rule?.MaxRenewalTimes ?? 1)
+                    ? $"Phiếu mượn đã hết lượt gia hạn tối đa ({rule?.MaxRenewalTimes ?? 1} lần)."
+                    : (!(reader?.User?.IsActive ?? true)
+                        ? "Thẻ bạn đọc đang bị khóa."
+                        : (!string.Equals(borrowing.Status, "Active", StringComparison.OrdinalIgnoreCase) ? "Phiếu mượn không ở trạng thái hoạt động." : null))),
             // Nạp danh sách tất cả các cuốn sách của phiếu mượn để xử lý trả nhiều cuốn
             Items = allDetails.Select(d =>
             {

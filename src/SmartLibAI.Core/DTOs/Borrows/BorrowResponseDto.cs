@@ -59,6 +59,17 @@ public class BorrowResponseDto
 
     public string Status { get; set; } = "Active";
 
+    /// <summary>
+    /// Số lần phiếu mượn này đã được gia hạn (BUG-045 & US-08.2).
+    /// </summary>
+    public int RenewalCount { get; set; } = 0;
+
+    public int MaxRenewalTimes { get; set; } = 1;
+
+    public int RenewalExtraDays { get; set; } = 7;
+
+    public bool CanRenew { get; set; } = true;
+
     public int TotalItems { get; set; }
 
     public List<BorrowItemDto> Items { get; set; } = new();

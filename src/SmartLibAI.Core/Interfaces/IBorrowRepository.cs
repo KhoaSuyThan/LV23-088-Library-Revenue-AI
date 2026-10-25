@@ -56,4 +56,14 @@ public interface IBorrowRepository : IGenericRepository<Borrowing>
     /// Lưu nhật ký dự đoán rủi ro của AI vào bảng AIPredictionLogs.
     /// </summary>
     Task AddAIPredictionLogAsync(AIPredictionLog log);
+
+    /// <summary>
+    /// Tìm phiếu mượn đang hoạt động theo mã vạch bản sao sách (Barcode).
+    /// </summary>
+    Task<Borrowing?> GetActiveBorrowingByBarcodeAsync(string barcode);
+
+    /// <summary>
+    /// Cập nhật thông tin phiếu mượn và lưu thay đổi vào CSDL.
+    /// </summary>
+    Task UpdateBorrowingAsync(Borrowing borrowing);
 }
