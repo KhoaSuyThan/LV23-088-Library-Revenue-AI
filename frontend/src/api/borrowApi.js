@@ -47,5 +47,18 @@ export const borrowApi = {
   lookupBarcode: async (barcode) => {
     const response = await apiClient.get(`/api/BookCopies/lookup?barcode=${encodeURIComponent(barcode)}`);
     return response.data;
+  },
+
+  /**
+   * Gia hạn phiếu mượn sách theo ID phiếu hoặc mã vạch bản sao (POST /api/borrows/renew)
+   * @param {{ borrowingId?: number, barcode?: string, note?: string }} data
+   */
+  renewBorrow: async (data) => {
+    if (data?.borrowingId) {
+      const response = await apiClient.post(`/api/borrows/${data.borrowingId}/renew`, data);
+      return response.data;
+    }
+    const response = await apiClient.post('/api/borrows/renew', data);
+    return response.data;
   }
 };

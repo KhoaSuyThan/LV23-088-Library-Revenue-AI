@@ -143,6 +143,8 @@ public class NotificationService : INotificationService
                     notificationsToCreate.Add(new Notification
                     {
                         UserID = librarian.UserID,
+                        Title = "Cảnh báo mượn sách trễ hạn",
+                        Type = isOverdue ? "Overdue" : (remainingDays <= daysBeforeWindow ? "DueSoon" : "AIRisk"),
                         Message = message,
                         IsRead = false,
                         CreatedAt = DateTime.UtcNow

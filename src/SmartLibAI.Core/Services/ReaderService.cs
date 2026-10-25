@@ -275,14 +275,24 @@ public class ReaderService : IReaderService
     public async Task<ApiResponse<ReaderDto>> ToggleCardStatusAsync(int readerId, ToggleReaderStatusDto request)
     {
         var reader = await _readerRepository.GetReaderDetailByIdAsync(readerId);
-        if (reader == null)
+        if (reader == null || reader.User == null)
         {
             return ApiResponse<ReaderDto>.ErrorResult($"Không tìm thấy độc giả với ID {readerId}");
         }
 
-        // Cập nhật trạng thái kích hoạt tài khoản
+        var actionText = request.IsActive ? "Mở khóa thẻ thành công" : "Khóa thẻ bạn đọc thành công";
+        var note = !string.IsNullOrWhiteSpace(request.Reason) ? $" (Lý do: {request.Reason})" : string.Empty;
+        var notifMsg = $"Đã {(request.IsActive ? "mở khóa" : "khóa")} thẻ thư viện của độc giả {reader.User.FullName} ({reader.ReaderCode}){note}.";
+
+        // Cập nhật trạng thái kích hoạt tài khoản và ghi thông báo trong giao dịch nguyên tử (BUG-028)
+        var updated = await _readerRepository.UpdateUserLockStatusWithNotificationAsync(reader.UserID, request.IsActive, notifMsg);
+        if (!updated)
+        {
+            return ApiResponse<ReaderDto>.ErrorResult("Không thể cập nhật trạng thái thẻ độc giả.");
+        }
+
+        // Cập nhật trạng thái in-memory để ánh xạ DTO chính xác
         reader.User.IsActive = request.IsActive;
-        await _readerRepository.UpdateAsync(reader);
 
         var bCount = (await _readerRepository.GetActiveBorrowingsByReaderIdAsync(readerId)).Count;
         var fTotal = await _readerRepository.GetUnpaidFineAmountByReaderIdAsync(readerId);
@@ -312,14 +322,12 @@ public class ReaderService : IReaderService
             CreatedAt = reader.User.CreatedAt
         };
 
-        var actionText = request.IsActive ? "Mở khóa thẻ thành công" : "Khóa thẻ bạn đọc thành công";
-        var note = !string.IsNullOrWhiteSpace(request.Reason) ? $" (Lý do: {request.Reason})" : string.Empty;
-
         return ApiResponse<ReaderDto>.SuccessResult(dto, $"{actionText}{note}. Trạng thái mới: {status}.");
     }
 
     /// <summary>
     /// Thao tác Khóa / Mở khóa thẻ độc giả ngay lập tức trong SQL Server (đổi IsActive của User - L0LRA-71).
+    /// Sử dụng giao dịch nguyên tử đảm bảo tính nhất quán giữa trạng thái người dùng và thông báo hệ thống (BUG-028).
     /// </summary>
     public async Task<ApiResponse<ToggleLockResponseDto>> ToggleLockAsync(int readerId)
     {
@@ -330,18 +338,15 @@ public class ReaderService : IReaderService
         }
 
         var newIsActive = !reader.User.IsActive;
-        var updated = await _readerRepository.UpdateUserActiveStatusAsync(reader.UserID, newIsActive);
-        if (!updated)
-        {
-            return ApiResponse<ToggleLockResponseDto>.ErrorResult("Không thể cập nhật trạng thái thẻ độc giả.");
-        }
-
-        // Ghi thông báo hệ thống nếu bị khóa thẻ
         var msg = newIsActive
             ? $"Đã mở khóa thẻ thư viện cho độc giả {reader.User.FullName} ({reader.ReaderCode}). Độc giả đã có thể tiếp tục mượn sách."
             : $"Đã khóa thẻ thư viện của độc giả {reader.User.FullName} ({reader.ReaderCode}). Độc giả bị chặn mượn sách tại quầy lưu thông.";
 
-        await _readerRepository.AddNotificationAsync(reader.UserID, msg);
+        var updated = await _readerRepository.UpdateUserLockStatusWithNotificationAsync(reader.UserID, newIsActive, msg);
+        if (!updated)
+        {
+            return ApiResponse<ToggleLockResponseDto>.ErrorResult("Không thể cập nhật trạng thái thẻ độc giả.");
+        }
 
         var responseDto = new ToggleLockResponseDto
         {
@@ -358,6 +363,7 @@ public class ReaderService : IReaderService
 
     /// <summary>
     /// Đặt trạng thái khóa thẻ độc giả theo giá trị chỉ định (L0LRA-71).
+    /// Sử dụng giao dịch nguyên tử đảm bảo tính nhất quán và nguyên tử khi khóa/mở thẻ (BUG-028).
     /// </summary>
     public async Task<ApiResponse<ToggleLockResponseDto>> SetLockStatusAsync(int readerId, bool isActive)
     {
@@ -367,17 +373,15 @@ public class ReaderService : IReaderService
             return ApiResponse<ToggleLockResponseDto>.ErrorResult($"Không tìm thấy độc giả với ID: {readerId}.");
         }
 
-        var updated = await _readerRepository.UpdateUserActiveStatusAsync(reader.UserID, isActive);
-        if (!updated)
-        {
-            return ApiResponse<ToggleLockResponseDto>.ErrorResult("Không thể cập nhật trạng thái thẻ độc giả.");
-        }
-
         var msg = isActive
             ? $"Đã mở khóa thẻ thư viện cho độc giả {reader.User.FullName} ({reader.ReaderCode})."
             : $"Đã khóa thẻ thư viện của độc giả {reader.User.FullName} ({reader.ReaderCode}).";
 
-        await _readerRepository.AddNotificationAsync(reader.UserID, msg);
+        var updated = await _readerRepository.UpdateUserLockStatusWithNotificationAsync(reader.UserID, isActive, msg);
+        if (!updated)
+        {
+            return ApiResponse<ToggleLockResponseDto>.ErrorResult("Không thể cập nhật trạng thái thẻ độc giả.");
+        }
 
         var responseDto = new ToggleLockResponseDto
         {
@@ -622,6 +626,9 @@ public class ReaderService : IReaderService
         var avatarIndex = Math.Abs(reader.ReaderID - 1) % SampleAvatars.Length;
         var avatarUrl = SampleAvatars[avatarIndex];
 
+        var isActive = user?.IsActive ?? true;
+        string calculatedStatus = !isActive ? "Locked" : (reader.ExpiryDate < now ? "Expired" : "Active");
+
         return new ReaderDto
         {
             ReaderID = reader.ReaderID,
@@ -633,7 +640,8 @@ public class ReaderService : IReaderService
             Faculty = reader.Faculty ?? "CNTT",
             ClassGroup = reader.ClassGroup ?? "K21-CC",
             MemberType = reader.MemberType,
-            IsActive = user?.IsActive ?? true,
+            IsActive = isActive,
+            Status = calculatedStatus,
             ExpiryDate = reader.ExpiryDate,
             CreditScore = reader.CreditScore,
             FineDebtRaw = fineDebtRaw,

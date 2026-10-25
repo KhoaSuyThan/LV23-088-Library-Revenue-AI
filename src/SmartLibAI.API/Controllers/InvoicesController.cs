@@ -145,4 +145,21 @@ public class InvoicesController : ControllerBase
         var result = await _invoiceService.GetAiForecastReadersAsync();
         return Ok(result);
     }
+
+    /// <summary>
+    /// Thống kê danh sách Top đầu sách có số vụ vi phạm (quá hạn, hư hỏng, mất) và tiền phạt cao nhất (BUG-043 & US-11.3).
+    /// </summary>
+    /// <param name="timeRange">Khoảng thời gian (7d, 30d, quarter, year, all)</param>
+    /// <param name="fromDate">Từ ngày tùy chọn (UTC)</param>
+    /// <param name="toDate">Đến ngày tùy chọn (UTC)</param>
+    [HttpGet("top-violated-books")]
+    [ProducesResponseType(typeof(ApiResponse<List<TopViolatedBookDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTopViolatedBooks(
+        [FromQuery] string? timeRange = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+    {
+        var result = await _invoiceService.GetTopViolatedBooksAsync(timeRange, fromDate, toDate);
+        return Ok(result);
+    }
 }

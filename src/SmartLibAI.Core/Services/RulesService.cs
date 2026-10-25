@@ -60,8 +60,10 @@ public class RulesService : IRulesService
             return ApiResponse<SystemRulesDto>.ErrorResult("Ngưỡng kích hoạt rủi ro AI phải từ 1% đến 100%.");
         if (request.AiRemindDaysBefore.HasValue && (request.AiRemindDaysBefore.Value < 1 || request.AiRemindDaysBefore.Value > 30))
             return ApiResponse<SystemRulesDto>.ErrorResult("Số ngày gửi nhắc nhở AI phải từ 1 đến 30 ngày.");
+        if (request.AiDiscount_90.HasValue && (request.AiDiscount_90.Value < 0 || request.AiDiscount_90.Value > 100))
+            return ApiResponse<SystemRulesDto>.ErrorResult("Tỷ lệ giảm trừ tín nhiệm tốt (80-89 điểm) phải từ 0% đến 100%.");
         if (request.AiDiscount_100.HasValue && (request.AiDiscount_100.Value < 0 || request.AiDiscount_100.Value > 100))
-            return ApiResponse<SystemRulesDto>.ErrorResult("Tỷ lệ giảm trừ tiền phạt phải từ 0% đến 100%.");
+            return ApiResponse<SystemRulesDto>.ErrorResult("Tỷ lệ giảm trừ tín nhiệm xuất sắc (90-100 điểm) phải từ 0% đến 100%.");
 
         // 2. Lấy quy định hiện hành trong CSDL
         var rule = await _rulesRepository.GetActiveFineRuleAsync();
@@ -371,7 +373,7 @@ public class RulesService : IRulesService
             auditLogs.Add(new RuleAuditLog
             {
                 RuleKey = "aiDiscount_90",
-                RuleName = "Chiết khấu AI điểm rèn luyện tốt (90-99)",
+                RuleName = "Chiết khấu tín nhiệm tốt (80-89 điểm)",
                 OldValue = $"{rule.AiDiscount_90}%",
                 NewValue = $"{request.AiDiscount_90.Value}%",
                 ChangedBy = actor,
@@ -386,7 +388,7 @@ public class RulesService : IRulesService
             auditLogs.Add(new RuleAuditLog
             {
                 RuleKey = "aiDiscount_100",
-                RuleName = "Chiết khấu AI điểm rèn luyện tối đa",
+                RuleName = "Chiết khấu tín nhiệm xuất sắc (90-100 điểm)",
                 OldValue = $"{rule.ConductScoreDiscountPercent}%",
                 NewValue = $"{request.AiDiscount_100.Value}%",
                 ChangedBy = actor,
@@ -441,7 +443,7 @@ public class RulesService : IRulesService
         rule.StudentBorrowDays = 14;
         rule.LecturerBorrowLimit = 10;
         rule.LecturerBorrowDays = 30;
-        rule.DamageFeePercent = 20.0m;
+        rule.DamageFeePercent = 30.0m;
         rule.DamageMediumPercent = 40.0m;
         rule.DamageSeverePercent = 110.0m;
         rule.ConductScoreDiscountPercent = 20.0m;

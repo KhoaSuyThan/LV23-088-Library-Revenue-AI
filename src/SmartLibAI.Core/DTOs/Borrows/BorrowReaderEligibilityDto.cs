@@ -40,14 +40,25 @@ public class BorrowReaderEligibilityDto
     public decimal UnpaidFineAmount { get; set; }
 
     /// <summary>
+    /// Ngưỡng nợ phạt tối đa cho phép trước khi bị chặn quyền mượn sách (mặc định 50.000 VNĐ theo US-08.1).
+    /// </summary>
+    public decimal DebtLockThreshold { get; set; } = 50000m;
+
+    /// <summary>
+    /// Cho biết độc giả có bị chặn quyền mượn do nợ vượt quá ngưỡng cho phép hay không (> DebtLockThreshold).
+    /// </summary>
+    public bool IsDebtBlocked => UnpaidFineAmount > DebtLockThreshold;
+
+    /// <summary>
     /// Số ngày mượn tiêu chuẩn áp dụng cho đối tượng bạn đọc này theo cấu hình hệ thống.
     /// </summary>
     public int StandardBorrowDays { get; set; } = 14;
 
     /// <summary>
-    /// Cho biết độc giả có đủ điều kiện tạo phiếu mượn mới hay không.
+    /// Cho biết độc giả có đủ điều kiện tạo phiếu mượn mới hay không (US-08.1).
+    /// Giữ độc lập điều kiện thẻ khóa/hết hạn; chỉ chặn do nợ khi tổng nợ phạt vượt quá ngưỡng 50.000 VNĐ.
     /// </summary>
-    public bool CanBorrow => IsActive && !IsExpired && !HasUnpaidFines && RemainingBorrowLimit > 0;
+    public bool CanBorrow => IsActive && !IsExpired && !IsDebtBlocked && RemainingBorrowLimit > 0;
 
     /// <summary>
     /// Điểm tín nhiệm của độc giả (0 - 100)

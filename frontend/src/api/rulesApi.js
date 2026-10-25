@@ -13,7 +13,7 @@ const DEFAULT_SYSTEM_RULES = {
 
   // Biểu phí phạt vi phạm (chuẩn CSDL FineRules)
   finePerDay: 5000,
-  damagePenaltyPercent: 20,
+  damagePenaltyPercent: 30,
   damageMediumPercent: 40,
   damageSeverePercent: 110,
   compensationBasePercent: 110,
@@ -96,9 +96,19 @@ const DEFAULT_AUDIT_HISTORY = [
   {
     id: 103,
     ruleKey: 'aiDiscount_100',
-    ruleName: 'Chiết khấu AI điểm tuyệt đối (100 điểm)',
+    ruleName: 'Chiết khấu tín nhiệm xuất sắc (90-100 điểm)',
     oldValue: '15%',
     newValue: '20%',
+    changedBy: 'Thủ thư (Admin)',
+    changedAt: '15/09/2026 09:20:00',
+    ipAddress: '192.168.1.45'
+  },
+  {
+    id: 105,
+    ruleKey: 'aiDiscount_90',
+    ruleName: 'Chiết khấu tín nhiệm tốt (80-89 điểm)',
+    oldValue: '5%',
+    newValue: '10%',
     changedBy: 'Thủ thư (Admin)',
     changedAt: '15/09/2026 09:20:00',
     ipAddress: '192.168.1.45'
@@ -128,9 +138,12 @@ let inflightRulesPromise = null;
  */
 export const rulesApi = {
   // Lấy toàn bộ cấu hình quy định hiện hành (có cache 30 giây trong RAM)
-  getSystemRules: async (forceRefresh = false) => {
+  getSystemRules: async (forceRefresh = false, throwOnError = false) => {
     const now = Date.now();
     if (!forceRefresh && cachedRulesData && now < cachedRulesExpiry) {
+      if (throwOnError && cachedRulesData._isFallback) {
+        throw new Error(cachedRulesData._loadError || 'Không thể tải quy chế từ máy chủ');
+      }
       return cachedRulesData;
     }
 
@@ -142,14 +155,19 @@ export const rulesApi = {
       try {
         const response = await apiClient.get('/api/rules');
         const data = response.data?.data ?? response.data;
-        cachedRulesData = data;
+        cachedRulesData = { ...data, _isLoadedFromServer: true, _isFallback: false };
         cachedRulesExpiry = Date.now() + 30000; // Cache 30 giây
-        return data;
-      } catch {
+        return cachedRulesData;
+      } catch (err) {
+        console.error('Lỗi khi tải cấu hình quy chế từ máy chủ (GET /api/rules):', err);
+        // BUG-036: Không âm thầm giả lập dữ liệu mặc định như chính sách hiệu lực nếu người gọi yêu cầu báo lỗi
+        if (throwOnError) {
+          throw err;
+        }
         const saved = localStorage.getItem(LOCAL_STORAGE_RULES_KEY);
         if (saved) {
           try {
-            const data = { ...DEFAULT_SYSTEM_RULES, ...JSON.parse(saved) };
+            const data = { ...DEFAULT_SYSTEM_RULES, ...JSON.parse(saved), _isFallback: true, _loadError: err.message };
             cachedRulesData = data;
             cachedRulesExpiry = Date.now() + 10000;
             return data;
@@ -157,8 +175,8 @@ export const rulesApi = {
             // ignore
           }
         }
-        cachedRulesData = DEFAULT_SYSTEM_RULES;
-        return DEFAULT_SYSTEM_RULES;
+        cachedRulesData = { ...DEFAULT_SYSTEM_RULES, _isFallback: true, _loadError: err.message };
+        return cachedRulesData;
       } finally {
         inflightRulesPromise = null;
       }

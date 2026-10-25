@@ -36,6 +36,26 @@ public class ReturnLookupResponseDto
     /// </summary>
     public string Department { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Điểm tín nhiệm của độc giả (0 - 100).
+    /// </summary>
+    public int CreditScore { get; set; } = 100;
+
+    /// <summary>
+    /// Tỷ lệ chiết khấu tự động theo điểm tín nhiệm độc giả (80-89: 10%; 90-100: 20%).
+    /// </summary>
+    public decimal CreditDiscountPercent { get; set; } = 0m;
+
+    /// <summary>
+    /// Số tiền được giảm trừ tự động theo điểm tín nhiệm.
+    /// </summary>
+    public decimal CreditDiscountAmount { get; set; } = 0m;
+
+    /// <summary>
+    /// Tiền phạt ước tính sau khi trừ chiết khấu tín nhiệm tự động.
+    /// </summary>
+    public decimal EstimatedFinalFine { get; set; } = 0m;
+
     public DateTime BorrowDate { get; set; }
 
     public DateTime DueDate { get; set; }
@@ -74,9 +94,9 @@ public class ReturnLookupResponseDto
     public decimal DamageMultiplier { get; set; } = 1.0m;
 
     /// <summary>
-    /// Mức phạt hư hỏng nhẹ từ bảng FineRules (mặc định 20%).
+    /// Mức phạt hư hỏng nhẹ từ bảng FineRules (chuẩn US-10.3 mặc định 30%).
     /// </summary>
-    public decimal DamageFeePercent { get; set; } = 20.0m;
+    public decimal DamageFeePercent { get; set; } = 30.0m;
 
     /// <summary>
     /// Mức phạt hư hỏng vừa từ bảng FineRules (mặc định 40%).
@@ -98,6 +118,31 @@ public class ReturnLookupResponseDto
     public int TotalItemsInBorrowing { get; set; }
 
     public int ReturnedItemsCount { get; set; }
+
+    /// <summary>
+    /// Số lần phiếu mượn này đã được gia hạn (BUG-045 & US-08.2).
+    /// </summary>
+    public int RenewalCount { get; set; } = 0;
+
+    /// <summary>
+    /// Số lần gia hạn tối đa được cấu hình theo FineRules (mặc định 1).
+    /// </summary>
+    public int MaxRenewalTimes { get; set; } = 1;
+
+    /// <summary>
+    /// Số ngày gia hạn thêm mỗi lần theo cấu hình FineRules (mặc định 7).
+    /// </summary>
+    public int RenewalExtraDays { get; set; } = 7;
+
+    /// <summary>
+    /// Cho biết phiếu mượn này có đủ điều kiện gia hạn hay không.
+    /// </summary>
+    public bool CanRenew { get; set; } = true;
+
+    /// <summary>
+    /// Lý do không thể gia hạn nếu CanRenew = false.
+    /// </summary>
+    public string? RenewalBlockReason { get; set; }
 
     /// <summary>
     /// Danh sách chi tiết toàn bộ các cuốn sách thuộc phiếu mượn này (phục vụ trả sách nhiều cuốn).

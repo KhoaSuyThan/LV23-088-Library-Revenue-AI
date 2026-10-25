@@ -70,6 +70,11 @@ public interface IReaderRepository : IGenericRepository<Reader>
     Task<bool> UpdateUserActiveStatusAsync(int userId, bool isActive);
 
     /// <summary>
+    /// Cập nhật trạng thái IsActive của User và ghi nhận thông báo đồng thời trong một giao dịch nguyên tử.
+    /// </summary>
+    Task<bool> UpdateUserLockStatusWithNotificationAsync(int userId, bool isActive, string message);
+
+    /// <summary>
     /// Thêm thông báo vào bảng Notifications cho người dùng.
     /// </summary>
     Task AddNotificationAsync(int userId, string message);

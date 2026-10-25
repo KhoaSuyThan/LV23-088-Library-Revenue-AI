@@ -9,7 +9,11 @@ public class Notification
 
     public int UserID { get; set; }
 
+    public string Title { get; set; } = "Thông báo hệ thống";
+
     public string Message { get; set; } = string.Empty;
+
+    public string Type { get; set; } = "System";
 
     public bool IsRead { get; set; } = false;
 
