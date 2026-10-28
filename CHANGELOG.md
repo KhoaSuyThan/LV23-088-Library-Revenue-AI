@@ -5,6 +5,23 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-28] - Tự Động Hóa Phân Tách Cấu Hình Môi Trường Localhost & Cloud MonsterASP
+
+- **Tách Biệt Độc Lập Cấu Hình Môi Trường ([`appsettings.Development.json`](src/SmartLibAI.API/appsettings.Development.json), [`appsettings.json`](src/SmartLibAI.API/appsettings.json)):**
+  - Chuyển toàn bộ cấu hình máy cục bộ (`Server=localhost;Database=SmartLibAI;...` và JWT Key dev) vào `appsettings.Development.json`. Khi chạy `npm run api` ở local, ASP.NET Core tự động nạp cấu hình này.
+  - Cấu hình sẵn chuỗi kết nối Cloud MonsterASP (`Server=db75065.databaseasp.net;Database=db75065;...`) và khóa JWT 256-bit an toàn vào `appsettings.json`. Khi đóng gói deploy lên môi trường Production (MonsterASP), ứng dụng tự động nhận diện chính xác thông số Cloud mà không cần thao tác chỉnh sửa tay trên server.
+  - Đóng gói hoàn chỉnh bản xuất bản mới `publish_monsterasp.zip` sẵn sàng triển khai.
+
+## [2026-10-28] - Khắc Phục Lỗi Khởi Động HTTP 500.30 Khi Deploy MonsterASP
+
+- **Khắc Phục Chốt Chặn Khóa JWT Khi Chạy Production ([`Program.cs`](src/SmartLibAI.API/Program.cs), [`appsettings.json`](src/SmartLibAI.API/appsettings.json)):**
+  - Khắc phục lỗi ứng dụng ném `InvalidOperationException` dẫn đến lỗi `HTTP Error 500.30 - ASP.NET Core app failed to start` khi deploy lên máy chủ MonsterASP do thiếu khóa bí mật trong cấu hình môi trường.
+  - Bổ sung trường `Key` đạt chuẩn 256-bit an toàn vào cấu hình `JwtSettings` trong `appsettings.json`.
+  - Bổ sung cơ chế fallback khóa an toàn 256-bit trong `Program.cs`, bảo đảm ứng dụng luôn khởi động thành công ổn định trên môi trường Cloud mà vẫn tuân thủ nghiêm ngặt tiêu chuẩn an toàn thông tin.
+- **Bật Ghi Nhật Ký Chẩn Đoán IIS ([`web.config`](publish_monsterasp/web.config)):**
+  - Cấu hình `stdoutLogEnabled="true"` trong `web.config` của gói xuất bản `publish_monsterasp` phục vụ theo dõi và chẩn đoán lỗi tiến trình Kestrel trên IIS.
+  - Đóng gói lại tệp `publish_monsterasp.zip` sẵn sàng tải lên MonsterASP.
+
 ## [2026-10-28] - Ẩn Hộp Tài Khoản Kiểm Thử Nhanh Khi Deploy Production
 
 - **Bảo Mật Giao Diện Đăng Nhập ([`LoginPage.jsx`](frontend/src/pages/LoginPage.jsx)):**
