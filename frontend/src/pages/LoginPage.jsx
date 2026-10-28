@@ -91,36 +91,38 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
               Chào mừng bạn đến với <strong>SmartLib AI</strong> – Hệ thống Quản trị & Nghiệp vụ Thư viện Thông minh (LV23-088).
             </p>
 
-            {/* Hộp gợi ý tài khoản đăng nhập nhanh */}
-            <div className="quick-test-box">
-              <div className="quick-test-title">
-                <KeyRound size={14} /> Tài khoản kiểm thử nhanh:
+            {/* Hộp gợi ý tài khoản đăng nhập nhanh: Chỉ hiển thị trên môi trường phát triển (Local/DEV) */}
+            {import.meta.env.DEV && (
+              <div className="quick-test-box">
+                <div className="quick-test-title">
+                  <KeyRound size={14} /> Tài khoản kiểm thử nhanh:
+                </div>
+                <div
+                  className="quick-test-item"
+                  onClick={() => fillQuickAccount('khoanv249@gmail.com', '24092005k')}
+                  title="Bấm để tự điền thông tin"
+                >
+                  <span>👤 <strong>Nguyễn Võ Lê Khoa</strong></span>
+                  <span className="quick-badge">ADMIN</span>
+                </div>
+                <div
+                  className="quick-test-item"
+                  onClick={() => fillQuickAccount('nguyennhatnam213654@gmail.com', '14022005N')}
+                  title="Bấm để tự điền thông tin Nhân viên"
+                >
+                  <span>👤 <strong>Nguyễn Thành Nhất Nam</strong></span>
+                  <span className="quick-badge">STAFF</span>
+                </div>
+                <div
+                  className="quick-test-item"
+                  onClick={() => fillQuickAccount('duchuy3d2005@gmail.com', '25022005H')}
+                  title="Bấm để kiểm thử chặn quyền Bạn đọc"
+                >
+                  <span>👤 <strong>Trần Đức Huy</strong></span>
+                  <span className="quick-badge" style={{ backgroundColor: '#64748b' }}>READER</span>
+                </div>
               </div>
-              <div
-                className="quick-test-item"
-                onClick={() => fillQuickAccount('khoanv249@gmail.com', '24092005k')}
-                title="Bấm để tự điền thông tin"
-              >
-                <span>👤 <strong>Nguyễn Võ Lê Khoa</strong></span>
-                <span className="quick-badge">ADMIN</span>
-              </div>
-              <div
-                className="quick-test-item"
-                onClick={() => fillQuickAccount('nguyennhatnam213654@gmail.com', '14022005N')}
-                title="Bấm để tự điền thông tin Nhân viên"
-              >
-                <span>👤 <strong>Nguyễn Thành Nhất Nam</strong></span>
-                <span className="quick-badge">STAFF</span>
-              </div>
-              <div
-                className="quick-test-item"
-                onClick={() => fillQuickAccount('duchuy3d2005@gmail.com', '25022005H')}
-                title="Bấm để kiểm thử chặn quyền Bạn đọc"
-              >
-                <span>👤 <strong>Trần Đức Huy</strong></span>
-                <span className="quick-badge" style={{ backgroundColor: '#64748b' }}>READER</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

@@ -5,6 +5,35 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-28] - Ẩn Hộp Tài Khoản Kiểm Thử Nhanh Khi Deploy Production
+
+- **Bảo Mật Giao Diện Đăng Nhập ([`LoginPage.jsx`](frontend/src/pages/LoginPage.jsx)):**
+  - Bọc khối gợi ý "Tài khoản kiểm thử nhanh" (`quick-test-box`) bằng điều kiện `import.meta.env.DEV`.
+  - Giữ nguyên khối tài khoản mẫu khi chạy cục bộ (`npm run dev`) để hỗ trợ kiểm thử tiện lợi.
+  - Tự động ẩn hoàn toàn và kích hoạt Tree-shaking loại bỏ khối mã này khỏi bundle đóng gói khi triển khai production (`npm run build`), ngăn ngừa nguy cơ lộ tài khoản và mật khẩu mẫu trên môi trường thật.
+
+## [2026-10-28] - Khắc Phục Lỗi Tranh Chấp Mượn Trả & Ràng Buộc Trạng Thái Sách (P0/P1/P2)
+
+- **Khóa Tranh Chấp Bằng Cập Nhật Có Điều Kiện Nguyên Tử ([`BorrowRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/BorrowRepository.cs), [`BorrowService.cs`](src/SmartLibAI.Core/Services/BorrowService.cs)) - [P0]:**
+  - Chuyển đổi cơ chế cập nhật trạng thái bản sao sang câu lệnh nguyên tử `ExecuteUpdateAsync` ở cấp độ SQL Server (Exclusive Update Lock) với điều kiện `c.Status == "Available"`.
+  - So khớp nghiêm ngặt số dòng bị ảnh hưởng: Nếu `affectedRows != copyIds.Count`, ném `InvalidOperationException` hủy bỏ và rollback toàn bộ transaction. Khi 2 request đồng thời cùng tranh chấp bản sao, chỉ một request thành công nhận khóa, request còn lại bị từ chối và rollback hoàn toàn mà không tạo dữ liệu dở dang.
+  - Bắt ngoại lệ tại `BorrowService.CreateBorrowAsync` để phản hồi mã lỗi và thông báo nghiệp vụ rõ ràng cho thủ thư.
+
+- **Khóa Nguyên Tử Cập Nhật Trạng Thái & Giải Phóng Kẹt Dữ Liệu ([`BookRepository.cs`](src/SmartLibAI.Infrastructure/Repositories/BookRepository.cs), [`CopyStatusUpdateResult.cs`](src/SmartLibAI.Core/DTOs/Books/CopyStatusUpdateResult.cs), [`BookCopiesController.cs`](src/SmartLibAI.API/Controllers/BookCopiesController.cs)) - [P0]:**
+  - Chuyển đổi `UpdateCopyStatusAsync` sang thực thi `ExecuteUpdateAsync` nguyên tử có điều kiện: `WHERE c.CopyID == copyId AND NOT EXISTS (active BorrowingDetails)`. Lệnh UPDATE giữ Exclusive Lock trên bản sao, ngăn chặn hoàn toàn việc request đổi trạng thái thủ công chạy đua và ghi đè trạng thái lên giao dịch mượn sách đang diễn ra.
+  - Chặn tuyệt đối việc gán thủ công sang `Borrowed` (bắt buộc phải tạo qua phiếu mượn tại Quầy lưu thông).
+  - Giải phóng trường hợp kẹt dữ liệu: Nếu bản sao có `Status == 'Borrowed'` nhưng không còn chi tiết mượn hoạt động (lệch trạng thái), hệ thống cho phép thủ thư cập nhật lại sang `Available` hoặc `Damaged` / `Lost` để sửa dữ liệu.
+  - Thay thế hoàn toàn việc dò chuỗi văn bản bằng `CopyStatusUpdateResult` và Enum `CopyStatusUpdateError` có kiểu dữ liệu rõ ràng, ánh xạ chuẩn sang mã HTTP `404 Not Found` hoặc `400 Bad Request`.
+
+- **Ràng Buộc Whitelist Condition & Khớp Số Tiền Biên Lai Với DB ([`ReturnBookRequestDto.cs`](src/SmartLibAI.Core/DTOs/Returns/ReturnBookRequestDto.cs), [`ReturnProcessing.jsx`](frontend/src/components/ReturnProcessing.jsx)) - [P1]:**
+  - Thêm `[RegularExpression]` giới hạn `Condition` trong Whitelist: `Good`, `Damaged`, `DamagedLight`, `DamagedMedium`, `DamagedSevere`, `Lost` (đã dọn sạch trailing whitespace).
+  - Tách bạch mảng kết quả `successfulReturns` và `failedReturns` trong vòng lặp trả nhiều cuốn tại frontend; tự động tải lại phiếu khi còn sách chưa trả để tránh gửi lặp.
+  - Đồng bộ số tiền biên lai bằng cách cộng dồn trực tiếp các giá trị thực tế `res.data` từ Backend cho từng cuốn (`totalFine`, `overdueFine`, `damageFee`, `lostFee`, `discountAmount`). Loại bỏ việc tự tính toán lại ở Frontend, đảm bảo số tiền in trên phiếu trả khớp 100% với từng đồng trong các bản ghi `FineReceipts` của CSDL.
+
+- **Bổ Sung Bộ Kiểm Thử Tích Hợp Chạy Trực Tiếp Production Code ([`BorrowReturnStatusValidationTests.cs`](tests/SmartLibAI.Tests/BorrowReturnStatusValidationTests.cs)) - [P2]:**
+  - Tích hợp SQLite in-memory database engine độc lập vào project test (`Microsoft.EntityFrameworkCore.Sqlite`).
+  - Viết các test cases chạy trực tiếp trên production repositories (`BookRepository` và `BorrowRepository`): Kiểm tra chặn gán `Borrowed` thủ công, chặn đổi trạng thái khi có active borrow, cho phép sửa kẹt khi không có active borrow, và kiểm chứng mượn bản sao không khả dụng sẽ ném ngoại lệ và rollback dữ liệu hoàn toàn sạch sẽ (0 bản ghi tạo dở dang). Nâng tổng số test cases đạt chuẩn lên 33/33 bài tests PASSED (100%).
+
 ## [2026-10-25] - Khắc phục BUG-045: Bổ sung chức năng Gia hạn mượn sách chuẩn quy chế thư viện US-08.2
 
 - **Hiện thực hóa quy trình gia hạn mượn sách tại quầy và API lưu thông ([`IBorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IBorrowService.cs), [`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowsController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`Borrowing.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/Borrowing.cs), [`RenewBorrowDtos.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/RenewBorrowDtos.cs)) - [S3 | P2]:**
@@ -158,6 +187,7 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Bổ sung cơ chế tự động đọc lại trạng thái thực từ SQL Server khi gặp sự cố, đảm bảo danh sách và khung tóm tắt luôn đồng bộ chính xác với cơ sở dữ liệu.
 - **Bổ sung bộ kiểm thử đơn vị tự động ([`ReaderLockTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReaderLockTests.cs)):**
   - Viết 8 bài kiểm thử xUnit bao phủ các ca: khóa thẻ thành công, mở khóa thẻ thành công, đảo trạng thái 2 chiều, xử lý khi độc giả không tồn tại, tính toàn vẹn khi transaction thất bại, và tính đúng đắn của DTO.
+>>>>>>> origin/develop
 
 ## [2026-10-23] - Khắc Phục Lỗi Máy Chủ 500 (InvalidCastException) Trong SmartLibDbContext
 

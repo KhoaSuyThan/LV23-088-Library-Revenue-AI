@@ -706,15 +706,9 @@ public class BookService : IBookService
     /// <summary>
     /// Cập nhật trạng thái độc lập của một bản sao (AC3).
     /// </summary>
-    public async Task<ApiResponse<bool>> UpdateCopyStatusAsync(int copyId, UpdateCopyStatusDto request)
+    public async Task<CopyStatusUpdateResult> UpdateCopyStatusAsync(int copyId, UpdateCopyStatusDto request)
     {
-        var success = await _bookRepository.UpdateCopyStatusAsync(copyId, request.Status);
-        if (!success)
-        {
-            return ApiResponse<bool>.ErrorResult($"Không tìm thấy bản sao với mã ID {copyId} để cập nhật.");
-        }
-
-        return ApiResponse<bool>.SuccessResult(true, $"Đã cập nhật trạng thái bản sao thành '{request.Status}' thành công.");
+        return await _bookRepository.UpdateCopyStatusAsync(copyId, request.Status);
     }
 
     /// <summary>
