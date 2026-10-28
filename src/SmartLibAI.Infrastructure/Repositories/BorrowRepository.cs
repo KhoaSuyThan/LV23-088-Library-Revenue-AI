@@ -98,30 +98,34 @@ public class BorrowRepository : GenericRepository<Borrowing>, IBorrowRepository
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Lưu bản ghi phiếu mượn chính vào bảng Borrowings
+                // 1. [P0 - ATOMIC CONDITIONAL UPDATE LOCK]
+                // Thực thi cập nhật trạng thái có điều kiện nguyên tử ở cấp độ SQL Server (Exclusive Update Lock).
+                // Nếu hai transaction chạy đồng thời cùng cố mượn một bản sao:
+                // - Transaction đầu tiên giữ X-lock, cập nhật Status sang 'Borrowed' và affectedRows == copyIds.Count.
+                // - Transaction thứ hai chạy sau sẽ không còn thấy Status == 'Available', dẫn đến affectedRows < copyIds.Count.
+                var affectedRows = await _context.BookCopies
+                    .Where(c => copyIds.Contains(c.CopyID) && c.Status == "Available")
+                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.Status, "Borrowed"));
+
+                if (affectedRows != copyIds.Count)
+                {
+                    throw new InvalidOperationException(
+                        "Một hoặc nhiều bản sao sách không còn ở trạng thái khả dụng hoặc vừa được mượn bởi giao dịch khác.");
+                }
+
+                // 2. Lưu bản ghi phiếu mượn chính vào bảng Borrowings
                 await _dbSet.AddAsync(borrowing);
                 await _context.SaveChangesAsync();
 
-                // 2. Tải các bản sao sách để khóa và cập nhật trạng thái sang 'Borrowed'
-                var copiesToUpdate = await _context.BookCopies
-                    .Where(c => copyIds.Contains(c.CopyID))
-                    .ToListAsync();
-
-                var details = new List<BorrowingDetail>();
-                foreach (var copy in copiesToUpdate)
-                {
-                    copy.Status = "Borrowed";
-
-                    details.Add(new BorrowingDetail
-                    {
-                        BorrowingID = borrowing.BorrowingID,
-                        CopyID = copy.CopyID,
-                        ReturnDate = null,
-                        ItemStatus = "Borrowed"
-                    });
-                }
-
                 // 3. Lưu chi tiết phiếu mượn vào bảng BorrowingDetails
+                var details = copyIds.Select(id => new BorrowingDetail
+                {
+                    BorrowingID = borrowing.BorrowingID,
+                    CopyID = id,
+                    ReturnDate = null,
+                    ItemStatus = "Borrowed"
+                }).ToList();
+
                 await _context.BorrowingDetails.AddRangeAsync(details);
                 await _context.SaveChangesAsync();
 

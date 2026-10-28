@@ -324,14 +324,40 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
     /// <summary>
     /// Cập nhật trạng thái độc lập của bản sao (AC3).
     /// </summary>
-    public async Task<bool> UpdateCopyStatusAsync(int copyId, string status)
+    public async Task<CopyStatusUpdateResult> UpdateCopyStatusAsync(int copyId, string status)
     {
-        var copy = await _context.BookCopies.FindAsync(copyId);
-        if (copy == null) return false;
+        var copy = await _context.BookCopies.AsNoTracking().FirstOrDefaultAsync(c => c.CopyID == copyId);
+        if (copy == null)
+        {
+            return CopyStatusUpdateResult.Fail(CopyStatusUpdateError.NotFound, $"Không tìm thấy bản sao với mã ID {copyId}.");
+        }
 
-        copy.Status = status;
-        await _context.SaveChangesAsync();
-        return true;
+        // [P0 - CONSTRAINTS SAFEGUARD]
+        // 1. Chặn gán thủ công sang trạng thái 'Borrowed' (phải thông qua quy trình lập phiếu mượn tại Quầy lưu thông)
+        if (status.Equals("Borrowed", StringComparison.OrdinalIgnoreCase))
+        {
+            return CopyStatusUpdateResult.Fail(
+                CopyStatusUpdateError.ManualBorrowedNotAllowed,
+                "Không thể chuyển trạng thái sang 'Borrowed' thủ công. Trạng thái mượn chỉ được xác lập khi tạo phiếu mượn tại Quầy lưu thông.");
+        }
+
+        // 2. [P0 - ATOMIC CONDITIONAL UPDATE SAFEGUARD]
+        // Cập nhật trạng thái có điều kiện nguyên tử ở cấp độ SQL Server:
+        // CHỈ cập nhật sang trạng thái mới khi bản sao KHÔNG CÓ chi tiết mượn nào đang hoạt động
+        // (NOT EXISTS BorrowingDetails WHERE ReturnDate IS NULL AND ItemStatus == 'Borrowed').
+        // Lệnh UPDATE này giữ Exclusive Lock, loại bỏ hoàn toàn race condition nếu có giao dịch mượn chạy đồng thời.
+        var affected = await _context.BookCopies
+            .Where(c => c.CopyID == copyId && !c.BorrowingDetails.Any(d => d.ReturnDate == null && d.ItemStatus == "Borrowed"))
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Status, status));
+
+        if (affected == 0)
+        {
+            return CopyStatusUpdateResult.Fail(
+                CopyStatusUpdateError.ActiveBorrowExists,
+                $"Bản sao '{copy.Barcode}' hiện đang có phiếu mượn hoạt động chưa hoàn trả hoặc vừa phát sinh giao dịch mượn.");
+        }
+
+        return CopyStatusUpdateResult.Ok();
     }
 
     /// <summary>

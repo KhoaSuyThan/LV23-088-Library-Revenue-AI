@@ -318,16 +318,19 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
   };
 
   // Tạo danh sách các cuốn sách hoàn chỉnh kèm ghi chú tình trạng để đưa vào Phiếu trả A4
-  const buildSlipItems = () => {
+  const buildSlipItems = (successfulBarcodes = null) => {
     return bookList.map((b) => {
-      const isSelected = selectedReturnBarcodes.includes(b.barcode);
+      // Nếu có truyền danh sách thành công thực tế, dùng danh sách này; ngược lại dùng selectedReturnBarcodes
+      const isReturnedThisTime = successfulBarcodes
+        ? successfulBarcodes.includes(b.barcode)
+        : selectedReturnBarcodes.includes(b.barcode);
       const cond = getBookCondition(b.barcode);
       let note = 'Nguyên vẹn';
 
       if (b.isReturned) {
         note = 'Đã trả trước';
-      } else if (!isSelected) {
-        note = 'Chưa trả (Giữ lại đọc tiếp)';
+      } else if (!isReturnedThisTime) {
+        note = 'Chưa trả';
       } else if (cond.status === 'damaged') {
         if (cond.damageLevel === 1) note = `Hư hỏng nhẹ (${damageLightPct}%)`;
         else if (cond.damageLevel === 2) note = `Hư hỏng vừa (${damageMedPct}%)`;
@@ -343,7 +346,7 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         author: b.author || 'Nhiều tác giả',
         barcode: b.barcode,
         dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
-        returnDate: b.isReturned || isSelected ? new Date().toLocaleDateString('vi-VN') : '—',
+        returnDate: b.isReturned || isReturnedThisTime ? new Date().toLocaleDateString('vi-VN') : '—',
         note: note
       };
     });
@@ -359,6 +362,13 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
     setIsSubmitting(true);
     let lastResult = null;
     const createdReceiptIds = [];
+    const successfulReturns = [];
+    const failedReturns = [];
+    let totalActualOverdueFine = 0;
+    let totalActualDamageFee = 0;
+    let totalActualLostFee = 0;
+    let totalActualDiscount = 0;
+    let totalActualFinalFine = 0;
 
     try {
       // Xử lý hoàn trả lần lượt từng cuốn sách ĐƯỢC CHỌN
@@ -397,18 +407,47 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
           waiverReason: waiverReason || undefined
         };
 
-        const res = await returnApi.processReturn(payload);
-        if (res.success && res.data) {
-          lastResult = res.data;
-          if (res.data.receiptId) {
-            createdReceiptIds.push(res.data.receiptId);
+        try {
+          const res = await returnApi.processReturn(payload);
+          if (res.success && res.data) {
+            lastResult = res.data;
+            successfulReturns.push(item);
+            if (res.data.receiptId) {
+              createdReceiptIds.push(res.data.receiptId);
+            }
+            // Cộng dồn trực tiếp các giá trị thực tế mà Backend đã tính và ghi nhận vào CSDL
+            totalActualOverdueFine += Number(res.data.overdueFine || 0);
+            totalActualDamageFee += Number(res.data.damageFee || 0);
+            totalActualLostFee += Number(res.data.lostFee || 0);
+            totalActualDiscount += Number(res.data.discountAmount || 0);
+            totalActualFinalFine += Number(res.data.totalFine || 0);
+          } else {
+            failedReturns.push({ barcode: item.barcode, title: item.bookTitle, error: res.message || 'Lỗi không xác định' });
           }
+        } catch (itemErr) {
+          const errDetail = itemErr.response?.data?.message || itemErr.message || 'Lỗi xử lý';
+          failedReturns.push({ barcode: item.barcode, title: item.bookTitle, error: errDetail });
         }
       }
 
-      playScannerBeep?.(true);
-      showToast?.(`✅ Đã hoàn tất tiếp nhận trả ${booksToActuallyReturn.length} cuốn sách.`);
       setShowReceiptModal(false);
+
+      // Nếu không có cuốn nào thành công: Dừng và báo lỗi
+      if (successfulReturns.length === 0) {
+        playScannerBeep?.(false);
+        const firstErr = failedReturns[0]?.error || 'Không thể tiếp nhận trả sách.';
+        showToast?.(`❌ Thao tác thất bại: ${firstErr}`);
+        return;
+      }
+
+      // Xử lý thông báo thành công / cảnh báo từng phần
+      if (failedReturns.length > 0) {
+        playScannerBeep?.(false);
+        showToast?.(`⚠️ Đã trả thành công ${successfulReturns.length}/${booksToActuallyReturn.length} cuốn. Các cuốn thất bại: ${failedReturns.map(f => f.barcode).join(', ')}`);
+      } else {
+        playScannerBeep?.(true);
+        showToast?.(`✅ Đã hoàn tất tiếp nhận trả ${successfulReturns.length} cuốn sách.`);
+      }
 
       // Nếu có phát sinh phạt và thủ thư bấm "Xác nhận thu & Xuất biên lai"
       if (isPaidFine && createdReceiptIds.length > 0) {
@@ -447,8 +486,9 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         }
       }
 
-      // Chuẩn bị danh sách đầy đủ toàn bộ sách để in trên phiếu trả
-      const slipItems = buildSlipItems();
+      // Chuẩn bị danh sách sách trên phiếu trả với trạng thái chính xác theo kết quả đợt trả này
+      const successfulBarcodes = successfulReturns.map((b) => b.barcode);
+      const slipItems = buildSlipItems(successfulBarcodes);
 
       // Gọi callback báo cho trang cha cập nhật bảng giao dịch và mở Modal Phiếu trả
       onReturnSuccess?.({
@@ -461,25 +501,26 @@ export default function ReturnProcessing({ onReturnSuccess, showToast, user }) {
         department: (lookupData.department && lookupData.department !== 'Standard')
           ? lookupData.department
           : (lookupData.memberType === 'Lecturer' ? 'Cán bộ / Giảng viên' : 'Khoa Công nghệ Thông tin'),
-        bookTitle: booksToActuallyReturn[0]?.bookTitle || lookupData.bookTitle,
-        barcode: booksToActuallyReturn[0]?.barcode || lookupData.barcode,
+        bookTitle: successfulReturns[0]?.bookTitle || lookupData.bookTitle,
+        barcode: successfulReturns[0]?.barcode || lookupData.barcode,
         borrowDate: new Date(lookupData.borrowDate).toLocaleDateString('vi-VN'),
         dueDate: new Date(lookupData.dueDate).toLocaleDateString('vi-VN'),
         returnDate: new Date().toLocaleDateString('vi-VN'),
-        totalFine: finalFine,
-        finalFine: finalFine,
+        totalFine: totalActualFinalFine,
+        finalFine: totalActualFinalFine,
+        discountAmount: totalActualDiscount,
         isOverdue: isOverdue,
         overdueDays: overdueDays,
-        overdueFine: totalOverdueFine,
-        damageFee: totalDamageFee,
-        lostFee: totalLostFee,
+        overdueFine: totalActualOverdueFine,
+        damageFee: totalActualDamageFee,
+        lostFee: totalActualLostFee,
         items: slipItems
       });
 
-      // Nếu chỉ trả một phần (vẫn còn cuốn chưa trả trong phiếu mượn), tải lại thông tin phiếu để hiển thị trạng thái mới
-      if (booksToActuallyReturn.length < activeBooksToReturn.length) {
-        const remainingCount = activeBooksToReturn.length - booksToActuallyReturn.length;
-        showToast?.(`ℹ️ Phiếu ${lookupData.borrowCode} vẫn còn ${remainingCount} cuốn sách chưa trả.`);
+      // Nếu còn sách chưa trả trong phiếu (do chọn một phần hoặc do một số cuốn thất bại), tải lại phiếu để cập nhật
+      const totalRemaining = activeBooksToReturn.length - successfulReturns.length;
+      if (totalRemaining > 0) {
+        showToast?.(`ℹ️ Phiếu ${lookupData.borrowCode} vẫn còn ${totalRemaining} cuốn sách chưa trả.`);
         await handleLookup(lookupData.borrowCode);
       } else {
         // Đã trả toàn bộ các cuốn sách trong phiếu

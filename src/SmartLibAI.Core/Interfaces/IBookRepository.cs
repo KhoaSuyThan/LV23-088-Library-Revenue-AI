@@ -57,7 +57,7 @@ public interface IBookRepository : IGenericRepository<Book>
     /// <summary>
     /// Cập nhật trạng thái độc lập của bản sao (AC3).
     /// </summary>
-    Task<bool> UpdateCopyStatusAsync(int copyId, string status);
+    Task<CopyStatusUpdateResult> UpdateCopyStatusAsync(int copyId, string status);
 
     /// <summary>
     /// Xóa một bản sao (nếu không đang trong trạng thái cho mượn).

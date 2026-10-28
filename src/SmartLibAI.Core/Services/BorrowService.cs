@@ -162,7 +162,16 @@ public class BorrowService : IBorrowService
         };
 
         var copyIds = copies.Select(c => c.CopyID).ToList();
-        var createdBorrowing = await _borrowRepository.CreateBorrowingWithTransactionAsync(borrowing, copyIds);
+        Borrowing createdBorrowing;
+        try
+        {
+            createdBorrowing = await _borrowRepository.CreateBorrowingWithTransactionAsync(borrowing, copyIds);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Trả về lỗi nghiệp vụ khi phát sinh tranh chấp hoặc bản sao không còn khả dụng
+            return ApiResponse<BorrowResponseDto>.ErrorResult(ex.Message);
+        }
 
         // 10. AI Risk Assessment & Logging (Ghi nhận dự báo rủi ro vào AIPredictionLogs)
         try
