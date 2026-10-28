@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   TrendingUp,
   AlertTriangle,
@@ -12,10 +12,12 @@ import {
   Layers,
   ArrowUpRight,
   Flame,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import './RevenueAnalyticsDashboard.css';
 import TablePagination from '../common/TablePagination';
+import { invoiceApi } from '../../api/invoiceApi';
 
 /**
  * Dashboard Biểu đồ Doanh thu Thu phạt & Thống kê Vi phạm (Story LOLRA-17 / Sprint 5.1)
@@ -149,34 +151,42 @@ export default function RevenueBreakdownTab({
     return { actualPath, expectedPath, areaPath, points, baselineY };
   }, [trendData]);
 
-  // 3. THỐNG KÊ CƠ CẤU 4 NHÓM VI PHẠM TRỌNG TÂM
+  // 3. THỐNG KÊ CƠ CẤU 4 NHÓM VI PHẠM TRỌNG TÂM (BUG-043 & US-11.3)
   const violationStats = useMemo(() => {
     const bd = revenueSummary?.breakdown;
-    let overdueAmt = 10042500;
-    let damageAmt = 2650000;
-    let lostAmt = 1212500;
-    let cardAmt = 1545000;
+    let overdueAmt = 0;
+    let damageAmt = 0;
+    let lostAmt = 0;
+    let cardAmt = 0;
+    let overdueCases = 0;
+    let damageCases = 0;
+    let lostCases = 0;
+    let cardCases = 0;
 
     if (Array.isArray(bd) && bd.length > 0) {
       bd.forEach((item) => {
         const name = (item.sourceName || '').toLowerCase();
         if (name.includes('trễ') || name.includes('overdue') || name.includes('quá hạn')) {
           overdueAmt = Number(item.amount || 0);
+          overdueCases = Number(item.casesCount || 0);
         } else if (name.includes('hỏng') || name.includes('rách') || name.includes('damage')) {
           damageAmt = Number(item.amount || 0);
+          damageCases = Number(item.casesCount || 0);
         } else if (name.includes('mất') || name.includes('lost')) {
           lostAmt = Number(item.amount || 0);
+          lostCases = Number(item.casesCount || 0);
         } else {
           cardAmt = Number(item.amount || 0);
+          cardCases = Number(item.casesCount || 0);
         }
       });
     }
 
-    const totalViolations = overdueAmt + damageAmt + lostAmt + cardAmt || 1;
-    const pOverdue = Math.round((overdueAmt / totalViolations) * 100);
-    const pDamage = Math.round((damageAmt / totalViolations) * 100);
-    const pLost = Math.round((lostAmt / totalViolations) * 100);
-    const pCard = Math.max(0, 100 - pOverdue - pDamage - pLost);
+    const totalViolations = overdueAmt + damageAmt + lostAmt + cardAmt;
+    const pOverdue = totalViolations > 0 ? Math.round((overdueAmt / totalViolations) * 100) : 0;
+    const pDamage = totalViolations > 0 ? Math.round((damageAmt / totalViolations) * 100) : 0;
+    const pLost = totalViolations > 0 ? Math.round((lostAmt / totalViolations) * 100) : 0;
+    const pCard = totalViolations > 0 ? Math.max(0, 100 - pOverdue - pDamage - pLost) : 0;
 
     return [
       {
@@ -185,7 +195,7 @@ export default function RevenueBreakdownTab({
         desc: 'Mức phạt 5.000 đ/ngày theo quy chế lưu thông',
         amount: overdueAmt,
         percent: pOverdue,
-        casesCount: 38,
+        casesCount: overdueCases,
         color: '#2563eb',
         tag: 'Phổ biến nhất',
         tagClass: 'tag-blue',
@@ -194,10 +204,10 @@ export default function RevenueBreakdownTab({
       {
         id: 'damage',
         name: 'Hư hỏng bìa, rách trang, vẽ bẩn',
-        desc: 'Bồi hoàn 20% - 50% nguyên giá bìa ấn phẩm',
+        desc: 'Bồi hoàn 30% - 50% nguyên giá bìa ấn phẩm',
         amount: damageAmt,
         percent: pDamage,
-        casesCount: 9,
+        casesCount: damageCases,
         color: '#f59e0b',
         tag: 'Hư tổn vật lý',
         tagClass: 'tag-amber',
@@ -209,7 +219,7 @@ export default function RevenueBreakdownTab({
         desc: 'Đền bù 100% - 150% giá bìa niêm yết hiện hành',
         amount: lostAmt,
         percent: pLost,
-        casesCount: 4,
+        casesCount: lostCases,
         color: '#ef4444',
         tag: 'Nghiêm trọng',
         tagClass: 'tag-red',
@@ -221,7 +231,7 @@ export default function RevenueBreakdownTab({
         desc: 'Lệ phí in lại thẻ từ, vi phạm nội quy phòng tự học',
         amount: cardAmt,
         percent: pCard,
-        casesCount: 12,
+        casesCount: cardCases,
         color: '#8b5cf6',
         tag: 'Dịch vụ thẻ',
         tagClass: 'tag-purple',
@@ -272,129 +282,30 @@ export default function RevenueBreakdownTab({
     };
   }, [receiptsList]);
 
-  // 5. TOP ĐẦU SÁCH CÓ TỶ LỆ VI PHẠM / QUÁ HẠN CAO NHẤT
-  const topViolatedBooks = useMemo(() => [
-    {
-      id: 1,
-      title: 'Harry Potter and the Half-Blood Prince (Harry Potter #6)',
-      barcode: 'BC000001-B',
-      category: 'Tiểu thuyết / Văn học nước ngoài',
-      overdueCount: 14,
-      damageCount: 2,
-      totalFine: '420.000 đ',
-      risk: 'Rất cao',
-      riskClass: 'risk-pill-high',
-      solution: 'Tăng bản sao dự phòng & giảm hạn mượn 14 ngày'
-    },
-    {
-      id: 2,
-      title: 'Giáo trình Cấu trúc dữ liệu và Giải thuật',
-      barcode: 'BC000002-A',
-      category: 'Giáo trình CNTT',
-      overdueCount: 11,
-      damageCount: 1,
-      totalFine: '350.000 đ',
-      risk: 'Cao',
-      riskClass: 'risk-pill-medium',
-      solution: 'Gửi thông báo nhắc nhở tự động trước 3 ngày'
-    },
-    {
-      id: 3,
-      title: 'Database Systems: The Complete Book (10th Edition)',
-      barcode: 'BC000003-A',
-      category: 'Sách chuyên khảo máy tính',
-      overdueCount: 8,
-      damageCount: 3,
-      totalFine: '580.000 đ',
-      risk: 'Cao',
-      riskClass: 'risk-pill-medium',
-      solution: 'Kiểm tra kỹ gáy sách khi tiếp nhận tại quầy'
-    },
-    {
-      id: 4,
-      title: 'Lịch sử Triết học Tây Phương (Tập 1 & 2)',
-      barcode: 'BC000004-A',
-      category: 'Khoa học Xã hội',
-      overdueCount: 6,
-      damageCount: 0,
-      totalFine: '180.000 đ',
-      risk: 'Vừa',
-      riskClass: 'risk-pill-low',
-      solution: 'Cho phép gia hạn thêm 1 lần trực tuyến'
-    },
-    {
-      id: 5,
-      title: 'Oxford Advanced Learner\'s Dictionary 10th Edition',
-      barcode: 'BC000005-A',
-      category: 'Từ điển & Ngoại ngữ',
-      overdueCount: 5,
-      damageCount: 2,
-      totalFine: '290.000 đ',
-      risk: 'Vừa',
-      riskClass: 'risk-pill-low',
-      solution: 'Ưu tiên phục vụ đọc tại chỗ trong phòng đọc'
-    },
-    {
-      id: 6,
-      title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
-      barcode: 'BC000006-A',
-      category: 'Kỹ thuật phần mềm',
-      overdueCount: 5,
-      damageCount: 1,
-      totalFine: '240.000 đ',
-      risk: 'Vừa',
-      riskClass: 'risk-pill-low',
-      solution: 'Bổ sung thêm bản ebook vào thư viện số'
-    },
-    {
-      id: 7,
-      title: 'Artificial Intelligence: A Modern Approach (4th Edition)',
-      barcode: 'BC000007-A',
-      category: 'Trí tuệ nhân tạo',
-      overdueCount: 4,
-      damageCount: 2,
-      totalFine: '310.000 đ',
-      risk: 'Vừa',
-      riskClass: 'risk-pill-low',
-      solution: 'Cảnh báo ký quỹ mượn đối với tài liệu quý hiếm'
-    },
-    {
-      id: 8,
-      title: 'Kinh tế vi mô và Ứng dụng thực tiễn',
-      barcode: 'BC000008-B',
-      category: 'Kinh tế & Quản trị',
-      overdueCount: 4,
-      damageCount: 0,
-      totalFine: '120.000 đ',
-      risk: 'Thấp',
-      riskClass: 'risk-pill-low',
-      solution: 'Gửi email tự động nhắc hạn trả'
-    },
-    {
-      id: 9,
-      title: 'Design Patterns: Elements of Reusable Object-Oriented Software',
-      barcode: 'BC000009-A',
-      category: 'Kỹ thuật phần mềm',
-      overdueCount: 3,
-      damageCount: 1,
-      totalFine: '190.000 đ',
-      risk: 'Thấp',
-      riskClass: 'risk-pill-low',
-      solution: 'Bọc bảo quản màng nhựa chống rách'
-    },
-    {
-      id: 10,
-      title: 'Giải tích 1 & Đại số tuyến tính nâng cao',
-      barcode: 'BC000010-A',
-      category: 'Toán học ứng dụng',
-      overdueCount: 3,
-      damageCount: 0,
-      totalFine: '90.000 đ',
-      risk: 'Thấp',
-      riskClass: 'risk-pill-low',
-      solution: 'Đề xuất tăng số lượng ấn bản vào kỳ thi'
-    }
-  ], []);
+  // 5. TOP ĐẦU SÁCH CÓ TỶ LỆ VI PHẠM / QUÁ HẠN CAO NHẤT (Nối CSDL thực tế - BUG-043 & US-11.3)
+  const [topViolatedBooks, setTopViolatedBooks] = useState([]);
+  const [isLoadingTopBooks, setIsLoadingTopBooks] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTopBooks = async () => {
+      setIsLoadingTopBooks(true);
+      try {
+        const res = await invoiceApi.getTopViolatedBooks({ timeRange });
+        if (isMounted && res && res.data) {
+          setTopViolatedBooks(res.data);
+          setCurrentPage(1);
+        }
+      } catch (err) {
+        console.error('Lỗi tải Top đầu sách vi phạm từ backend:', err);
+      } finally {
+        if (isMounted) setIsLoadingTopBooks(false);
+      }
+    };
+
+    fetchTopBooks();
+    return () => { isMounted = false; };
+  }, [timeRange]);
 
   // Cắt mảng theo trang phân trang hiện tại
   const paginatedTopBooks = useMemo(() => {
@@ -872,41 +783,57 @@ export default function RevenueBreakdownTab({
               </tr>
             </thead>
             <tbody>
-              {paginatedTopBooks.map((book) => (
-                <tr key={book.id}>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className={`rank-badge ${book.id === 1 ? 'rank-1' : book.id === 2 ? 'rank-2' : book.id === 3 ? 'rank-3' : 'rank-default'}`}>
-                      {book.id}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="book-title-cell">{book.title}</div>
-                    <span className="book-category-tag">{book.category}</span>
-                  </td>
-                  <td>
-                    <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>
-                      {book.barcode}
-                    </code>
-                  </td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>
-                    {book.overdueCount} lần
-                  </td>
-                  <td style={{ textAlign: 'center', fontWeight: 600, color: book.damageCount > 0 ? '#d97706' : '#64748b' }}>
-                    {book.damageCount} cuốn
-                  </td>
-                  <td style={{ fontWeight: 700, color: '#0f172a' }}>
-                    {book.totalFine}
-                  </td>
-                  <td>
-                    <span className={`risk-pill ${book.riskClass}`}>
-                      ● {book.risk}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '12.5px', color: '#475569' }}>
-                    {book.solution}
+              {isLoadingTopBooks ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                    <Loader2 size={24} style={{ display: 'inline-block', marginBottom: '8px', color: '#2563eb', animation: 'spin 1s linear infinite' }} />
+                    <p style={{ margin: 0, fontWeight: 500, fontSize: '13px' }}>Đang nạp dữ liệu thống kê vi phạm từ CSDL thư viện...</p>
                   </td>
                 </tr>
-              ))}
+              ) : paginatedTopBooks.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                    <Info size={24} style={{ display: 'inline-block', marginBottom: '8px', color: '#94a3b8' }} />
+                    <p style={{ margin: 0, fontWeight: 500, fontSize: '13px' }}>Không có đầu sách nào phát sinh vi phạm trong khoảng thời gian đã chọn.</p>
+                  </td>
+                </tr>
+              ) : (
+                paginatedTopBooks.map((book) => (
+                  <tr key={book.id}>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`rank-badge ${book.id === 1 ? 'rank-1' : book.id === 2 ? 'rank-2' : book.id === 3 ? 'rank-3' : 'rank-default'}`}>
+                        {book.id}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="book-title-cell">{book.title}</div>
+                      <span className="book-category-tag">{book.category}</span>
+                    </td>
+                    <td>
+                      <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>
+                        {book.barcode}
+                      </code>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>
+                      {book.overdueCount} lần
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: book.damageCount > 0 ? '#d97706' : '#64748b' }}>
+                      {book.damageCount} cuốn
+                    </td>
+                    <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                      {book.totalFine}
+                    </td>
+                    <td>
+                      <span className={`risk-pill ${book.riskClass}`}>
+                        ● {book.risk}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '12.5px', color: '#475569' }}>
+                      {book.solution}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -17,6 +17,11 @@ public class Borrowing
 
     public string Status { get; set; } = "Active"; // 'Active', 'Returned', 'Overdue'
 
+    /// <summary>
+    /// Số lần phiếu mượn này đã được gia hạn thêm ngày trả (BUG-045 & US-08.2).
+    /// </summary>
+    public int RenewalCount { get; set; } = 0;
+
     // Navigation properties
     public Reader Reader { get; set; } = null!;
 

@@ -63,5 +63,20 @@ export const invoiceApi = {
   getAiForecastReaders: async () => {
     const response = await apiClient.get('/api/invoices/ai-forecast-readers');
     return response.data;
+  },
+
+  /**
+   * Thống kê danh sách Top đầu sách có tỷ lệ vi phạm/quá hạn cao nhất (BUG-043 & US-11.3)
+   * @param {{ timeRange?: string, fromDate?: string, toDate?: string }} [params]
+   */
+  getTopViolatedBooks: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.timeRange) queryParams.append('timeRange', params.timeRange);
+    if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+    if (params.toDate) queryParams.append('toDate', params.toDate);
+
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    const response = await apiClient.get(`/api/invoices/top-violated-books${queryString}`);
+    return response.data;
   }
 };

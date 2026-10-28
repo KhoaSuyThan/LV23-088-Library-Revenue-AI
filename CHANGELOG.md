@@ -34,6 +34,161 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
   - Tích hợp SQLite in-memory database engine độc lập vào project test (`Microsoft.EntityFrameworkCore.Sqlite`).
   - Viết các test cases chạy trực tiếp trên production repositories (`BookRepository` và `BorrowRepository`): Kiểm tra chặn gán `Borrowed` thủ công, chặn đổi trạng thái khi có active borrow, cho phép sửa kẹt khi không có active borrow, và kiểm chứng mượn bản sao không khả dụng sẽ ném ngoại lệ và rollback dữ liệu hoàn toàn sạch sẽ (0 bản ghi tạo dở dang). Nâng tổng số test cases đạt chuẩn lên 33/33 bài tests PASSED (100%).
 
+## [2026-10-25] - Khắc phục BUG-045: Bổ sung chức năng Gia hạn mượn sách chuẩn quy chế thư viện US-08.2
+
+- **Hiện thực hóa quy trình gia hạn mượn sách tại quầy và API lưu thông ([`IBorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IBorrowService.cs), [`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowsController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/BorrowsController.cs), [`Borrowing.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/Borrowing.cs), [`RenewBorrowDtos.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/RenewBorrowDtos.cs)) - [S3 | P2]:**
+  - **Khắc phục thiếu sót chức năng**: Tại `/settings` (Tab *Hạn mượn & Gia hạn*), quản trị viên có đầy đủ thông số cấu hình "Số lần gia hạn tối đa" (`MaxRenewalTimes`, mặc định 1 lần) và "Số ngày thêm mỗi lần" (`RenewalExtraDays`, mặc định 7 ngày), nhưng trên hệ thống mượn/trả sách lại chưa có chức năng gia hạn tương ứng.
+  - Bổ sung trường `RenewalCount` (kiểu `INT NOT NULL DEFAULT 0`) vào bảng `Borrowings` và cấu hình DbContext, kèm script tự động kiểm tra/bổ sung cột khi khởi động API.
+  - Xây dựng hai endpoint gia hạn: `POST /api/borrows/renew` và `POST /api/borrows/{id}/renew` hỗ trợ cả mã phiếu mượn `BorrowingId` hoặc quét mã vạch bản sao `Barcode`.
+  - **Xây dựng chặt chẽ bộ quy tắc kiểm soát điều kiện gia hạn (US-08.2):**
+    - Chỉ cho phép gia hạn đối với các phiếu mượn đang hoạt động (`Status == "Active"`).
+    - **Chặn khi quá hạn**: Nếu sách đã quá hạn hẹn trả (`overdueDays > 0`), hệ thống từ chối gia hạn theo đúng quy chế thư viện, yêu cầu bạn đọc làm thủ tục trả sách và nộp phạt nếu có.
+    - **Chặn khi hết lượt**: Giới hạn số lần gia hạn không vượt quá `FineRule.MaxRenewalTimes` (mặc định 1 lần). Thử gia hạn lần thứ 2 sẽ bị từ chối với HTTP 400.
+    - **Kiểm soát bạn đọc**: Chặn gia hạn khi tài khoản thẻ thư viện bị khóa (`IsActive == false`) hoặc nợ phạt vượt quá ngưỡng cho phép (`DebtLockAmount > 50.000đ`).
+    - **Cộng hạn trả chuẩn xác**: Khi gia hạn thành công, hạn trả mới `DueDate` được cộng thêm chính xác `FineRule.RenewalExtraDays` ngày (+7 ngày) và tăng `RenewalCount` thêm 1.
+- **Tích hợp giao diện Quầy Lưu Thông & Tiếp Nhận Trả Sách ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`CirculationDesk.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.jsx), [`CirculationDesk.css`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/CirculationDesk.css), [`borrowApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/borrowApi.js)):**
+  - Trong màn tiếp nhận trả sách (`ReturnProcessing.jsx`):
+    - Hiển thị thông số gia hạn tại thẻ siêu dữ liệu hạn trả: `🔄 Gia hạn: X/Y lần`.
+    - Bổ sung nút **"Gia hạn mượn"** (`btn-renew-borrow`) trong cụm thao tác nhanh, có huy hiệu lượt gia hạn và tooltip trạng thái. Nút tự động vô hiệu hóa nếu sách quá hạn hoặc hết lượt.
+    - Xây dựng **Modal Xác nhận Gia hạn mượn sách**: Hiển thị bảng so sánh trực quan Hạn trả hiện tại ➔ Hạn trả mới (+7 ngày), thông tin bạn đọc, đầu sách, số lượt còn lại và ô nhập ghi chú của thủ thư.
+  - Trong bảng giao dịch trong ngày (`CirculationDesk.jsx`):
+    - Bổ sung trạng thái lượt gia hạn `🔄 Gia hạn: X/Y` cho các dòng phiếu mượn đang lưu thông. Tự động làm mới danh sách giao dịch ngay sau khi gia hạn thành công.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`BorrowRenewalTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/BorrowRenewalTests.cs)):**
+  - Viết 6 ca kiểm thử xUnit bao phủ 100% các kịch bản: gia hạn thành công theo ID và theo mã vạch, từ chối khi sách quá hạn, từ chối khi vượt quá số lần gia hạn tối đa, từ chối khi thẻ bị khóa, từ chối khi nợ phạt vượt ngưỡng 50.000đ.
+  - Chạy kịch bản kiểm thử tích hợp End-to-End thành công trên API Backend thực tế (PM-0202: Hạn trả 08/11 ➔ gia hạn thành 15/11 (+7 ngày), lượt 1/1; lần 2 bị chặn với mã 400).
+  - Toàn bộ 78/78 bài kiểm thử đơn vị xUnit vượt qua thành công 100%. Build frontend Vite hoàn tất trong 834ms.
+
+---
+## [2026-10-25] - Khắc phục BUG-043: Thống kê vi phạm động từ CSDL và nối đúng tên sách theo mã vạch chuẩn US-11.3
+
+- **Nối danh mục sách thực tế và tính số vụ vi phạm động ([`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs), [`InvoicesController.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Controllers/InvoicesController.cs)) - [S2 | P1]:**
+  - **Sửa lỗi gắn sai tên đầu sách với mã vạch**: Mã vạch `BC000002-A` trong bảng Top đầu sách trước đây bị gán nhãn tĩnh là *"Giáo trình Cấu trúc dữ liệu và Giải thuật"*, trong khi CSDL thư viện thực tế xác nhận thuộc cuốn *"Harry Potter and the Order of the Phoenix (Harry Potter #5)"* (BookID 2, Category: Ngoại ngữ & Từ điển).
+  - Xây dựng endpoint mới `GET /api/invoices/top-violated-books` thực hiện truy vấn nối bảng trực tiếp giữa `BookCopies`, `Books`, `Categories`, `BorrowingDetails`, `Borrowings` và `FineReceipts`. Đảm bảo 100% đầu sách và bản sao hiển thị đúng mã vạch, tên sách, phân loại, số lượt quá hạn, số lượt hư hỏng, tổng tiền phạt và mức độ rủi ro từ CSDL.
+  - **Loại bỏ dữ liệu mẫu 38/9/4/12 trên 4 thẻ vi phạm**: Thêm trường `CasesCount` vào `RevenueSourceBreakdownDto`. Backend tổng hợp động số vụ vi phạm thực tế từ toàn bộ hóa đơn đã thu tiền thay vì gắn số cố định. Khi chưa có giao dịch, hiển thị đúng 0 vụ; khi phát sinh hoặc duyệt giao dịch mới, số vụ được cập nhật chính xác tương ứng.
+  - **Hỗ trợ bộ lọc thời gian thực linh hoạt**: Hỗ trợ lọc theo các mốc `7d`, `30d`, `quarter`, `year` hoặc khoảng ngày `fromDate`/`toDate`. Kiểm thử đối soát trả về chính xác 0 vụ (7 ngày), 1 vụ (30 ngày), và 39 vụ (năm), loại bỏ triệt để fallback dữ liệu giả.
+- **Cập nhật giao diện người dùng ([`RevenueBreakdownTab.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/revenue/RevenueBreakdownTab.jsx), [`invoiceApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/invoiceApi.js)):**
+  - Loại bỏ hoàn toàn mảng tĩnh 10 đầu sách mẫu và số vụ cứng 38, 9, 4, 12 khỏi frontend.
+  - Tự động gọi API `invoiceApi.getTopViolatedBooks({ timeRange })` mỗi khi người dùng thay đổi bộ lọc thời gian.
+  - Bổ sung hiệu ứng tải dữ liệu (`Loader2` spinner) và trạng thái trống thân thiện (`empty state`) khi không có vi phạm trong khoảng thời gian đã chọn.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`TopViolatedBooksTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/TopViolatedBooksTests.cs)):**
+  - Bổ sung 3 ca kiểm thử: Xác thực barcode `BC000002-A` gắn đúng tên Harry Potter thực tế, kiểm tra phân lập 0/1/n bản ghi theo bộ lọc ngày, và kiểm tra trường `CasesCount` đếm động.
+  - Toàn bộ 72/72 bài kiểm thử đơn vị xUnit đều vượt qua thành công 100%. Frontend build đạt 827ms (< 2s) và bundle 418.89 kB (< 500 kB).
+
+---
+## [2026-10-25] - Khắc phục BUG-042: Phân loại cơ cấu nguồn thu hóa đơn theo loại vi phạm thực tế chuẩn US-11.3
+
+- **Xây dựng bộ phân loại doanh thu thu phạt đa chiều ([`InvoiceRevenueClassifier.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Common/InvoiceRevenueClassifier.cs), [`InvoiceRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/InvoiceRepository.cs), [`InvoiceService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/InvoiceService.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi biểu đồ cơ cấu nguồn thu tại `GET /api/invoices/summary`: Toàn bộ các khoản thu phạt trễ hạn hoàn trả sách bị dồn 100% vào nhóm "Khoản thu khác" / "Phí cấp lại thẻ & Vi phạm khác" (nhóm trễ hạn, hỏng, mất đều hiển thị 0đ). Nguyên nhân do logic cũ truy vấn từ khóa chuỗi trong bảng cấu hình quy định hệ thống `FineRule.RuleName` ("Quy định Thư viện Tiêu chuẩn"), vốn không chứa các từ khóa vi phạm cụ thể.
+  - Phân tích và bóc tách nguồn thu trực tiếp từ chi tiết phiếu mượn thực tế (`BorrowingDetails`), đối chiếu ngày hẹn trả `DueDate` với `ReturnDate`/`PaymentDate`, trạng thái bản sao (`Damaged`/`Lost`), và ghi chú nghiệp vụ hóa đơn:
+    - **Nhóm 1 - Phạt trễ hạn theo ngày**: Tự động bóc tách các khoản phạt do trả sách muộn quá hạn quy định (VD: ca DEMO0006 trễ 16 ngày thu 65.000đ tăng chính xác vào nhóm Trễ hạn; các ca nợ đọng PM-0199 255.000đ và PM-0200 235.000đ được ghi nhận đúng nhóm Trễ hạn thay vì nhóm Khác).
+    - **Nhóm 2 - Bồi hoàn sách rách/hỏng**: Ghi nhận từ các bản sao sách có tình trạng `Damaged` theo tỷ lệ quy định US-10.3.
+    - **Nhóm 3 - Đền bù sách mất**: Ghi nhận từ các bản sao sách có tình trạng `Lost`.
+    - **Nhóm 4 - Phí cấp lại thẻ & Vi phạm khác**: Ghi nhận các khoản lệ phí làm lại thẻ từ, vi phạm nội quy hành chính không thuộc lưu thông sách.
+  - **Hỗ trợ phân bổ tỷ lệ đối với trường hợp vi phạm kép (vừa trễ hạn vừa làm hỏng/mất sách):**
+    - Tự động phân bổ số tiền thực thu `AmountPaid` theo tỷ lệ nghĩa vụ gốc tương ứng của từng hành vi vi phạm sau khi đã trừ chiết khấu tín nhiệm/miễn giảm thủ công, đồng thời làm tròn chẵn hàng nghìn đồng theo đúng quy định tài chính kế toán Việt Nam.
+  - **Chuẩn hóa nhãn và mã lý do vi phạm trong lịch sử hóa đơn:**
+    - Cập nhật `FineReason` và `FineReasonLabel` trong `InvoiceHistoryDto` và `InvoiceResponseDto` phản ánh chính xác nội dung vi phạm (VD: `"Phạt trễ hạn hoàn trả sách (16 ngày)"`, `"Bồi hoàn làm hỏng/rách sách"`) thay vì hiển thị tên chung `"Quy định Thư viện Tiêu chuẩn"`.
+  - **Sửa chỉ số tổng giá trị sách tổn thất (`totalDamage`):**
+    - Truy vấn chính xác từ các biên lai có bản sao sách mang trạng thái `Damaged` hoặc `Lost`, loại trừ hoàn toàn các biên lai thuần trễ hạn.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`InvoiceRevenueBreakdownTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/InvoiceRevenueBreakdownTests.cs)):**
+  - Viết 6 ca kiểm thử tự động xUnit bao phủ: phân loại khoản thu thuần trễ hạn, thuần hư hỏng, thuần mất sách, vi phạm kép kèm phân bổ tỷ lệ sau giảm và làm tròn, phí dịch vụ thẻ, và cơ chế fallback.
+  - Toàn bộ 69 bài kiểm thử đơn vị xUnit và build frontend đều vượt qua thành công 100%.
+
+---
+## [2026-10-25] - Khắc phục BUG-039: Chuẩn hóa mức phí phạt hư hỏng nhẹ 30% giá bìa theo chuẩn US-10.3
+
+- **Điều chỉnh mức phí phạt hư hỏng nhẹ từ 20% lên 30% theo chuẩn US-10.3 ([`FineRule.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Entities/FineRule.cs), [`SystemRulesDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Rules/SystemRulesDto.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**
+  - Khắc phục tình trạng phí bồi thường hư hỏng nhẹ (rách nhẹ mép/ố bìa) bị tính 20% giá bìa (ví dụ cuốn sách 250.000đ ở ca PM-0114 chỉ tính 50.000đ, dẫn đến tổng trước giảm là 105.000đ), thấp hơn 25.000đ so với mức chuẩn 30% đã được chốt trong đặc tả US-10.3 (khung hư hỏng nhẹ/vừa 30% – 50% giá bìa).
+  - Thống nhất mức phí hư hỏng nhẹ mặc định là **30% giá bìa** (`DamageFeePercent = 30.0m`):
+    - Khi tiếp nhận trả sách (ca PM-0114 sách giá 250.000đ), phí hỏng nhẹ tính đúng $250.000 \times 30\% = 75.000$đ.
+    - Tổng nghĩa vụ trước giảm: 55.000đ (trễ 11 ngày) + 75.000đ (hỏng nhẹ) = 130.000đ (thay vì 105.000đ).
+    - Sau khi áp dụng chiết khấu tự động theo điểm tín nhiệm (độc giả điểm 86 được giảm 10% theo US-10.4): giảm 13.000đ, số tiền thực thu là 117.000đ.
+  - Cập nhật database migration tự động và seed scripts (`data/01_schema_smartlib_ai.sql`, `data/02_seed_dummy_data.sql`, `data/monsterasp_init_database.sql`) để đồng bộ chuẩn US-10.3.
+- **Cập nhật giao diện Quầy Tiếp Nhận Trả Sách & Cài Đặt Quy Định ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx), [`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js)):**
+  - Trong màn tiếp nhận trả sách: Tự động hiển thị `Nhẹ (30%)` và tính đúng số tiền phụ thu hỏng nhẹ theo 30% giá bìa.
+  - Trong cài đặt quy định: Cập nhật huy hiệu `Hỏng nhẹ (30%)`, nhãn mô tả *Mức phạt rách / ố nhẹ theo chuẩn US-10.3*, và giá trị khởi tạo `30% giá bìa`.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReturnFineCreditScoreDiscountTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReturnFineCreditScoreDiscountTests.cs)):**
+  - Thêm ca kiểm thử `ProcessReturnItemAsync_DamagedLightCondition_Calculates30PercentDamageFeePerUS103` mô phỏng chính xác ca PM-0114 với sách 250.000đ: phí hỏng nhẹ 75.000đ, tổng trước giảm 130.000đ, giảm tín nhiệm 10% (13.000đ) và thực thu 117.000đ.
+  - Toàn bộ 63 bài kiểm thử đơn vị xUnit và build frontend đều vượt qua thành công 100%.
+
+---
+## [2026-10-25] - Khắc phục BUG-036: Chuẩn hóa hiển thị và xử lý lỗi chính sách chiết khấu tín nhiệm theo chuẩn US-10.4
+
+- **Chuẩn hóa hệ thống phân hạng tín nhiệm và tỷ lệ chiết khấu chuẩn US-10.4 ([`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx), [`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`RulesService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/RulesService.cs), [`Program.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)) - [S2 | P1]:**
+  - Khắc phục tình trạng mô tả chính sách chiết khấu trên giao diện Cài đặt (Tab "Chiết khấu AI & Miễn giảm") sai lệch so với chuẩn US-10.4 đã được phê duyệt (trước đây UI mô tả: Điểm 100 giảm 20%, Điểm $\ge 90$ giảm 10%, Điểm $< 90$ không giảm).
+  - Đồng bộ và thống nhất chuẩn US-10.4 trên cả Frontend, Backend Service và CSDL:
+    - **Hạng Xuất Sắc / Kim Cương (Diamond)**: Điểm tín nhiệm **90 – 100** (hoặc $\ge 90$): Giảm **20%** tổng tiền phạt vi phạm (`FineRule.ConductScoreDiscountPercent` / `aiDiscount_100`).
+    - **Hạng Tốt / Vàng (Gold)**: Điểm tín nhiệm **80 – 89**: Giảm **10%** tổng tiền phạt vi phạm (`FineRule.AiDiscount_90` / `aiDiscount_90`).
+    - **Hạng Tiêu Chuẩn (Standard)**: Điểm tín nhiệm **< 80**: Giảm **0%** (Áp dụng 100% biểu phí phạt gốc, không giảm trừ tự động).
+  - Cập nhật mô tả tên quy tắc trong nhật ký kiểm toán (Audit Trail) của `RulesService`: `"Chiết khấu tín nhiệm tốt (80-89 điểm)"` và `"Chiết khấu tín nhiệm xuất sắc (90-100 điểm)"`.
+  - Thêm ràng buộc kiểm tra hợp lệ giá trị phần trăm chiết khấu ($0\% - 100\%$) trong `RulesService.UpdateRulesAsync`.
+- **Minh bạch hóa cơ chế xử lý lỗi khi tải quy chế hệ thống ([`rulesApi.js`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/api/rulesApi.js), [`LibrarySettings.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/LibrarySettings.jsx)):**
+  - Khắc phục lỗi bảo mật & trải nghiệm người dùng: Trước đây khi API `GET /api/rules` bị lỗi (500 hoặc mất mạng), `rulesApi.getSystemRules()` âm thầm nuốt lỗi và trả về dữ liệu mặc định cục bộ, khiến thủ thư lầm tưởng dữ liệu dự phòng là chính sách đang có hiệu lực trên server.
+  - Cập nhật `rulesApi.getSystemRules(forceRefresh, throwOnError)`: Hỗ trợ cờ `throwOnError` và gắn cờ `_isFallback`, `_loadError` khi có sự cố kết nối.
+  - Bổ sung banner cảnh báo lỗi nổi bật màu đỏ (`rules-load-error-alert`) trên đầu trang Cài đặt khi không tải được dữ liệu từ server, thông báo rõ ràng mã lỗi và cung cấp nút "Tải lại" (Retry).
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`RulesCreditScoreTierTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/RulesCreditScoreTierTests.cs)):**
+  - Viết 7 ca kiểm thử tự động xUnit bao phủ: đọc quy định chiết khấu chuẩn US-10.4, cập nhật tỷ lệ chiết khấu hợp lệ kèm ghi nhật ký kiểm toán chuẩn tên quy định, từ chối các giá trị ngoài phạm vi ($<0\%$ hoặc $>100\%$), và khôi phục về mặc định chuẩn hệ thống (10% và 20%).
+  - 100% bài kiểm thử đơn vị (62/62 tests) đều vượt qua thành công; bản build frontend Vite thành công với thời gian 783ms.
+
+---
+## [2026-10-25] - Khắc phục BUG-007: Tự động giảm trừ tiền phạt trả sách theo điểm tín nhiệm độc giả (US Ưu tiên)
+
+- **Tự động áp dụng chiết khấu phạt theo điểm tín nhiệm ([`ReturnService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReturnService.cs), [`ReturnLookupResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnLookupResponseDto.cs), [`ReturnBookResponseDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Returns/ReturnBookResponseDto.cs), [`IReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Interfaces/IReturnRepository.cs), [`ReturnRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReturnRepository.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi `ReturnService.ProcessReturnItemAsync` và `LookupReturnItemAsync` không tự động giảm trừ tiền phạt theo điểm tín nhiệm của độc giả khi không khai báo miễn giảm thủ công (`WaiverDiscountPercent = 0`). Ví dụ: Độc giả có điểm tín nhiệm 95, trễ 10 ngày phạt gốc 50.000đ nhưng service trả về 50.000đ thay vì 40.000đ (giảm 20%); độc giả PM0114 điểm tín nhiệm 86, phạt gốc 55.000đ không được tự giảm 10%.
+  - Nguyên nhân: Trước đây service chỉ đọc `request.WaiverDiscountPercent` (do thủ thư nhập tay), hoàn toàn bỏ qua `reader.CreditScore` và cấu hình tỷ lệ giảm phạt trong `FineRule`.
+  - Giải pháp:
+    - Đọc `CreditScore` từ hồ sơ độc giả (`reader.CreditScore`).
+    - Phân bổ tỷ lệ giảm tự động theo cấu hình quy định hiện hành trong `FineRule`:
+      - Điểm tín nhiệm $\ge 90$ (90–100): tự động giảm 20% (`FineRule.ConductScoreDiscountPercent`, mặc định 20.0%).
+      - Điểm tín nhiệm 80–89: tự động giảm 10% (`FineRule.AiDiscount_90`, mặc định 10.0%).
+      - Điểm tín nhiệm $< 80$: tự động giảm 0%.
+    - Tách bạch và kết hợp an toàn giữa chiết khấu điểm tín nhiệm tự động và miễn giảm thủ công (`request.WaiverDiscountPercent`): `totalDiscountPercent = Math.Clamp(creditDiscountPercent + manualWaiverPercent, 0m, 100m)`.
+    - Bổ sung các trường chi tiết vào DTO phản hồi: `CreditScore`, `CreditDiscountPercent`, `CreditDiscountAmount`, `WaiverDiscountPercent`, `WaiverDiscountAmount`, `TotalDiscountPercent`, `EstimatedFinalFine`.
+    - Cập nhật repository transaction `ProcessReturnWithTransactionAsync` nhận `totalDiscountPercent` tổng hợp, ghi nhận chính xác `TotalAmount`, `DiscountAmount` và `FinalAmount` vào bảng `FineReceipts`.
+- **Cập nhật giao diện Quầy Tiếp Nhận Trả Sách ([`ReturnProcessing.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/ReturnProcessing.jsx)):**
+  - Hiển thị huy hiệu điểm tín nhiệm của độc giả trong khung thông tin thẻ (`⭐ Tín nhiệm: {creditScore}/100 (Giảm {creditDiscountPct}%)`).
+  - Tách bạch chi tiết thành phần chiết khấu trong hóa đơn xem trước và kết quả trả sách: hiển thị rõ số tiền được tự động giảm do điểm tín nhiệm cao và số tiền được miễn giảm bổ sung do thủ thư chỉ định.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReturnFineCreditScoreDiscountTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReturnFineCreditScoreDiscountTests.cs)):**
+  - Viết 10 ca kiểm thử tự động xUnit bao phủ:
+    - Ca độc giả điểm 95 (trễ 10 ngày phạt 50.000đ $\rightarrow$ giảm 20% còn 40.000đ).
+    - Ca độc giả điểm 86 PM0114 (phạt gốc 55.000đ $\rightarrow$ giảm 10% còn 49.000đ).
+    - Kiểm thử các mốc biên tín nhiệm: 100 (20%), 90 (20%), 89 (10%), 80 (10%), 79 (0%), 50 (0%).
+    - Kết hợp chiết khấu tín nhiệm tự động với miễn giảm thủ công (20% + 30% = 50%).
+    - Màn hình xem trước tra cứu `LookupReturnItemAsync`.
+  - 100% các bài kiểm thử xUnit (55/55 tests) và build frontend Vite đều thành công.
+
+---
+## [2026-10-25] - Khắc phục BUG-006: Cho phép mượn sách khi nợ chưa vượt ngưỡng 50.000 đồng (US-08.1)
+
+- **Chuẩn hóa điều kiện chặn mượn theo ngưỡng nợ ([`BorrowService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/BorrowService.cs), [`BorrowReaderEligibilityDto.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/DTOs/Borrows/BorrowReaderEligibilityDto.cs)) - [S2 | P1]:**
+  - Khắc phục lỗi hệ thống chặn mượn sách độc giả có nợ phạt $\le 50.000$ VNĐ (ví dụ: DEMO0001 nợ 40.000đ, DEMO0003 nợ đúng 50.000đ, hoặc 49.999đ) dù US-08.1 chỉ yêu cầu chặn mượn khi tổng nợ **vượt quá** 50.000 VNĐ.
+  - Nguyên nhân: `BorrowService.CreateBorrowAsync` và `CheckReaderEligibilityAsync` trước đây kiểm tra trực tiếp cờ `unpaidFines.HasUnpaidFines`, từ chối mượn ngay khi có bất kỳ khoản nợ nào (> 0đ). Đồng thời, `BorrowReaderEligibilityDto.CanBorrow` cũng chứa điều kiện `!HasUnpaidFines`.
+  - Giải pháp:
+    - Bổ sung trường `DebtLockThreshold` (lấy từ cấu hình `FineRule.DebtLockAmount`, mặc định 50.000 VNĐ) và thuộc tính tính toán `IsDebtBlocked => UnpaidFineAmount > DebtLockThreshold` trong `BorrowReaderEligibilityDto`.
+    - Cập nhật điều kiện `CanBorrow`: `IsActive && !IsExpired && !IsDebtBlocked && RemainingBorrowLimit > 0`. Độc giả chỉ bị từ chối do nợ khi `UnpaidFineAmount > DebtLockThreshold`.
+    - Trong `BorrowService.CreateBorrowAsync` và `CheckReaderEligibilityAsync`: lấy `debtThreshold` từ `FineRule` hiện hành và chỉ chặn mượn khi `unpaidFines.TotalUnpaidAmount > debtThreshold`.
+    - Bảo toàn tính độc lập tuyệt đối của các chốt chặn khác: tài khoản thẻ bị khóa (`!IsActive`) hoặc thẻ hết hạn (`IsExpired`) luôn bị chặn mượn độc lập, bất kể số tiền nợ.
+- **Cập nhật giao diện Quầy Lưu Thông ([`BorrowForm.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/components/BorrowForm.jsx)):**
+  - Cập nhật các nút thử nghiệm nhanh: `DEMO0001` (nợ 40k $\le$ 50k - Mượn OK theo US-08.1) và `DEMO0004` (nợ 55k > 50k - Từ chối theo US-08.1).
+  - Tối ưu hiển thị trạng thái và thông báo cho thủ thư khi độc giả có nợ phạt nhưng chưa vượt ngưỡng cho phép.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`BorrowEligibilityDebtTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/BorrowEligibilityDebtTests.cs)):**
+  - Viết 24 test cases xUnit bao phủ toàn diện: tính toán `CanBorrow` của DTO với các mốc nợ (0đ, 40.000đ, 49.999đ, đúng 50.000đ, 50.001đ, 55.000đ, 100.000đ); kiểm tra `CheckReaderEligibilityAsync`; kiểm tra `CreateBorrowAsync`; và bảo đảm thẻ khóa/hết hạn luôn bị chặn độc lập.
+  - Toàn bộ 45 unit tests của hệ thống đều vượt qua thành công 100%.
+
+## [2026-10-25] - Khắc phục BUG-028: Tính nguyên tử khi Khóa/Mở thẻ bạn đọc và đồng bộ trạng thái UI
+
+- **Bảo đảm tính nguyên tử khi khóa/mở thẻ ([`ReaderRepository.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Infrastructure/Repositories/ReaderRepository.cs), [`ReaderService.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/ReaderService.cs)) - [P1]:**
+  - Khắc phục triệt để lỗi HTTP 500 khi gọi `PUT /api/readers/{id}/status` và `PUT /api/readers/{id}/toggle-lock`: Nguyên nhân do việc cập nhật `User.IsActive` được commit trước khi ghi thông báo `Notification`. Trên môi trường deploy, bảng `Notifications` có cột `Title NVARCHAR(200) NOT NULL` chưa có giá trị mặc định và thiếu thuộc tính tương ứng trong Entity `Notification`, khiến lệnh INSERT thông báo ném ngoại lệ dẫn đến lỗi HTTP 500 dù trạng thái thẻ đã bị lưu vào CSDL.
+  - Bổ sung phương thức `UpdateUserLockStatusWithNotificationAsync` sử dụng ExecutionStrategy và Transaction an toàn nguyên tử; nếu xảy ra lỗi ở bất kỳ bước nào, toàn bộ giao dịch được Rollback, giữ nguyên trạng thái cũ.
+  - Bổ sung trường `Title` và `Type` trong `Notification` entity, cấu hình `SmartLibDbContext` với giá trị mặc định, cập nhật đồng bộ các file schema `01_schema_smartlib_ai.sql` và `monsterasp_init_database.sql`.
+- **Cập nhật giao diện theo trạng thái đích và đồng bộ dữ liệu sau lỗi ([`ReaderProfiles.jsx`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/frontend/src/pages/ReaderProfiles.jsx)):**
+  - Chuyển thao tác khóa/mở thẻ từ đảo mù (`toggleLock`) sang cập nhật trạng thái đích (`readerApi.setStatus(id, targetIsActive)`), ngăn ngừa hiện tượng đảo ngược trạng thái ngoài ý muốn.
+  - Loại bỏ hiển thị thông báo thành công lạc quan trước khi API phản hồi; thông báo thành công chỉ hiển thị sau khi luồng hoàn tất thành công.
+  - Bổ sung cơ chế tự động đọc lại trạng thái thực từ SQL Server khi gặp sự cố, đảm bảo danh sách và khung tóm tắt luôn đồng bộ chính xác với cơ sở dữ liệu.
+- **Bổ sung bộ kiểm thử đơn vị tự động ([`ReaderLockTests.cs`](file:///c:/Users/duchu/LV23-088-Library-Revenue-AI/tests/SmartLibAI.Tests/ReaderLockTests.cs)):**
+  - Viết 8 bài kiểm thử xUnit bao phủ các ca: khóa thẻ thành công, mở khóa thẻ thành công, đảo trạng thái 2 chiều, xử lý khi độc giả không tồn tại, tính toàn vẹn khi transaction thất bại, và tính đúng đắn của DTO.
+>>>>>>> origin/develop
+
 ## [2026-10-23] - Khắc Phục Lỗi Máy Chủ 500 (InvalidCastException) Trong SmartLibDbContext
 
 - **Loại Bỏ HasConversion<int>() Cho Cột BIT Trong FineRules ([`SmartLibDbContext.cs`](src/SmartLibAI.Infrastructure/Data/SmartLibDbContext.cs)) - [P0]:**

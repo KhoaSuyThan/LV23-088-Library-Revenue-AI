@@ -47,5 +47,13 @@ public interface IInvoiceService
     /// Lấy danh sách độc giả có nguy cơ trễ hạn cao do AI đánh giá (phục vụ Tab AI Dự báo trên màn hình Thu phạt).
     /// </summary>
     Task<ApiResponse<List<AiForecastReaderDto>>> GetAiForecastReadersAsync();
+
+    /// <summary>
+    /// Thống kê danh sách các đầu sách có tỷ lệ vi phạm (quá hạn, hư hỏng, mất) cao nhất từ dữ liệu thực tế (BUG-043 & US-11.3).
+    /// </summary>
+    Task<ApiResponse<List<TopViolatedBookDto>>> GetTopViolatedBooksAsync(
+        string? timeRange = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null);
 }
 

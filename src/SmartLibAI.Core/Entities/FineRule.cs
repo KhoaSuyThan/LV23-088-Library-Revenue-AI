@@ -34,9 +34,9 @@ public class FineRule
     public int LecturerBorrowDays { get; set; } = 30;
 
     /// <summary>
-    /// Mức phạt làm rách / hỏng sách nhẹ tính theo % giá bìa (mặc định 20%).
+    /// Mức phạt làm rách / hỏng sách nhẹ tính theo % giá bìa theo US-10.3 (mặc định 30%).
     /// </summary>
-    public decimal DamageFeePercent { get; set; } = 20.0m;
+    public decimal DamageFeePercent { get; set; } = 30.0m;
 
     /// <summary>
     /// Mức phạt làm hỏng sách vừa tính theo % giá bìa (mặc định 40%).

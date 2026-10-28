@@ -59,6 +59,39 @@ public class ReturnBookResponseDto
 
     public decimal LostFee { get; set; }
 
+    /// <summary>
+    /// Điểm tín nhiệm của độc giả (0 - 100).
+    /// </summary>
+    public int CreditScore { get; set; } = 100;
+
+    /// <summary>
+    /// Tỷ lệ giảm trừ tự động theo điểm tín nhiệm độc giả (80-89: 10%; 90-100: 20%).
+    /// </summary>
+    public decimal CreditDiscountPercent { get; set; } = 0m;
+
+    /// <summary>
+    /// Số tiền giảm trừ theo điểm tín nhiệm độc giả.
+    /// </summary>
+    public decimal CreditDiscountAmount { get; set; } = 0m;
+
+    /// <summary>
+    /// Tỷ lệ miễn giảm thủ công do thủ thư duyệt (0 - 100%).
+    /// </summary>
+    public decimal WaiverDiscountPercent { get; set; } = 0m;
+
+    /// <summary>
+    /// Số tiền miễn giảm thủ công do thủ thư duyệt.
+    /// </summary>
+    public decimal WaiverDiscountAmount { get; set; } = 0m;
+
+    /// <summary>
+    /// Tổng tỷ lệ giảm trừ (CreditDiscountPercent + WaiverDiscountPercent, tối đa 100%).
+    /// </summary>
+    public decimal TotalDiscountPercent { get; set; } = 0m;
+
+    /// <summary>
+    /// Tổng số tiền giảm trừ (= CreditDiscountAmount + WaiverDiscountAmount).
+    /// </summary>
     public decimal DiscountAmount { get; set; }
 
     public decimal TotalFine { get; set; }

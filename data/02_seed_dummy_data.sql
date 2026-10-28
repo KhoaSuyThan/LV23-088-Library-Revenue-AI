@@ -25,7 +25,7 @@ VALUES
     (N'Y học & Sức khỏe');
 
 INSERT INTO FineRules (RuleName, FinePerDay, DamageMultiplier, StudentBorrowLimit, StudentBorrowDays, LecturerBorrowLimit, LecturerBorrowDays, DamageFeePercent, DamageMediumPercent, DamageSeverePercent, ConductScoreDiscountPercent, MaxRenewalTimes, RenewalExtraDays, DebtLockAmount, AutoLockDebtThreshold, AiRiskThreshold, AiRemindDaysBefore, AiAutoEmailReminder, CompensationFixedFee, CompensationBasePercent, MaxFineCapPercent, CompensationRatePercent, AiDiscount_90, AiAccuracy, AiLastTrained, IsActive) 
-VALUES (N'Quy định Thư viện Tiêu chuẩn', 5000, 1.0, 5, 14, 10, 30, 20.0, 40.0, 110.0, 20.0, 1, 7, 50000, 1, 80, 3, 1, 0, 110.0, 100.0, 200.0, 10.0, 84.5, '10/09/2026', 1);
+VALUES (N'Quy định Thư viện Tiêu chuẩn', 5000, 1.0, 5, 14, 10, 30, 30.0, 40.0, 110.0, 20.0, 1, 7, 50000, 1, 80, 3, 1, 0, 110.0, 100.0, 200.0, 10.0, 84.5, '10/09/2026', 1);
 
 INSERT INTO WaiverReasons (ReasonCode, ReasonName, DefaultDiscountPercent, IsActive) VALUES
 ('WR-SICK', N'Nghỉ ốm có giấy ra/nhập viện điều trị', 100, 1),

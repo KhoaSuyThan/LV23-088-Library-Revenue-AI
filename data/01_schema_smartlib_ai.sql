@@ -66,7 +66,9 @@ CREATE TABLE Readers (
 CREATE TABLE Notifications (
     NotificationID INT IDENTITY(1,1) PRIMARY KEY,
     UserID INT NOT NULL,
+    Title NVARCHAR(200) NOT NULL DEFAULT N'Thông báo hệ thống',
     Message NVARCHAR(MAX) NOT NULL,
+    Type NVARCHAR(50) NOT NULL DEFAULT 'System',
     IsRead BIT DEFAULT 0,
     CreatedAt DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserID) REFERENCES Users(UserID)
@@ -139,7 +141,7 @@ CREATE TABLE FineRules (
     StudentBorrowDays INT NOT NULL DEFAULT 14, -- Thời hạn mượn Sinh viên: 14 ngày
     LecturerBorrowLimit INT NOT NULL DEFAULT 10, -- Hạn mức mượn Giảng viên: tối đa 10 cuốn
     LecturerBorrowDays INT NOT NULL DEFAULT 30, -- Thời hạn mượn Giảng viên: 30 ngày
-    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Mức phụ thu đền bù sách rách/hỏng nhẹ (20%)
+    DamageFeePercent DECIMAL(5,2) NOT NULL DEFAULT 30.0, -- Mức phụ thu đền bù sách rách/hỏng nhẹ theo US-10.3 (30%)
     DamageMediumPercent DECIMAL(5,2) NOT NULL DEFAULT 40.0, -- Mức phạt làm hỏng sách vừa (40%)
     DamageSeverePercent DECIMAL(5,2) NOT NULL DEFAULT 110.0, -- Mức phạt làm hỏng sách nặng (110%)
     ConductScoreDiscountPercent DECIMAL(5,2) NOT NULL DEFAULT 20.0, -- Tỷ lệ giảm trừ tiền phạt theo điểm rèn luyện
