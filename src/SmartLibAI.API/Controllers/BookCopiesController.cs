@@ -86,10 +86,20 @@ public class BookCopiesController : ControllerBase
         var result = await _bookService.UpdateCopyStatusAsync(copyId, request);
         if (!result.Success)
         {
-            return NotFound(result);
+            return result.ErrorCode switch
+            {
+                CopyStatusUpdateError.NotFound => NotFound(
+                    ApiResponse<bool>.ErrorResult(result.ErrorMessage ?? $"Không tìm thấy bản sao ID {copyId}.")),
+                CopyStatusUpdateError.ActiveBorrowExists => BadRequest(
+                    ApiResponse<bool>.ErrorResult(result.ErrorMessage ?? "Bản sao đang có phiếu mượn hoạt động.")),
+                CopyStatusUpdateError.ManualBorrowedNotAllowed => BadRequest(
+                    ApiResponse<bool>.ErrorResult(result.ErrorMessage ?? "Không thể đặt trạng thái 'Borrowed' thủ công.")),
+                _ => BadRequest(
+                    ApiResponse<bool>.ErrorResult(result.ErrorMessage ?? "Cập nhật trạng thái bản sao thất bại."))
+            };
         }
 
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(true, $"Đã cập nhật trạng thái bản sao thành '{request.Status}' thành công."));
     }
 
     /// <summary>

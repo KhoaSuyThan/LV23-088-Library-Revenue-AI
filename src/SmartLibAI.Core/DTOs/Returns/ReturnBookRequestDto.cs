@@ -18,6 +18,9 @@ public class ReturnBookRequestDto
     /// 'Good' (Nguyên vẹn/Bình thường), 'Damaged' / 'DamagedLight' (Hỏng bìa/rách sách nhẹ/vừa), 
     /// 'DamagedSevere' (Hư hỏng nặng), 'Lost' (Mất sách).
     /// </summary>
+    [Required(ErrorMessage = "Tình trạng sách không được để trống.")]
+    [RegularExpression("^(Good|Damaged|DamagedLight|DamagedMedium|DamagedSevere|Lost)$",
+        ErrorMessage = "Tình trạng sách chỉ được nhận một trong các giá trị hợp lệ: Good, Damaged, DamagedLight, DamagedMedium, DamagedSevere, Lost.")]
     public string Condition { get; set; } = "Good";
 
     /// <summary>
