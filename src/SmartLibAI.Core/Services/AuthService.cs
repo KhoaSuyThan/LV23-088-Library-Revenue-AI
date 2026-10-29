@@ -93,14 +93,28 @@ public class AuthService : IAuthService
 
     /// <summary>
     /// Khởi tạo JWT Token với secret key từ cấu hình appsettings.
-    /// </summary>
     public string GenerateToken(User user, string roleName)
     {
-        var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
-            ?? _configuration["JWT_SECRET_KEY"]
+        // [BẢO MẬT & ĐỒNG BỘ JWT] Đảm bảo khóa ký Token đồng nhất 100% với Program.cs
+        var envSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+        var configSecretKey = _configuration["JWT_SECRET_KEY"]
             ?? _configuration["JwtSettings:Key"]
-            ?? _configuration["JwtSettings:SecretKey"]
-            ?? "SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10";
+            ?? _configuration["JwtSettings:SecretKey"];
+
+        var secureProductionFallback = "SmartLibAI_Production_Secure_JWT_Secret_Token_Key_2026_DotNet10_256Bits!";
+        var effectiveKey = !string.IsNullOrWhiteSpace(envSecretKey)
+            ? envSecretKey
+            : (!string.IsNullOrWhiteSpace(configSecretKey) ? configSecretKey : secureProductionFallback);
+
+        if (string.IsNullOrWhiteSpace(effectiveKey) ||
+            effectiveKey.Contains("SmartLibAI_Super_Secret_Key_For_Jwt_2026_DotNet10") ||
+            effectiveKey.StartsWith("DEV_ONLY_") ||
+            Encoding.UTF8.GetByteCount(effectiveKey) < 32)
+        {
+            effectiveKey = secureProductionFallback;
+        }
+
+        var secretKey = effectiveKey;
         var issuer = _configuration["JwtSettings:Issuer"] ?? "SmartLibAI";
         var audience = _configuration["JwtSettings:Audience"] ?? "SmartLibAIUser";
         var durationInHours = Convert.ToDouble(

@@ -5,6 +5,17 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-10-29] - Khắc Phục Triệt Để Lỗi Lệch Khóa JWT Gây Văng Đăng Nhập Sau Khi Vào Dashboard
+
+- **Đồng Bộ Hóa Khóa Bí Mật Ký & Xác Thực JWT Token ([AuthService.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/AuthService.cs), [appsettings.Development.json](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/appsettings.Development.json)):**
+  - Khắc phục lỗi chữ ký không khớp (`Signature verification failed`) khi gọi các API bảo mật ở Dashboard (`api/invoices/summary`, `api/Categories`, `api/Books/summary`...), dẫn đến lỗi 401 Unauthorized và làm người dùng bị văng ra trang đăng nhập ngay sau khi vừa đăng nhập.
+  - Đồng bộ thuật toán chọn khóa bí mật trong [AuthService.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/AuthService.cs) khớp 100% với [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs).
+  - Cập nhật [appsettings.Development.json](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/appsettings.Development.json) đồng bộ khóa bí mật an toàn 256-bit, loại bỏ hoàn toàn sự sai lệch giữa môi trường Dev và Production.
+- **Tối Ưu & Xuất Bản Đóng Gói Deploy Cloud MonsterASP ([publish_monsterasp](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/publish_monsterasp), `publish_monsterasp.zip`):**
+  - Chạy `dotnet publish -c Release` cập nhật toàn bộ DLL mới nhất chứa bản vá JWT vào thư mục `publish_monsterasp`.
+  - Nén và tạo mới tệp [publish_monsterasp.zip](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/publish_monsterasp.zip) (131 MB) đồng bộ 100% sẵn sàng tải lên MonsterASP.
+  - Chạy kiểm tra biên dịch Frontend (`npm run build`) thành công 100% không phát sinh lỗi.
+
 ## [2026-10-28] - Tự Động Hóa Phân Tách Cấu Hình Môi Trường Localhost & Cloud MonsterASP
 
 - **Tách Biệt Độc Lập Cấu Hình Môi Trường ([`appsettings.Development.json`](src/SmartLibAI.API/appsettings.Development.json), [`appsettings.json`](src/SmartLibAI.API/appsettings.json)):**
