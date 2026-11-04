@@ -5,6 +5,18 @@ Tài liệu ghi lại toàn bộ lịch sử các thay đổi, bổ sung và c�
 > Quy tắc: Nội dung cập nhật mới nhất luôn được tự động chèn ngay bên dưới dấu phân cách bên dưới.
 
 ---
+## [2026-11-04] - Triển Khai Chế Độ Trải Nghiệm Demo Chỉ Đọc (Read-only Demo Mode) Bảo Vệ Dữ Liệu Toàn Diện
+
+- **Bảo Vệ Dữ Liệu Tầng Backend .NET Core ([DemoReadOnlyMiddleware.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Middlewares/DemoReadOnlyMiddleware.cs), [Program.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/Program.cs)):**
+  - Xây dựng middleware `DemoReadOnlyMiddleware` tự động nhận diện tài khoản `demo` và chặn 100% các request làm biến đổi CSDL (`POST`, `PUT`, `DELETE`, `PATCH` – ngoại trừ `/api/auth/logout`), trả về HTTP 403 Forbidden kèm thông điệp cảnh báo rõ ràng.
+  - Tự động nạp tài khoản `demo` (`demo` / `Demo@123`, quyền Admin để mở khóa xem toàn bộ giao diện và báo cáo) trong logic khởi động của `Program.cs`.
+  - Cập nhật đồng bộ các file script cơ sở dữ liệu mẫu: [02_seed_dummy_data.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/02_seed_dummy_data.sql), [04_reset_demo_seed.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/04_reset_demo_seed.sql) và [monsterasp_init_database.sql](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/data/monsterasp_init_database.sql).
+- **Trải Nghiệm Giao Diện Người Dùng Phía Frontend ([LoginPage.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/LoginPage.jsx), [DashboardPage.jsx](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/frontend/src/pages/DashboardPage.jsx)):**
+  - Thêm nút tiện ích **"Trải nghiệm nhanh với Tài khoản Demo"** ngay tại form đăng nhập, cho phép nhà tuyển dụng/khách tham quan truy cập hệ thống ngay tức thì mà không cần ghi nhớ mật khẩu.
+  - Bổ sung huy hiệu trạng thái **Demo (Read-only)** trên thanh Header và banner thông báo trực quan trên Dashboard, thông tin rõ ràng về cơ chế bảo vệ dữ liệu.
+- **Kiểm Thử & Đảm Bảo Chất Lượng:**
+  - Toàn bộ 98 unit tests Backend chạy thành công 100%. Frontend build `vite build` vượt qua không phát sinh lỗi biên dịch.
+
 ## [2026-10-29] - Khắc Phục Triệt Để Lỗi Lệch Khóa JWT Gây Văng Đăng Nhập Sau Khi Vào Dashboard
 
 - **Đồng Bộ Hóa Khóa Bí Mật Ký & Xác Thực JWT Token ([AuthService.cs](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.Core/Services/AuthService.cs), [appsettings.Development.json](file:///c:/Users/aaa/Pictures/SaveCode/LV23-088-Library-Revenue-AI/src/SmartLibAI.API/appsettings.Development.json)):**

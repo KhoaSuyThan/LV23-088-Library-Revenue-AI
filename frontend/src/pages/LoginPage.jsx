@@ -115,6 +115,14 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
                 </div>
                 <div
                   className="quick-test-item"
+                  onClick={() => fillQuickAccount('demo', 'Demo@123')}
+                  title="Bấm để trải nghiệm tài khoản Demo (Chỉ đọc)"
+                >
+                  <span>🛡️ <strong>Khách Demo</strong></span>
+                  <span className="quick-badge" style={{ backgroundColor: '#10b981' }}>DEMO</span>
+                </div>
+                <div
+                  className="quick-test-item"
                   onClick={() => fillQuickAccount('duchuy3d2005@gmail.com', '25022005H')}
                   title="Bấm để kiểm thử chặn quyền Bạn đọc"
                 >
@@ -214,6 +222,27 @@ export default function LoginPage({ onLoginSuccess, sessionExpiredMessage }) {
                   <span>Đăng nhập</span>
                 )}
               </button>
+
+              {/* Phân cách và Nút Trải nghiệm nhanh với tài khoản Demo */}
+              <div className="demo-login-divider">
+                <span>hoặc trải nghiệm ngay</span>
+              </div>
+              <button
+                type="button"
+                className="demo-quick-btn"
+                onClick={() => {
+                  setUsername('demo');
+                  setPassword('Demo@123');
+                  setErrorMessage('');
+                }}
+                title="Bấm để tự điền tài khoản Demo và trải nghiệm hệ thống"
+              >
+                <span className="demo-btn-icon">🛡️</span>
+                <span>Trải nghiệm nhanh với <strong>Tài khoản Demo</strong></span>
+              </button>
+              <p className="demo-note-text">
+                Tài khoản trải nghiệm chỉ đọc (Read-only), bảo toàn 100% dữ liệu gốc.
+              </p>
             </form>
           </div>
         </div>

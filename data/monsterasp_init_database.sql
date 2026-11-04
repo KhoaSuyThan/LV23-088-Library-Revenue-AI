@@ -242,7 +242,8 @@ INSERT INTO RuleAuditLogs (RuleKey, RuleName, OldValue, NewValue, ChangedBy, Cha
 INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive) 
 VALUES 
 (1, 'khoanv', '$2a$11$VXHswuIwLM81sMGCTIdOveqq1uHzi5WbLTgN2tkKpnp46hBuVoVV6', N'Nguyễn Võ Lê Khoa', 'khoanv249@gmail.com', 1),
-(2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com', 1);
+(2, 'nhatnam', '$2a$11$hbz6Xj1VJWPIbZBTOkaNg.uH3iavoeqoNL2yjEZoaGl1STHVeDnV2', N'Nguyễn Thành Nhất Nam', 'nguyennhatnam213654@gmail.com', 1),
+(1, 'demo', '$2b$11$T1I83MSLWcd5WlztDd6FB.lW6SI3mapUQXRcfqhPXbyueF.FZ7/dq', N'Khách Trải Nghiệm Demo', 'demo@smartlib.edu.vn', 1);
 
 -- Độc giả mẫu
 DECLARE @NewUserID INT;

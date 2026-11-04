@@ -1276,6 +1276,14 @@ export default function DashboardPage({
               )}
             </div>
 
+            {/* Huy hiệu nhận diện Chế độ Demo Chỉ đọc */}
+            {user?.username?.toLowerCase() === 'demo' && (
+              <div className="demo-mode-badge" title="Tài khoản đang hoạt động ở chế độ Demo chỉ đọc (Read-only)">
+                <span className="demo-badge-dot"></span>
+                <span>Demo (Read-only)</span>
+              </div>
+            )}
+
             {/* Thông tin người dùng đăng nhập (Nhấp để mở hồ sơ cá nhân) */}
             <div
               className="user-profile"
@@ -1304,6 +1312,19 @@ export default function DashboardPage({
             </div>
           </div>
         </header>
+
+        {/* Banner thông báo chế độ Demo Read-only */}
+        {user?.username?.toLowerCase() === 'demo' && (
+          <div className="demo-mode-notice-banner">
+            <div className="demo-notice-left">
+              <span className="demo-notice-shield">🛡️</span>
+              <div className="demo-notice-text-group">
+                <strong>Chế độ Trải nghiệm Demo (Read-only):</strong>
+                <span>Bạn có thể khám phá toàn bộ tính năng, tra cứu lưu thông, phân tích AI và xem báo cáo. Dữ liệu gốc được bảo vệ an toàn, không bị sửa/xóa.</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Banner thông báo Toast cho Thủ thư */}
         {notificationToast && (
