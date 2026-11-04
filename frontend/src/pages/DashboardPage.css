@@ -1467,5 +1467,80 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================================
+   CHẾ ĐỘ DEMO READ-ONLY (HUY HIỆU & BANNER BẢO VỆ DỮ LIỆU)
+   ============================================================ */
+.demo-mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-right: 8px;
+  animation: pulse-demo-badge 3s infinite ease-in-out;
+}
+
+.demo-badge-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 6px #10b981;
+}
+
+@keyframes pulse-demo-badge {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.demo-mode-notice-banner {
+  background: linear-gradient(90deg, #ecfdf5 0%, #f0fdf4 100%);
+  border-bottom: 1px solid #bbf7d0;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.05);
+  animation: slide-in-banner 0.3s ease-out;
+}
+
+@keyframes slide-in-banner {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 80px; }
+}
+
+.demo-notice-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #065f46;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.demo-notice-shield {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.demo-notice-text-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.demo-notice-text-group strong {
+  color: #047857;
+  font-weight: 700;
+}
+
 
 

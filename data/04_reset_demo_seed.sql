@@ -1,4 +1,4 @@
-﻿-- SmartLib AI demo/UAT reset seed (LO LRA-94).
+-- SmartLib AI demo/UAT reset seed (LO LRA-94).
 -- WARNING: Deletes circulation, fine, notification, and demo reader data. Keeps
 -- catalog (Books, BookCopies, Categories), staff/admin accounts, and settings.
 -- Run only against a disposable demo database after taking a backup.
@@ -20,6 +20,13 @@ DELETE FROM Borrowings;
 DELETE FROM Notifications;
 DELETE FROM Readers;
 DELETE FROM Users WHERE RoleID = (SELECT TOP (1) RoleID FROM Roles WHERE RoleName = 'Reader');
+
+-- Đảm bảo tài khoản trải nghiệm Demo (Read-only) luôn sẵn sàng
+IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'demo')
+BEGIN
+    INSERT INTO Users (RoleID, Username, PasswordHash, FullName, Email, IsActive)
+    VALUES (1, 'demo', '$2b$11$T1I83MSLWcd5WlztDd6FB.lW6SI3mapUQXRcfqhPXbyueF.FZ7/dq', N'Khách Trải Nghiệm Demo', 'demo@smartlib.edu.vn', 1);
+END
 
 -- Restore catalog copy states to the known baseline before creating loans.
 UPDATE BookCopies SET Status = 'Available' WHERE Status = 'Borrowed';

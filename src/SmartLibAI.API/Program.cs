@@ -188,6 +188,8 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
+// Kích hoạt chế độ bảo vệ chỉ đọc đối với tài khoản trải nghiệm demo
+app.UseMiddleware<SmartLibAI.API.Middlewares.DemoReadOnlyMiddleware>();
 app.MapControllers();
 
 // 7. Tự động kiểm tra Schema CSDL & Khởi tạo dữ liệu mẫu (Auto-Migration & Seeding)
@@ -417,6 +419,23 @@ using (var scope = app.Services.CreateScope())
                 AiDiscount_90 = 10.0m,
                 IsActive = true
             });
+            await context.SaveChangesAsync();
+        }
+
+        // Tự động khởi tạo tài khoản trải nghiệm Demo (Read-only) nếu chưa tồn tại
+        if (!await context.Users.AnyAsync(u => u.Username == "demo"))
+        {
+            var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
+            var demoUser = new SmartLibAI.Core.Entities.User
+            {
+                RoleID = adminRole?.RoleID ?? 1,
+                Username = "demo",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Demo@123"),
+                FullName = "Khách Trải Nghiệm Demo",
+                Email = "demo@smartlib.edu.vn",
+                IsActive = true
+            };
+            await context.Users.AddAsync(demoUser);
             await context.SaveChangesAsync();
         }
 
